@@ -37,13 +37,12 @@ import { FailureResult } from "@shexjs/validator"
 
 declare class Tree {
     readonly node: N3.BlankNode;
-    private readonly children;
     constructor(node: N3.BlankNode, children: Iterable<[string, Value]>);
-    get termType(): string;
-    get value(): string;
+    get termType(): "Tree";
+    get value(): "";
     get size(): number;
     [Symbol.iterator](): IterableIterator<[string, Value]>;
-    get(node: string): N3.Literal | N3.BlankNode | Tree | N3.NamedNode<string> | undefined;
+    get(component: string): N3.Literal | N3.BlankNode | Tree | N3.NamedNode<string> | undefined;
 }
 
 type Value = N3.BlankNode | N3.NamedNode | N3.Literal | Tree
