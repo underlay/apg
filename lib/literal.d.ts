@@ -1,7 +1,7 @@
 /// <reference types="shexjs" />
 import { SuccessResult } from "@shexjs/validator";
 import { DatatypeConstraint } from "./utils.js";
-import { LiteralType } from "./schema.js";
+import { APG } from "./schema.js";
 export declare type LiteralResult = {
     type: "NodeConstraintTest";
     node: string;
@@ -13,4 +13,4 @@ export declare type LiteralShape = DatatypeConstraint & ({} | {
     pattern: string;
     flags: string;
 });
-export declare function makeLiteralShape({ type, datatype, ...rest }: LiteralType): LiteralShape;
+export declare function makeLiteralShape({ type, datatype, ...rest }: APG.Literal): LiteralShape;

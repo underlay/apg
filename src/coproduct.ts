@@ -1,9 +1,9 @@
 import ShExParser from "@shexjs/parser"
 import { SuccessResult, ShapeOrResults } from "@shexjs/validator"
 
-import { Type, CoproductType } from "./schema.js"
+import { APG } from "./schema.js"
 import { zip } from "./utils.js"
-import { isNilShapeResult, isNilShapeExpr } from "./nil.js"
+import { isUnitShapeResult, isUnitShapeExpr } from "./unit.js"
 import {
 	isProductResult,
 	parseProductResult,
@@ -26,8 +26,8 @@ export function isShapeOr(
 }
 
 export function makeCoproductShape(
-	type: CoproductType,
-	makeShapeExpr: (type: Type) => ShExParser.shapeExpr
+	type: APG.Coproduct,
+	makeShapeExpr: (type: APG.Type) => ShExParser.shapeExpr
 ): ShExParser.ShapeOr {
 	return {
 		type: "ShapeOr",
@@ -42,8 +42,8 @@ export function matchResultOption(
 	// console.error("Matching result", isIriResult(result))
 	// console.error(JSON.stringify(result, null, "  "))
 	// console.error(JSON.stringify(shapeExprs, null, "  "))
-	if (isNilShapeResult(result)) {
-		return shapeExprs.findIndex(isNilShapeExpr)
+	if (isUnitShapeResult(result)) {
+		return shapeExprs.findIndex(isUnitShapeExpr)
 	} else if (isLabelResult(result)) {
 		const [{}, shape] = parseLabelResult(result)
 		return shapeExprs.findIndex((shapeExpr) => shapeExpr === shape)

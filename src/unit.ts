@@ -29,19 +29,19 @@ export function isEmptyShape(
 	return shapeExpr === emptyShape
 }
 
-type nilShapeExpr = {
+type unitShapeExpr = {
 	type: "ShapeAnd"
 	shapeExprs: [BlankNodeConstraint, emptyShape]
 }
 
-export const nilShapeExpr: nilShapeExpr = {
+export const unitShapeExpr: unitShapeExpr = {
 	type: "ShapeAnd",
 	shapeExprs: [blankNodeConstraint, emptyShape],
 }
 
-export function isNilShapeExpr(
+export function isUnitShapeExpr(
 	shapeExpr: ShExParser.shapeExpr
-): shapeExpr is nilShapeExpr {
+): shapeExpr is unitShapeExpr {
 	if (typeof shapeExpr === "string") {
 		return false
 	} else if (shapeExpr.type !== "ShapeAnd") {
@@ -66,15 +66,14 @@ export function isEmptyShapeResult(
 	return result.type === "ShapeTest" && isAnyTypeResult(result.solution)
 }
 
-export type NilShapeResult = {
+export type UnitShapeResult = {
 	type: "ShapeAndResults"
 	solutions: [BlankNodeConstraintResult, EmptyShapeResult]
 }
 
-export function isNilShapeResult(
+export function isUnitShapeResult(
 	result: SuccessResult
-): result is NilShapeResult {
-	// console.error("testing is nil shape result", result)
+): result is UnitShapeResult {
 	if (result.type !== "ShapeAndResults") {
 		return false
 	} else if (result.solutions.length !== 2) {

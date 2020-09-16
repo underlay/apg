@@ -1,31 +1,27 @@
 import N3 from "n3.ts"
 
-export type APG = Label[]
+export namespace APG {
+	export type Schema = Label[]
 
-export type Label = {
-	id: string
-	type: "label"
-	key: string
-	value: Type
+	export type Label = {
+		id: string
+		type: "label"
+		key: string
+		value: Type
+	}
+
+	export type Type = Reference | Unit | Iri | Literal | Product | Coproduct
+
+	type Pattern = {} | { pattern: string; flags: string }
+	export type Reference = { id: string }
+	export type Unit = { type: "unit" }
+	export type Iri = { type: "iri" } & Pattern
+	export type Literal = { type: "literal"; datatype: string } & Pattern
+	export type Product = { type: "product"; components: Component[] }
+	export type Component = { type: "component"; key: string; value: Type }
+	export type Coproduct = { type: "coproduct"; options: Option[] }
+	export type Option = { type: "option"; value: Type }
 }
-
-export type Type =
-	| ReferenceType
-	| NilType
-	| IriType
-	| LiteralType
-	| ProductType
-	| CoproductType
-
-type Pattern = {} | { pattern: string; flags: string }
-export type ReferenceType = { id: string }
-export type NilType = { type: "nil" }
-export type IriType = { type: "iri" } & Pattern
-export type LiteralType = { type: "literal"; datatype: string } & Pattern
-export type ProductType = { type: "product"; components: Component[] }
-export type Component = { type: "component"; key: string; value: Type }
-export type CoproductType = { type: "coproduct"; options: Option[] }
-export type Option = { type: "option"; value: Type }
 
 export const context = {
 	id: "@id",
@@ -41,16 +37,17 @@ export const context = {
 	},
 }
 
-export const isReference = (expression: Type): expression is ReferenceType =>
-	expression.hasOwnProperty("id")
+export const isReference = (
+	expression: APG.Type
+): expression is APG.Reference => expression.hasOwnProperty("id")
 
 export const iriHasPattern = (
-	expression: IriType
+	expression: APG.Iri
 ): expression is { type: "iri"; pattern: string; flags: null | string } =>
 	expression.hasOwnProperty("pattern")
 
 export const literalHasPattern = (
-	expression: LiteralType
+	expression: APG.Literal
 ): expression is {
 	type: "literal"
 	datatype: string

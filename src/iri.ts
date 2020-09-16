@@ -1,10 +1,10 @@
 import ShExParser from "@shexjs/parser"
 import { SuccessResult } from "@shexjs/validator"
 
-import { IriType } from "./schema.js"
+import { APG } from "./schema.js"
 import { NamedNodeConstraint, isNamedNodeConstraint } from "./utils.js"
-import { emptyShape, EmptyShapeResult, isEmptyShapeResult } from "./nil.js"
-import { isEmptyShape } from "./nil.js"
+import { emptyShape, EmptyShapeResult, isEmptyShapeResult } from "./unit.js"
+import { isEmptyShape } from "./unit.js"
 
 type IriShape = {
 	type: "ShapeAnd"
@@ -64,7 +64,7 @@ export function isIriResult(result: SuccessResult): result is IriResult {
 	return false
 }
 
-export function makeIriShape({ type, ...rest }: IriType): IriShape {
+export function makeIriShape({ type, ...rest }: APG.Iri): IriShape {
 	return {
 		type: "ShapeAnd",
 		shapeExprs: [

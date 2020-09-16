@@ -46,7 +46,7 @@
 								{
 									"type": "option",
 									"value": {
-										"id": "_:nil"
+										"id": "_:unit"
 									}
 								},
 								{
@@ -80,11 +80,11 @@
 			}
 		},
 		{
-			"id": "_:nil",
+			"id": "_:unit",
 			"type": "label",
-			"key": "http://underlay.org/ns/nil",
+			"key": "http://underlay.org/ns/unit",
 			"value": {
-				"type": "nil"
+				"type": "unit"
 			}
 		},
 		{
@@ -97,7 +97,7 @@
 					{
 						"type": "option",
 						"value": {
-							"type": "nil"
+							"type": "unit"
 						}
 					},
 					{
@@ -188,7 +188,7 @@
 			"type": "label",
 			"key": "http://underlay.org/ns/product",
 			"value": {
-				"type": "nil"
+				"type": "unit"
 			}
 		},
 		{
@@ -227,7 +227,7 @@
 								{
 									"type": "option",
 									"value": {
-										"id": "_:nil"
+										"id": "_:unit"
 									}
 								},
 								{
@@ -265,7 +265,7 @@
 			"type": "label",
 			"key": "http://underlay.org/ns/coproduct",
 			"value": {
-				"type": "nil"
+				"type": "unit"
 			}
 		},
 		{
@@ -297,7 +297,7 @@
 								{
 									"type": "option",
 									"value": {
-										"id": "_:nil"
+										"id": "_:unit"
 									}
 								},
 								{

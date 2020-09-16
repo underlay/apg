@@ -8,7 +8,7 @@ import {
 	TripleConstraintSolutions,
 } from "@shexjs/validator"
 
-import { Type, ProductType } from "./schema.js"
+import { APG } from "./schema.js"
 import {
 	BlankNodeConstraintResult,
 	anyTypeResult,
@@ -96,8 +96,8 @@ export function isProductShape(
 }
 
 export function makeProductShape(
-	type: ProductType,
-	makeShapeExpr: (type: Type) => ShExParser.shapeExpr
+	type: APG.Product,
+	makeShapeExpr: (type: APG.Type) => ShExParser.shapeExpr
 ): ProductShape {
 	const expression = makeProductShapeExpression(type, makeShapeExpr)
 	return {
@@ -110,8 +110,8 @@ export function makeProductShape(
 }
 
 function makeProductShapeExpression(
-	type: ProductType,
-	makeShapeExpr: (type: Type) => ShExParser.shapeExpr
+	type: APG.Product,
+	makeShapeExpr: (type: APG.Type) => ShExParser.shapeExpr
 ): ProductExpression {
 	const expressions: [anyType, ...ComponentExpression[]] = [anyType]
 	const values: Set<string> = new Set()

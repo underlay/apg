@@ -10,8 +10,6 @@ import {
 	rdf,
 } from "n3.ts"
 
-type Either<L, R> = { _tag: "Left"; left: L } | { _tag: "Right"; right: R }
-
 import ShExParser from "@shexjs/parser"
 import ShExUtil from "@shexjs/util"
 import ShExValidator, {
@@ -21,19 +19,7 @@ import ShExValidator, {
 	NodeConstraintTest,
 } from "@shexjs/validator"
 
-import {
-	Label,
-	Type,
-	Value,
-	Tree,
-	isReference,
-	ProductType,
-	CoproductType,
-	NilType,
-	Option,
-	Component,
-	ReferenceType,
-} from "./schema.js"
+import { Value, Tree, isReference, APG } from "./schema.js"
 
 import {
 	zip,
@@ -45,7 +31,7 @@ import {
 	isAnyTypeResult,
 } from "./utils.js"
 
-import { nilShapeExpr, isNilShapeResult, isEmptyShape } from "./nil.js"
+import { unitShapeExpr, isUnitShapeResult, isEmptyShape } from "./unit.js"
 
 import { isIriResult, makeIriShape } from "./iri.js"
 
@@ -71,9 +57,11 @@ import {
 	makeCoproductShape,
 } from "./coproduct.js"
 
+type Either<L, R> = { _tag: "Left"; left: L } | { _tag: "Right"; right: R }
+
 const ns = {
 	label: "http://underlay.org/ns/label",
-	nil: "http://underlay.org/ns/nil",
+	unit: "http://underlay.org/ns/unit",
 	product: "http://underlay.org/ns/product",
 	coproduct: "http://underlay.org/ns/coproduct",
 	component: "http://underlay.org/ns/component",
@@ -93,7 +81,7 @@ function signalInvalidType(type: never): never {
 	throw new Error(`Invalid type: ${type}`)
 }
 
-export function makeShExSchema(labels: Label[]): [ShapeMap, ShExParser.Schema] {
+function makeShExSchema(labels: APG.Label[]): [ShapeMap, ShExParser.Schema] {
 	const shapeMap: ShapeMap = new Map()
 	for (const label of labels) {
 		const value = makeShapeExpr(label.value)
@@ -106,11 +94,11 @@ export function makeShExSchema(labels: Label[]): [ShapeMap, ShExParser.Schema] {
 	return [shapeMap, shexSchema]
 }
 
-function makeShapeExpr(type: Type): ShExParser.shapeExpr {
+function makeShapeExpr(type: APG.Type): ShExParser.shapeExpr {
 	if (isReference(type)) {
 		return type.id
-	} else if (type.type === "nil") {
-		return nilShapeExpr
+	} else if (type.type === "unit") {
+		return unitShapeExpr
 	} else if (type.type === "iri") {
 		return makeIriShape(type)
 	} else if (type.type === "literal") {
@@ -124,7 +112,7 @@ function makeShapeExpr(type: Type): ShExParser.shapeExpr {
 	}
 }
 
-type LabelMap = Map<string, Label>
+type LabelMap = Map<string, APG.Label>
 type ShapeMap = Map<string, LabelShape>
 type State = Readonly<{ labelMap: LabelMap; shapeMap: ShapeMap }>
 
@@ -132,13 +120,16 @@ const rdfType = new NamedNode(rdf.type)
 
 export function parseSchemaString(
 	input: string,
-	schemaSchema: Label[]
-): Label[] {
+	schemaSchema: APG.Label[]
+): Either<FailureResult, APG.Label[]> {
 	const store = new Store(Parse(input))
 	return parseSchema(store, schemaSchema)
 }
 
-export function parseSchema(store: Store, schemaSchema: Label[]): Label[] {
+export function parseSchema(
+	store: Store,
+	schemaSchema: APG.Label[]
+): Either<FailureResult, APG.Label[]> {
 	const map: Map<string, Map<string, Value>> = new Map()
 	for (const [label, values] of parse(store, schemaSchema)) {
 		const results: Map<string, Value> = new Map()
@@ -146,13 +137,15 @@ export function parseSchema(store: Store, schemaSchema: Label[]): Label[] {
 		for (const [{ value: key }, value] of values) {
 			if (value._tag === "Right") {
 				results.set(key, value.right)
+			} else {
+				return value
 			}
 		}
 	}
 
-	const nil: NilType = { type: "nil" }
+	const unit: APG.Unit = { type: "unit" }
 
-	const productTypes: Map<string, ProductType> = new Map()
+	const productTypes: Map<string, APG.Product> = new Map()
 	for (const { value } of map.get(ns.product)!.values()) {
 		productTypes.set(value, { type: "product", components: [] })
 	}
@@ -163,7 +156,7 @@ export function parseSchema(store: Store, schemaSchema: Label[]): Label[] {
 			const { value } = componentType.get(ns.source)!
 			const { value: key } = componentType.get(ns.key)!
 			componentValues.set(componentType.value, componentType.get(ns.value)!)
-			const component: Component = {
+			const component: APG.Component = {
 				type: "component",
 				key,
 				value: { id: componentType.value },
@@ -174,7 +167,7 @@ export function parseSchema(store: Store, schemaSchema: Label[]): Label[] {
 		}
 	}
 
-	const coproductTypes: Map<string, CoproductType> = new Map()
+	const coproductTypes: Map<string, APG.Coproduct> = new Map()
 	for (const { value } of map.get(ns.coproduct)!.values()) {
 		coproductTypes.set(value, { type: "coproduct", options: [] })
 	}
@@ -184,7 +177,10 @@ export function parseSchema(store: Store, schemaSchema: Label[]): Label[] {
 		if (optionType.termType === "Tree") {
 			const { value } = optionType.get(ns.source)!
 			optionValues.set(optionType.value, optionType.get(ns.value)!)
-			const option: Option = { type: "option", value: { id: optionType.value } }
+			const option: APG.Option = {
+				type: "option",
+				value: { id: optionType.value },
+			}
 			coproductTypes.get(value)!.options.push(option)
 		} else {
 			throw new Error("Invalid option type")
@@ -193,10 +189,10 @@ export function parseSchema(store: Store, schemaSchema: Label[]): Label[] {
 
 	const iriTypes = new Set(map.get(ns.iri)!.keys())
 	const literalTypes = new Set(map.get(ns.literal)!.keys())
-	const nilTypes = new Set(map.get(ns.nil)!.keys())
+	const unitTypes = new Set(map.get(ns.unit)!.keys())
 	const labels = map.get(ns.label)!
 
-	const labelTypes: Map<string, Label> = new Map()
+	const labelTypes: Map<string, APG.Label> = new Map()
 	for (const labelType of labels.values()) {
 		if (labelType.termType === "Tree") {
 			const { value: key } = labelType.get(ns.key)!
@@ -204,19 +200,19 @@ export function parseSchema(store: Store, schemaSchema: Label[]): Label[] {
 				id: `_:${labelType.value}`,
 				type: "label",
 				key,
-				value: nil,
+				value: unit,
 			})
 		} else {
 			throw new Error("Invalid label type")
 		}
 	}
 
-	function parseValue(value: Value): Type {
+	function parseValue(value: Value): APG.Type {
 		if (value.termType === "BlankNode") {
 			if (productTypes.has(value.value)) {
 				const product = productTypes.get(value.value)!
 				for (const component of product.components) {
-					const { id } = component.value as ReferenceType
+					const { id } = component.value as APG.Reference
 					const value = componentValues.get(id)!
 					component.value = parseValue(value)
 					componentValues.delete(id)
@@ -226,16 +222,16 @@ export function parseSchema(store: Store, schemaSchema: Label[]): Label[] {
 			} else if (coproductTypes.has(value.value)) {
 				const coproduct = coproductTypes.get(value.value)!
 				for (const option of coproduct.options) {
-					const { id } = option.value as ReferenceType
+					const { id } = option.value as APG.Reference
 					const value = optionValues.get(id)!
 					option.value = parseValue(value)
 					optionValues.delete(id)
 				}
 				coproductTypes.delete(value.value)
 				return coproduct
-			} else if (nilTypes.has(value.value)) {
-				nilTypes.delete(value.value)
-				return { type: "nil" }
+			} else if (unitTypes.has(value.value)) {
+				unitTypes.delete(value.value)
+				return { type: "unit" }
 			} else if (iriTypes.has(value.value)) {
 				return { type: "iri" }
 			} else {
@@ -278,14 +274,14 @@ export function parseSchema(store: Store, schemaSchema: Label[]): Label[] {
 		}
 	}
 
-	return Array.from(labelTypes.values())
+	return { _tag: "Right", right: Array.from(labelTypes.values()) }
 }
 
 export function* parse(
 	store: Store,
-	labels: Label[]
+	labels: APG.Label[]
 ): Generator<
-	[Label, Generator<[Subject<D>, Either<FailureResult, Value>]>],
+	[APG.Label, Generator<[Subject<D>, Either<FailureResult, Value>]>],
 	void,
 	undefined
 > {
@@ -301,7 +297,7 @@ export function* parse(
 }
 
 function* parseLabel(
-	label: Label,
+	label: APG.Label,
 	state: State,
 	store: Store,
 	db: ShExUtil.N3DB,
@@ -336,7 +332,7 @@ function isFailure(
 
 function parseResult(
 	node: Object<D>,
-	type: Type,
+	type: APG.Type,
 	result: SuccessResult | FailureResult,
 	shapeExpr: ShExParser.shapeExpr,
 	state: State
@@ -357,16 +353,11 @@ function parseResult(
 		} else {
 			throw new Error("Invalid result for label type")
 		}
-	} else if (type.type === "nil") {
-		console.log(
-			"result!",
-			JSON.stringify(result, null, "  "),
-			isNilShapeResult(result)
-		)
-		if (isNilShapeResult(result) && node instanceof BlankNode) {
+	} else if (type.type === "unit") {
+		if (isUnitShapeResult(result) && node instanceof BlankNode) {
 			return { _tag: "Right", right: node }
 		} else {
-			throw new Error("Invalid result for nil type")
+			throw new Error("Invalid result for unit type")
 		}
 	} else if (type.type === "literal") {
 		if (isLiteralResult(result) && node instanceof Literal) {

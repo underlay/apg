@@ -3,7 +3,7 @@ import { rdf } from "n3.ts"
 import ShExParser from "@shexjs/parser"
 import { SuccessResult } from "@shexjs/validator"
 
-import { Label } from "./schema.js"
+import { APG } from "./schema.js"
 
 export type LabelShape = {
 	id: string
@@ -26,7 +26,7 @@ export type LabelShape = {
 }
 
 export function makeLabelShape(
-	type: Label,
+	type: APG.Label,
 	value: ShExParser.shapeExpr
 ): LabelShape {
 	return {

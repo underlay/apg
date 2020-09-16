@@ -2,7 +2,7 @@
 import { rdf } from "n3.ts";
 import ShExParser from "@shexjs/parser";
 import { SuccessResult } from "@shexjs/validator";
-import { Label } from "./schema.js";
+import { APG } from "./schema.js";
 export declare type LabelShape = {
     id: string;
     type: "ShapeAnd";
@@ -19,7 +19,7 @@ export declare type LabelShape = {
         };
     }, ShExParser.shapeExpr];
 };
-export declare function makeLabelShape(type: Label, value: ShExParser.shapeExpr): LabelShape;
+export declare function makeLabelShape(type: APG.Label, value: ShExParser.shapeExpr): LabelShape;
 export declare type LabelResult = {
     type: "ShapeAndResults";
     solutions: [{

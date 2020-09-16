@@ -1,9 +1,9 @@
 /// <reference types="shexjs" />
 import ShExParser from "@shexjs/parser";
 import { SuccessResult } from "@shexjs/validator";
-import { IriType } from "./schema.js";
+import { APG } from "./schema.js";
 import { NamedNodeConstraint } from "./utils.js";
-import { emptyShape, EmptyShapeResult } from "./nil.js";
+import { emptyShape, EmptyShapeResult } from "./unit.js";
 declare type IriShape = {
     type: "ShapeAnd";
     shapeExprs: [NamedNodeConstraint, emptyShape];
@@ -22,5 +22,5 @@ export declare type NamedNodeConstraintResult = {
 };
 export declare function isNamedNodeConstraintResult(result: SuccessResult): result is NamedNodeConstraintResult;
 export declare function isIriResult(result: SuccessResult): result is IriResult;
-export declare function makeIriShape({ type, ...rest }: IriType): IriShape;
+export declare function makeIriShape({ type, ...rest }: APG.Iri): IriShape;
 export {};
