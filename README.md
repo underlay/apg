@@ -46,20 +46,20 @@ declare class Tree {
     get(node: string): N3.Literal | N3.BlankNode | Tree | N3.NamedNode<string> | undefined;
 }
 
-export declare type Value = N3.BlankNode | N3.NamedNode | N3.Literal | Tree;
+type Value = N3.BlankNode | N3.NamedNode | N3.Literal | Tree
 
-declare function parseSchemaString(
+function parseSchemaString(
   input: string,
   schemaSchema: APG.Schema
-): Either<FailureResult, APG.Schema>;
+): Either<FailureResult, APG.Schema> {}
 
-declare function parseSchema(
+function parseSchema(
   store: Store,
   schemaSchema: APG.Schema
-): Either<FailureResult, APG.Schema>;
+): Either<FailureResult, APG.Schema> {}
 
-declare function parse(
+function parse(
   store: Store,
   schema: APG.Schema
-): Generator<[APG.Label, Generator<[Subject<D>, Either<FailureResult, Value>]>], void, undefined>;
+): Generator<[APG.Label, Generator<[Subject<D>, Either<FailureResult, Value>]>], void, undefined> {}
 ```
