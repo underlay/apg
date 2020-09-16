@@ -29,7 +29,7 @@
 		"@shexjs/validator": "file:shex.js/packages/shex-validator"
 	},
 	"peerDependencies": {
-		"@shexjs/util": "@1.0.0-alpha.6",
-		"@shexjs/validator": "@1.0.0-alpha.6"
+		"@shexjs/util": "1.0.0-alpha.6",
+		"@shexjs/validator": "1.0.0-alpha.6"
 	}
 }
