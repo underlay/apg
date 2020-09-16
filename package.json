@@ -1,0 +1,35 @@
+{
+	"name": "apg",
+	"version": "0.1.0",
+	"description": "Underlay APG utilities",
+	"type": "module",
+	"main": "lib/index.js",
+	"directories": {
+		"lib": "lib"
+	},
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/underlay/apg.git"
+	},
+	"author": "Joel Gustafson",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/underlay/apg/issues"
+	},
+	"homepage": "https://github.com/underlay/apg#readme",
+	"dependencies": {
+		"@types/shexjs": "gist:423141cd96c858931f618fbf97fdc1b9",
+		"n3.ts": "^0.1.2"
+	},
+	"devDependencies": {
+		"@shexjs/util": "file:shex.js/packages/shex-util",
+		"@shexjs/validator": "file:shex.js/packages/shex-validator"
+	},
+	"peerDependencies": {
+		"@shexjs/util": "@1.0.0-alpha.6",
+		"@shexjs/validator": "@1.0.0-alpha.6"
+	}
+}
