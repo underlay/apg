@@ -11,37 +11,43 @@ import {
 	isAnyTypeResult,
 	blankNodeConstraint,
 } from "./utils.js"
+import { APG } from "./index.js"
 
-export interface emptyShape extends ShExParser.Shape {
+type emptyShape = {
+	type: "Shape"
 	closed: true
 	expression: anyType
 }
 
-export const emptyShape: emptyShape = {
+const emptyShape: emptyShape = {
 	type: "Shape",
 	closed: true,
 	expression: anyType,
 }
 
-export function isEmptyShape(
+function isEmptyShape(
 	shapeExpr: ShExParser.shapeExpr
 ): shapeExpr is emptyShape {
 	return shapeExpr === emptyShape
 }
 
-type unitShapeExpr = {
+export type UnitShape = {
+	id: string
 	type: "ShapeAnd"
 	shapeExprs: [BlankNodeConstraint, emptyShape]
 }
 
-export const unitShapeExpr: unitShapeExpr = {
-	type: "ShapeAnd",
-	shapeExprs: [blankNodeConstraint, emptyShape],
+export function makeUnitShape(id: string, {}: APG.Unit): UnitShape {
+	return {
+		id: id,
+		type: "ShapeAnd",
+		shapeExprs: [blankNodeConstraint, emptyShape],
+	}
 }
 
 export function isUnitShapeExpr(
 	shapeExpr: ShExParser.shapeExpr
-): shapeExpr is unitShapeExpr {
+): shapeExpr is UnitShape {
 	if (typeof shapeExpr === "string") {
 		return false
 	} else if (shapeExpr.type !== "ShapeAnd") {
@@ -53,27 +59,26 @@ export function isUnitShapeExpr(
 	return isBlankNodeConstraint(nodeConstraint) && isEmptyShape(shape)
 }
 
-export type EmptyShapeResult = {
+type EmptyShapeResult = {
 	type: "ShapeTest"
 	node: string
 	shape: string
 	solution: anyTypeResult
 }
 
-export function isEmptyShapeResult(
-	result: SuccessResult
-): result is EmptyShapeResult {
+function isEmptyShapeResult(result: SuccessResult): result is EmptyShapeResult {
 	return result.type === "ShapeTest" && isAnyTypeResult(result.solution)
 }
 
-export type UnitShapeResult = {
+export type UnitResult = {
 	type: "ShapeAndResults"
 	solutions: [BlankNodeConstraintResult, EmptyShapeResult]
 }
 
-export function isUnitShapeResult(
-	result: SuccessResult
-): result is UnitShapeResult {
+export function isUnitResult(
+	result: SuccessResult,
+	id: string
+): result is UnitResult {
 	if (result.type !== "ShapeAndResults") {
 		return false
 	} else if (result.solutions.length !== 2) {
@@ -81,6 +86,9 @@ export function isUnitShapeResult(
 	}
 	const [nodeConstraint, shape] = result.solutions
 	return (
-		isBlankNodeConstraintResult(nodeConstraint) && isEmptyShapeResult(shape)
+		isBlankNodeConstraintResult(nodeConstraint) &&
+		nodeConstraint.shape === id &&
+		isEmptyShapeResult(shape) &&
+		shape.shape === id
 	)
 }

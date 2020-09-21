@@ -1,26 +1,24 @@
 /// <reference types="shexjs" />
 import ShExParser from "@shexjs/parser";
 import { SuccessResult } from "@shexjs/validator";
-import { APG } from "./schema.js";
-import { NamedNodeConstraint } from "./utils.js";
-import { emptyShape, EmptyShapeResult } from "./unit.js";
-declare type IriShape = {
-    type: "ShapeAnd";
-    shapeExprs: [NamedNodeConstraint, emptyShape];
+import { APG } from "./apg.js";
+declare type iriShape = {
+    id: string;
+    type: "NodeConstraint";
+    nodeKind: "iri";
 };
-export declare function isIriShape(shapeExpr: ShExParser.shapeExpr): shapeExpr is IriShape;
-export declare function parseIriShape(shapeExpr: IriShape): NamedNodeConstraint;
+declare type patternIriShape = iriShape & {
+    pattern: string;
+    flags: string;
+};
+export declare type IriShape = iriShape | patternIriShape;
+export declare const isIriShape: (shapeExpr: ShExParser.shapeExpr) => shapeExpr is IriShape;
 export declare type IriResult = {
-    type: "ShapeAndResults";
-    solutions: [NamedNodeConstraintResult, EmptyShapeResult];
-};
-export declare type NamedNodeConstraintResult = {
     type: "NodeConstraintTest";
     node: string;
     shape: string;
-    shapeExpr: NamedNodeConstraint;
+    shapeExpr: IriShape;
 };
-export declare function isNamedNodeConstraintResult(result: SuccessResult): result is NamedNodeConstraintResult;
-export declare function isIriResult(result: SuccessResult): result is IriResult;
-export declare function makeIriShape({ type, ...rest }: APG.Iri): IriShape;
+export declare function isIriResult(result: SuccessResult, id: string): result is IriResult;
+export declare function makeIriShape(id: string, { id: {}, type, ...rest }: APG.Iri): IriShape;
 export {};

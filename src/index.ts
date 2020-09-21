@@ -1,4 +1,5 @@
-export * from "./shex.js"
+import { APG } from "./apg.js"
+import { parse } from "./shex.js"
+// import { parseSchema, parseSchemaString } from "./schema.js"
 
-import { APG, Tree, Value, isReference } from "./schema.js"
-export { APG, Tree, Value, isReference }
+export { APG, parse }

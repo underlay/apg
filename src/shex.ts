@@ -1,91 +1,107 @@
-import {
-	NamedNode,
-	BlankNode,
-	Store,
-	Literal,
-	D,
-	Object,
-	Subject,
-	Parse,
-	rdf,
-} from "n3.ts"
+import { NamedNode, BlankNode, Store, Literal, D, Object, rdf } from "n3.ts"
+
+import { Option } from "fp-ts/Option"
+import { Either } from "fp-ts/Either"
 
 import ShExParser from "@shexjs/parser"
 import ShExUtil from "@shexjs/util"
-import ShExValidator, {
-	SuccessResult,
-	FailureResult,
-	ShapeTest,
-	NodeConstraintTest,
-} from "@shexjs/validator"
+import ShExValidator, { SuccessResult, FailureResult } from "@shexjs/validator"
 
-import { Value, Tree, isReference, APG } from "./schema.js"
-
-import {
-	zip,
-	isBlankNodeConstraint,
-	isNamedNodeConstraint,
-	isDatatypeConstraint,
-	parseObjectValue,
-	blankNodeConstraint,
-	isAnyTypeResult,
-} from "./utils.js"
-
-import { unitShapeExpr, isUnitShapeResult, isEmptyShape } from "./unit.js"
-
+import { APG } from "./apg.js"
+import { zip, parseObjectValue } from "./utils.js"
+import { isUnitResult, makeUnitShape } from "./unit.js"
 import { isIriResult, makeIriShape } from "./iri.js"
-
-import {
-	isLabelResult,
-	parseLabelResult,
-	makeLabelShape,
-	LabelShape,
-} from "./reference.js"
-
+import { isLabelResult, parseLabelResult, makeLabelShape } from "./label.js"
 import { isLiteralResult, makeLiteralShape } from "./literal.js"
-
 import {
 	isProductResult,
 	parseProductResult,
 	makeProductShape,
 } from "./product.js"
+import { makeCoproductShape } from "./coproduct.js"
 
-import {
-	isShapeOr,
-	isShapeOrResult,
-	matchResultOption,
-	makeCoproductShape,
-} from "./coproduct.js"
+type ShapeMap = Map<string, { id: string } & ShExParser.shapeExprObject>
+type Token = Readonly<{ node: Object<D>; shape: string; value: APG.Value }>
+type State = Readonly<{
+	schema: APG.Schema
+	shapeMap: ShapeMap
+	stack: Token[]
+	cache: Map<string, APG.Value>
+}>
 
-type Either<L, R> = { _tag: "Left"; left: L } | { _tag: "Right"; right: R }
+const rdfType = new NamedNode(rdf.type)
 
-const ns = {
-	label: "http://underlay.org/ns/label",
-	unit: "http://underlay.org/ns/unit",
-	product: "http://underlay.org/ns/product",
-	coproduct: "http://underlay.org/ns/coproduct",
-	component: "http://underlay.org/ns/component",
-	option: "http://underlay.org/ns/option",
-	source: "http://underlay.org/ns/source",
-	key: "http://underlay.org/ns/key",
-	value: "http://underlay.org/ns/value",
-	iri: "http://underlay.org/ns/iri",
-	literal: "http://underlay.org/ns/literal",
-	datatype: "http://underlay.org/ns/datatype",
-	pattern: "http://underlay.org/ns/pattern",
-	flags: "http://underlay.org/ns/flags",
+export function parse(
+	store: Store,
+	schema: APG.Schema
+): Either<FailureResult, APG.Instance> {
+	const database: APG.Instance = new Map()
+	const db = ShExUtil.makeN3DB(store)
+	const [shapeMap, shexSchema] = makeShExSchema(schema)
+	// console.log("ShEx Schema")
+	// console.log(JSON.stringify(shexSchema, null, "  "))
+	const state = Object.freeze({ schema, shapeMap, stack: [], cache: new Map() })
+	const validator = ShExValidator.construct(shexSchema, {})
+
+	for (const type of schema.values()) {
+		if (type.type === "label") {
+			const values = parseLabel(type, state, store, db, validator)
+			if (values._tag === "Left") {
+				return values
+			} else {
+				database.set(type.id, values.right)
+			}
+		}
+	}
+
+	return { _tag: "Right", right: database }
 }
 
-function signalInvalidType(type: never): never {
-	console.error(type)
-	throw new Error(`Invalid type: ${type}`)
+function parseLabel(
+	{ id, key }: APG.Label,
+	state: State,
+	store: Store,
+	db: ShExUtil.N3DB,
+	validator: ShExValidator
+): Either<FailureResult, APG.Value[]> {
+	const values: APG.Value[] = []
+	for (const subject of store.subjects(rdfType, `<${key}>`, null)) {
+		if (subject instanceof BlankNode || subject instanceof NamedNode) {
+			const key = `${id} ${subject.value}`
+			const cache = state.cache.get(key)
+			if (cache !== undefined) {
+				values.push(cache)
+				continue
+			}
+			// console.log("validating", subject.id, id)
+			const result = validator.validate(db, subject.id, id)
+			if (isFailure(result)) {
+				return { _tag: "Left", left: result }
+			}
+
+			const match = parseResult(subject as Object<D>, id, result, state)
+			if (match._tag === "None") {
+				const errors = [
+					{ message: "Subject failed parsing", node: subject.id, shape: id },
+				]
+				return {
+					_tag: "Left",
+					left: { type: "Failure", shape: id, node: subject.id, errors },
+				}
+			}
+
+			values.push(match.value)
+		}
+	}
+
+	return { _tag: "Right", right: values }
 }
 
-function makeShExSchema(labels: APG.Label[]): [ShapeMap, ShExParser.Schema] {
+function makeShExSchema(schema: APG.Schema): [ShapeMap, ShExParser.Schema] {
 	const shapeMap: ShapeMap = new Map()
-	for (const label of labels) {
-		const value = makeShapeExpr(label.value)
-		shapeMap.set(label.id, makeLabelShape(label, value))
+	for (const [id, type] of schema) {
+		const shapeExpr = makeShapeExpr(id, type)
+		shapeMap.set(id, shapeExpr)
 	}
 	const shexSchema: ShExParser.Schema = {
 		type: "Schema",
@@ -94,229 +110,30 @@ function makeShExSchema(labels: APG.Label[]): [ShapeMap, ShExParser.Schema] {
 	return [shapeMap, shexSchema]
 }
 
-function makeShapeExpr(type: APG.Type): ShExParser.shapeExpr {
-	if (isReference(type)) {
-		return type.id
+function makeShapeExpr(
+	id: string,
+	type: APG.Type
+): { id: string } & ShExParser.shapeExprObject {
+	if (type.type === "label") {
+		return makeLabelShape(id, type)
 	} else if (type.type === "unit") {
-		return unitShapeExpr
+		return makeUnitShape(id, type)
 	} else if (type.type === "iri") {
-		return makeIriShape(type)
+		return makeIriShape(id, type)
 	} else if (type.type === "literal") {
-		return makeLiteralShape(type)
+		return makeLiteralShape(id, type)
 	} else if (type.type === "product") {
-		return makeProductShape(type, makeShapeExpr)
+		return makeProductShape(id, type)
 	} else if (type.type === "coproduct") {
-		return makeCoproductShape(type, makeShapeExpr)
+		return makeCoproductShape(id, type)
 	} else {
-		signalInvalidType(type)
+		signalInvalidType(id, type)
 	}
 }
 
-type LabelMap = Map<string, APG.Label>
-type ShapeMap = Map<string, LabelShape>
-type State = Readonly<{ labelMap: LabelMap; shapeMap: ShapeMap }>
-
-const rdfType = new NamedNode(rdf.type)
-
-export function parseSchemaString(
-	input: string,
-	schemaSchema: APG.Label[]
-): Either<FailureResult, APG.Label[]> {
-	const store = new Store(Parse(input))
-	return parseSchema(store, schemaSchema)
-}
-
-export function parseSchema(
-	store: Store,
-	schemaSchema: APG.Label[]
-): Either<FailureResult, APG.Label[]> {
-	const map: Map<string, Map<string, Value>> = new Map()
-	for (const [label, values] of parse(store, schemaSchema)) {
-		const results: Map<string, Value> = new Map()
-		map.set(label.key, results)
-		for (const [{ value: key }, value] of values) {
-			if (value._tag === "Right") {
-				results.set(key, value.right)
-			} else {
-				return value
-			}
-		}
-	}
-
-	const unit: APG.Unit = { type: "unit" }
-
-	const productTypes: Map<string, APG.Product> = new Map()
-	for (const { value } of map.get(ns.product)!.values()) {
-		productTypes.set(value, { type: "product", components: [] })
-	}
-
-	const componentValues: Map<string, Value> = new Map()
-	for (const componentType of map.get(ns.component)!.values()) {
-		if (componentType.termType === "Tree") {
-			const { value } = componentType.get(ns.source)!
-			const { value: key } = componentType.get(ns.key)!
-			componentValues.set(componentType.value, componentType.get(ns.value)!)
-			const component: APG.Component = {
-				type: "component",
-				key,
-				value: { id: componentType.value },
-			}
-			productTypes.get(value)!.components.push(component)
-		} else {
-			throw new Error("Invalid component type")
-		}
-	}
-
-	const coproductTypes: Map<string, APG.Coproduct> = new Map()
-	for (const { value } of map.get(ns.coproduct)!.values()) {
-		coproductTypes.set(value, { type: "coproduct", options: [] })
-	}
-
-	const optionValues: Map<string, Value> = new Map()
-	for (const optionType of map.get(ns.option)!.values()) {
-		if (optionType.termType === "Tree") {
-			const { value } = optionType.get(ns.source)!
-			optionValues.set(optionType.value, optionType.get(ns.value)!)
-			const option: APG.Option = {
-				type: "option",
-				value: { id: optionType.value },
-			}
-			coproductTypes.get(value)!.options.push(option)
-		} else {
-			throw new Error("Invalid option type")
-		}
-	}
-
-	const iriTypes = new Set(map.get(ns.iri)!.keys())
-	const literalTypes = new Set(map.get(ns.literal)!.keys())
-	const unitTypes = new Set(map.get(ns.unit)!.keys())
-	const labels = map.get(ns.label)!
-
-	const labelTypes: Map<string, APG.Label> = new Map()
-	for (const labelType of labels.values()) {
-		if (labelType.termType === "Tree") {
-			const { value: key } = labelType.get(ns.key)!
-			labelTypes.set(labelType.value, {
-				id: `_:${labelType.value}`,
-				type: "label",
-				key,
-				value: unit,
-			})
-		} else {
-			throw new Error("Invalid label type")
-		}
-	}
-
-	function parseValue(value: Value): APG.Type {
-		if (value.termType === "BlankNode") {
-			if (productTypes.has(value.value)) {
-				const product = productTypes.get(value.value)!
-				for (const component of product.components) {
-					const { id } = component.value as APG.Reference
-					const value = componentValues.get(id)!
-					component.value = parseValue(value)
-					componentValues.delete(id)
-				}
-				productTypes.delete(value.value)
-				return product
-			} else if (coproductTypes.has(value.value)) {
-				const coproduct = coproductTypes.get(value.value)!
-				for (const option of coproduct.options) {
-					const { id } = option.value as APG.Reference
-					const value = optionValues.get(id)!
-					option.value = parseValue(value)
-					optionValues.delete(id)
-				}
-				coproductTypes.delete(value.value)
-				return coproduct
-			} else if (unitTypes.has(value.value)) {
-				unitTypes.delete(value.value)
-				return { type: "unit" }
-			} else if (iriTypes.has(value.value)) {
-				return { type: "iri" }
-			} else {
-				throw new Error("Invalid blank node value")
-			}
-		} else if (value.termType === "Tree") {
-			if (labelTypes.has(value.value)) {
-				const { id } = labelTypes.get(value.value)!
-				return { id }
-			} else if (iriTypes.has(value.value)) {
-				const { value: pattern } = value.get(ns.pattern)!
-				const { value: flags } = value.get(ns.flags)!
-				return { type: "iri", pattern, flags }
-			} else if (literalTypes.has(value.value)) {
-				const { value: datatype } = value.get(ns.datatype)!
-				if (value.size === 1) {
-					return { type: "literal", datatype }
-				} else if (value.size === 3) {
-					const { value: pattern } = value.get(ns.pattern)!
-					const { value: flags } = value.get(ns.flags)!
-					return { type: "literal", datatype, pattern, flags }
-				} else {
-					throw new Error("Invalid literal value")
-				}
-			} else {
-				throw new Error("Invalid tree value")
-			}
-		} else {
-			throw new Error("Invalid value")
-		}
-	}
-
-	for (const labelType of labels.values()) {
-		if (labelType.termType === "Tree") {
-			const label = labelTypes.get(labelType.value)!
-			const value = labelType.get(ns.value)!
-			label.value = parseValue(value)
-		} else {
-			throw new Error("Invalid label type")
-		}
-	}
-
-	return { _tag: "Right", right: Array.from(labelTypes.values()) }
-}
-
-export function* parse(
-	store: Store,
-	labels: APG.Label[]
-): Generator<
-	[APG.Label, Generator<[Subject<D>, Either<FailureResult, Value>]>],
-	void,
-	undefined
-> {
-	const db = ShExUtil.makeN3DB(store)
-	const [shapeMap, shexSchema] = makeShExSchema(labels)
-	const labelMap = new Map(labels.map((label) => [label.id, label]))
-	const state = Object.freeze({ labelMap, shapeMap })
-	const validator = ShExValidator.construct(shexSchema, {})
-
-	for (const label of labels) {
-		yield [label, parseLabel(label, state, store, db, validator)]
-	}
-}
-
-function* parseLabel(
-	label: APG.Label,
-	state: State,
-	store: Store,
-	db: ShExUtil.N3DB,
-	validator: ShExValidator
-): Generator<[Subject<D>, Either<FailureResult, Value>]> {
-	const type = new NamedNode(label.key)
-	for (const subject of store.subjects(rdfType, type, null)) {
-		const result = validator.validate(db, subject.id, label.id)
-		yield [
-			subject,
-			parseResult(
-				subject as Object<D>,
-				{ id: label.id },
-				result,
-				label.id,
-				state
-			),
-		]
-	}
+function signalInvalidType(id: string, type: never): never {
+	console.error(type)
+	throw new Error(`Invalid type: ${id} ${type}`)
 }
 
 function isFailure(
@@ -332,224 +149,209 @@ function isFailure(
 
 function parseResult(
 	node: Object<D>,
-	type: APG.Type,
-	result: SuccessResult | FailureResult,
-	shapeExpr: ShExParser.shapeExpr,
+	id: string,
+	result: SuccessResult,
 	state: State
-): Either<FailureResult, Value> {
-	if (isFailure(result)) {
-		return { _tag: "Left", left: result }
-	} else if (isReference(type)) {
-		if (isLabelResult(result) && typeof shapeExpr === "string") {
-			const label = state.labelMap.get(type.id)!
-			const [object, shape, nextResult] = parseLabelResult(result)
-			if (object === label.key && shape === shapeExpr) {
-				const { shapeExprs } = state.shapeMap.get(shape)!
-				const [_, nextExpr] = shapeExprs
-				return parseResult(node, label.value, nextResult, nextExpr, state)
+): Option<APG.Value> {
+	// console.log("parsing shape", id)
+	const type = state.schema.get(id)
+	// console.log(node, type)
+	// console.log(JSON.stringify(result, null, "  "))
+	if (type === undefined) {
+		throw new Error(`No type with id ${id} exists`)
+	} else if (type.type === "label") {
+		if (isLabelResult(result, type.id, type.key)) {
+			if (node instanceof BlankNode || node instanceof NamedNode) {
+				const cache = state.cache.get(`${type.value} ${node.value}`)
+				if (cache !== undefined) {
+					const key = `${id} ${node.value}`
+					const value: APG.Value = { id, type: "label", value: cache }
+					state.cache.set(key, value)
+					return { _tag: "Some", value: value }
+				}
+			}
+			const nextResult = parseLabelResult(result)
+			const value: any = { id, type: "label", value: null }
+			state.stack.push({ node, shape: id, value: value })
+			const match = parseResult(node, type.value, nextResult, state)
+			state.stack.pop()
+			if (match._tag === "None") {
+				return match
 			} else {
-				throw new Error("Invalid label result")
+				value.value = match.value
+				if (node instanceof BlankNode || node instanceof NamedNode) {
+					const key = `${id} ${node.value}`
+					state.cache.set(key, value)
+				}
+				return { _tag: "Some", value: value as APG.Value }
 			}
 		} else {
-			throw new Error("Invalid result for label type")
+			return { _tag: "None" }
 		}
 	} else if (type.type === "unit") {
-		if (isUnitShapeResult(result) && node instanceof BlankNode) {
-			return { _tag: "Right", right: node }
+		if (isUnitResult(result, type.id)) {
+			if (node instanceof BlankNode) {
+				const key = `${id} ${node.value}`
+				const value: APG.Value = { id, type: "unit", node }
+				state.cache.set(key, value)
+				return { _tag: "Some", value }
+			} else {
+				throw new Error("Invalid result for unit type")
+			}
 		} else {
-			throw new Error("Invalid result for unit type")
+			return { _tag: "None" }
 		}
 	} else if (type.type === "literal") {
-		if (isLiteralResult(result) && node instanceof Literal) {
-			return { _tag: "Right", right: node }
+		if (isLiteralResult(result, id)) {
+			if (node instanceof Literal) {
+				const value: APG.Value = { id, type: "literal", node }
+				return { _tag: "Some", value }
+			} else {
+				throw new Error("Invalid result for literal type")
+			}
 		} else {
-			throw new Error("Invalid result for literal type")
+			return { _tag: "None" }
 		}
 	} else if (type.type === "iri") {
-		if (isIriResult(result) && node instanceof NamedNode) {
-			return { _tag: "Right", right: node }
+		if (isIriResult(result, id)) {
+			if (node instanceof NamedNode) {
+				const key = `${id} ${node.value}`
+				const value: APG.Value = { id, type: "iri", node }
+				state.cache.set(key, value)
+				return { _tag: "Some", value }
+			} else {
+				throw new Error("Invalid result for iri type")
+			}
 		} else {
-			throw new Error("Invalid result for iri type")
+			return { _tag: "None" }
 		}
 	} else if (type.type === "product") {
-		if (isProductResult(result) && node instanceof BlankNode) {
-			const solutions = parseProductResult(result)
-			const children: Map<string, Value> = new Map()
-			for (const [component, solution] of zip(type.components, solutions)) {
-				const nextType = isReference(component.value)
-					? "label"
-					: component.value.type
-				const {
-					valueExpr,
-					solutions: [{ object, referenced }],
-				} = solution
-				const o = parseObjectValue(object)
-				if (referenced !== undefined) {
-					const r = wrapReference(referenced, valueExpr)
-					const value = parseResult(o, component.value, r, valueExpr, state)
-					if (value._tag === "Right") {
-						children.set(component.key, value.right)
-					} else {
-						return value
+		if (isProductResult(result, id)) {
+			if (node instanceof BlankNode) {
+				const solutions = parseProductResult(result)
+				const components = new Array(type.components.length)
+				const value: APG.Value = { id, type: "product", node, components }
+				state.stack.push({ node, shape: id, value })
+				const iter = zip(type.components, solutions)
+				for (const [component, solution, i] of iter) {
+					const {
+						valueExpr,
+						solutions: [{ object: objectValue, referenced: ref }],
+					} = solution
+					// console.log("parsing component", component.key, component.value)
+					const object = parseObjectValue(objectValue)
+					if (object instanceof NamedNode || object instanceof BlankNode) {
+						const cache = state.cache.get(`${id} ${object.value}`)
+						if (cache !== undefined) {
+							value.components[i] = cache
+							continue
+						}
 					}
-				} else if (
-					isDatatypeConstraint(valueExpr) &&
-					nextType === "literal" &&
-					o instanceof Literal
-				) {
-					children.set(component.key, o)
-				} else if (
-					isNamedNodeConstraint(valueExpr) &&
-					nextType === "iri" &&
-					o instanceof NamedNode
-				) {
-					children.set(component.key, o)
-				} else {
-					throw new Error("Invalid TripleConstraintSolutions result")
+					if (ref !== undefined && valueExpr === component.value) {
+						const match = parseResult(object, component.value, ref, state)
+						if (match._tag === "None") {
+							state.stack.pop()
+							return match
+						} else {
+							value.components[i] = match.value
+						}
+					} else {
+						throw new Error("Invalid TripleConstraintSolutions result")
+					}
 				}
+				state.stack.pop()
+				const key = `${id} ${node.value}`
+				state.cache.set(key, value)
+				return { _tag: "Some", value }
+			} else {
+				throw new Error("Invalid result for product type")
 			}
-			return { _tag: "Right", right: new Tree(node, children) }
+		} else if (
+			result.type === "Recursion" &&
+			result.node === node.id &&
+			result.shape === id
+		) {
+			// console.log("searching for recursion token")
+			const token = state.stack.find(
+				({ node, shape }) => node === node && shape === id
+			)
+			if (token !== undefined) {
+				// console.log("found recursion token", token)
+				return { _tag: "Some", value: token.value }
+			} else {
+				throw new Error("Could not locate recursion token")
+			}
 		} else {
-			throw new Error("Invalid result for product type")
+			return { _tag: "None" }
 		}
 	} else if (type.type === "coproduct") {
-		// TODO: this is maybe unnecessary
-		const r = isShapeOrResult(result) ? result.solution : result
-		if (
-			isShapeOr(shapeExpr) &&
-			shapeExpr.shapeExprs.length === type.options.length
-		) {
-			const index = matchResultOption(r, shapeExpr.shapeExprs)
-			if (index === -1) {
-				throw new Error("Could not match ShapeOr expression")
-			} else {
-				const optionType = type.options[index].value
-				const optionExpr = shapeExpr.shapeExprs[index]
-				return parseResult(node, optionType, r, optionExpr, state)
-			}
-		} else {
-			throw new Error("Invalid result for coproduct type big hm")
-		}
-	} else {
-		signalInvalidType(type)
-	}
-}
-
-function isUnwrappedProductReference(
-	reference: ShapeTest,
-	valueExpr: ShExParser.shapeExpr
-): boolean {
-	if (typeof valueExpr === "string") {
-		return false
-	} else if (valueExpr.type === "ShapeOr") {
-		return valueExpr.shapeExprs.some((shapeExpr) =>
-			isUnwrappedProductReference(reference, shapeExpr)
-		)
-	} else if (
-		valueExpr.type === "ShapeAnd" &&
-		valueExpr.shapeExprs.length === 2
-	) {
-		const [nodeConstraint, shapeExpr] = valueExpr.shapeExprs
-		if (
-			isBlankNodeConstraint(nodeConstraint) &&
-			typeof shapeExpr !== "string" &&
-			shapeExpr.type === "Shape" &&
-			shapeExpr.expression !== undefined &&
-			typeof shapeExpr.expression !== "string" &&
-			shapeExpr.expression.type === "EachOf" &&
-			reference.solution.type === "EachOfSolutions" &&
-			reference.solution.solutions.length === 1
-		) {
-			const tripleExprs = shapeExpr.expression.expressions
-			const [{ expressions }] = reference.solution.solutions
-			for (const [expression, tripleExpr] of zip(expressions, tripleExprs)) {
-				if (expression.type !== "TripleConstraintSolutions") {
-					return false
-				} else if (typeof tripleExpr === "string") {
-					return false
-				} else if (tripleExpr.type !== "TripleConstraint") {
-					return false
-				} else if (expression.predicate !== tripleExpr.predicate) {
-					return false
-				} else if (expression.valueExpr !== tripleExpr.valueExpr) {
-					return false
+		// Okay so the approach here is to traverse the *type* as a tree of nested coproducts
+		// For each "leaf" (ie every non-coproduct), we check to see if result.solution is
+		// a result for that leaf type.
+		if (result.type === "ShapeOrResults") {
+			for (const option of type.options) {
+				if (isIriResult(result.solution, option.value)) {
+					if (
+						result.solution.shape === option.value &&
+						node instanceof NamedNode
+					) {
+						const value: APG.Value = {
+							id,
+							type: "coproduct",
+							option: option.value,
+							value: { id: option.value, type: "iri", node },
+						}
+						const key = `${id} ${node.value}`
+						state.cache.set(key, value)
+						return { _tag: "Some", value: value }
+					}
+				} else if (
+					isLiteralResult(result.solution, option.value) &&
+					node instanceof Literal
+				) {
+					const value: APG.Value = {
+						id,
+						type: "coproduct",
+						option: option.value,
+						value: { id: option.value, type: "literal", node },
+					}
+					return { _tag: "Some", value: value }
+				} else {
+					if (node instanceof NamedNode || node instanceof BlankNode) {
+						const cache = state.cache.get(`${option.value} ${node.value}`)
+						if (cache !== undefined) {
+							const value: APG.Value = {
+								id,
+								type: "coproduct",
+								option: option.value,
+								value: cache,
+							}
+							const key = `${id} ${node.value}`
+							state.cache.set(key, value)
+							return { _tag: "Some", value: value }
+						}
+					}
+					const match = parseResult(node, option.value, result.solution, state)
+					if (match._tag === "Some") {
+						const value: APG.Value = {
+							id,
+							type: "coproduct",
+							option: option.value,
+							value: match.value,
+						}
+						if (node instanceof BlankNode || node instanceof NamedNode) {
+							const key = `${id} ${node.value}`
+							state.cache.set(key, value)
+						}
+						return { _tag: "Some", value: value }
+					}
 				}
 			}
-			return true
+			return { _tag: "None" }
 		} else {
-			return false
+			return { _tag: "None" }
 		}
 	} else {
-		return false
+		signalInvalidType(id, type)
 	}
-}
-
-function getUnwrappedIriReference(
-	reference: SuccessResult,
-	valueExpr: ShExParser.shapeExpr
-): ShExParser.NodeConstraint | null {
-	if (typeof valueExpr === "string") {
-		return null
-	} else if (valueExpr.type === "ShapeOr") {
-		for (const shapeExpr of valueExpr.shapeExprs) {
-			const nodeConstraint = getUnwrappedIriReference(reference, shapeExpr)
-			if (nodeConstraint !== null) {
-				return nodeConstraint
-			}
-		}
-		return null
-	} else if (
-		valueExpr.type === "ShapeAnd" &&
-		valueExpr.shapeExprs.length === 2
-	) {
-		const [nodeConstraint, shapeExpr] = valueExpr.shapeExprs
-		if (
-			isNamedNodeConstraint(nodeConstraint) &&
-			isEmptyShape(shapeExpr) &&
-			reference.type === "ShapeTest" &&
-			isAnyTypeResult(reference.solution)
-		) {
-			return nodeConstraint
-		} else {
-			return null
-		}
-	} else {
-		return null
-	}
-}
-
-function wrapReference(
-	reference: SuccessResult,
-	valueExpr: ShExParser.shapeExpr
-): SuccessResult {
-	if (reference.type !== "ShapeTest") {
-		return reference
-	} else if (isUnwrappedProductReference(reference, valueExpr)) {
-		const nodeTest: NodeConstraintTest = {
-			type: "NodeConstraintTest",
-			node: reference.node,
-			shape: reference.shape,
-			shapeExpr: blankNodeConstraint,
-		}
-		return {
-			type: "ShapeAndResults",
-			solutions: [nodeTest, reference],
-		}
-	} else {
-		const nodeConstraint = getUnwrappedIriReference(reference, valueExpr)
-		if (nodeConstraint !== null) {
-			const nodeTest: NodeConstraintTest = {
-				type: "NodeConstraintTest",
-				node: reference.node,
-				shape: reference.shape,
-				shapeExpr: nodeConstraint,
-			}
-			return {
-				type: "ShapeAndResults",
-				solutions: [nodeTest, reference],
-			}
-		}
-	}
-
-	return reference
 }

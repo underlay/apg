@@ -1,25 +1,24 @@
 /// <reference types="shexjs" />
 import { rdf } from "n3.ts";
-import ShExParser from "@shexjs/parser";
 import { SuccessResult } from "@shexjs/validator";
-import { APG } from "./schema.js";
+import { APG } from "./apg.js";
 export declare type LabelShape = {
     id: string;
     type: "ShapeAnd";
     shapeExprs: [{
         type: "Shape";
-        extra: ["http://www.w3.org/1999/02/22-rdf-syntax-ns#type"];
+        extra: [typeof rdf.type];
         expression: {
             type: "TripleConstraint";
-            predicate: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+            predicate: typeof rdf.type;
             valueExpr: {
                 type: "NodeConstraint";
                 values: [string];
             };
         };
-    }, ShExParser.shapeExpr];
+    }, string];
 };
-export declare function makeLabelShape(type: APG.Label, value: ShExParser.shapeExpr): LabelShape;
+export declare function makeLabelShape(id: string, { key, value }: APG.Label): LabelShape;
 export declare type LabelResult = {
     type: "ShapeAndResults";
     solutions: [{
@@ -38,5 +37,5 @@ export declare type LabelResult = {
         };
     }, SuccessResult];
 };
-export declare function isLabelResult(result: SuccessResult): result is LabelResult;
-export declare function parseLabelResult(result: LabelResult): [string, string, SuccessResult];
+export declare function isLabelResult(result: SuccessResult, id: string, key: string): result is LabelResult;
+export declare function parseLabelResult(result: LabelResult): SuccessResult;

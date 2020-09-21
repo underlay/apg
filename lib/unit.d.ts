@@ -2,28 +2,29 @@
 import ShExParser from "@shexjs/parser";
 import { SuccessResult } from "@shexjs/validator";
 import { BlankNodeConstraint, BlankNodeConstraintResult, anyType, anyTypeResult } from "./utils.js";
-export interface emptyShape extends ShExParser.Shape {
+import { APG } from "./index.js";
+declare type emptyShape = {
+    type: "Shape";
     closed: true;
     expression: anyType;
-}
-export declare const emptyShape: emptyShape;
-export declare function isEmptyShape(shapeExpr: ShExParser.shapeExpr): shapeExpr is emptyShape;
-declare type unitShapeExpr = {
+};
+declare const emptyShape: emptyShape;
+export declare type UnitShape = {
+    id: string;
     type: "ShapeAnd";
     shapeExprs: [BlankNodeConstraint, emptyShape];
 };
-export declare const unitShapeExpr: unitShapeExpr;
-export declare function isUnitShapeExpr(shapeExpr: ShExParser.shapeExpr): shapeExpr is unitShapeExpr;
-export declare type EmptyShapeResult = {
+export declare function makeUnitShape(id: string, {}: APG.Unit): UnitShape;
+export declare function isUnitShapeExpr(shapeExpr: ShExParser.shapeExpr): shapeExpr is UnitShape;
+declare type EmptyShapeResult = {
     type: "ShapeTest";
     node: string;
     shape: string;
     solution: anyTypeResult;
 };
-export declare function isEmptyShapeResult(result: SuccessResult): result is EmptyShapeResult;
-export declare type UnitShapeResult = {
+export declare type UnitResult = {
     type: "ShapeAndResults";
     solutions: [BlankNodeConstraintResult, EmptyShapeResult];
 };
-export declare function isUnitShapeResult(result: SuccessResult): result is UnitShapeResult;
+export declare function isUnitResult(result: SuccessResult, id: string): result is UnitResult;
 export {};

@@ -1,9 +1,8 @@
 import { rdf } from "n3.ts"
 
-import ShExParser from "@shexjs/parser"
 import { SuccessResult } from "@shexjs/validator"
 
-import { APG } from "./schema.js"
+import { APG } from "./apg.js"
 
 export type LabelShape = {
 	id: string
@@ -11,26 +10,26 @@ export type LabelShape = {
 	shapeExprs: [
 		{
 			type: "Shape"
-			extra: ["http://www.w3.org/1999/02/22-rdf-syntax-ns#type"]
+			extra: [typeof rdf.type]
 			expression: {
 				type: "TripleConstraint"
-				predicate: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+				predicate: typeof rdf.type
 				valueExpr: {
 					type: "NodeConstraint"
 					values: [string]
 				}
 			}
 		},
-		ShExParser.shapeExpr
+		string
 	]
 }
 
 export function makeLabelShape(
-	type: APG.Label,
-	value: ShExParser.shapeExpr
+	id: string,
+	{ key, value }: APG.Label
 ): LabelShape {
 	return {
-		id: type.id,
+		id: id,
 		type: "ShapeAnd",
 		shapeExprs: [
 			{
@@ -41,7 +40,7 @@ export function makeLabelShape(
 					predicate: rdf.type,
 					valueExpr: {
 						type: "NodeConstraint",
-						values: [type.key],
+						values: [key],
 					},
 				},
 			},
@@ -74,7 +73,11 @@ export type LabelResult = {
 	]
 }
 
-export function isLabelResult(result: SuccessResult): result is LabelResult {
+export function isLabelResult(
+	result: SuccessResult,
+	id: string,
+	key: string
+): result is LabelResult {
 	if (result.type !== "ShapeAndResults") {
 		return false
 	} else if (result.solutions.length !== 2) {
@@ -82,6 +85,8 @@ export function isLabelResult(result: SuccessResult): result is LabelResult {
 	}
 	const [shape] = result.solutions
 	if (shape.type !== "ShapeTest") {
+		return false
+	} else if (shape.shape !== id) {
 		return false
 	} else if (shape.solution.type !== "TripleConstraintSolutions") {
 		return false
@@ -91,13 +96,10 @@ export function isLabelResult(result: SuccessResult): result is LabelResult {
 		return false
 	}
 	const [{ object, predicate }] = shape.solution.solutions
-	return predicate === rdf.type && typeof object === "string"
+	return predicate === rdf.type && object === key
 }
 
-export function parseLabelResult(
-	result: LabelResult
-): [string, string, SuccessResult] {
-	const [{ solution, shape }, nextResult] = result.solutions
-	const [{ object }] = solution.solutions
-	return [object, shape, nextResult]
+export function parseLabelResult(result: LabelResult): SuccessResult {
+	const [{}, nextResult] = result.solutions
+	return nextResult
 }

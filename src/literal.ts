@@ -1,31 +1,40 @@
 import { SuccessResult } from "@shexjs/validator"
+import ShExParser from "@shexjs/parser"
 
-import { DatatypeConstraint, isDatatypeConstraint } from "./utils.js"
-import { APG } from "./schema.js"
+import { APG } from "./apg.js"
+
+type literalShape = { id: string; type: "NodeConstraint"; datatype: string }
+type patternLiteralShape = literalShape & { pattern: string; flags: string }
+export type LiteralShape = literalShape | patternLiteralShape
+
+export const isLiteralShape = (
+	shapeExpr: ShExParser.shapeExpr
+): shapeExpr is LiteralShape =>
+	typeof shapeExpr !== "string" &&
+	shapeExpr.type === "NodeConstraint" &&
+	shapeExpr.hasOwnProperty("datatype")
 
 export type LiteralResult = {
 	type: "NodeConstraintTest"
 	node: string
 	shape: string
-	shapeExpr: DatatypeConstraint
+	shapeExpr: LiteralShape
 }
 
 export function isLiteralResult(
-	result: SuccessResult
+	result: SuccessResult,
+	id: string
 ): result is LiteralResult {
 	return (
 		result.type === "NodeConstraintTest" &&
-		isDatatypeConstraint(result.shapeExpr)
+		result.shape === id &&
+		isLiteralShape(result.shapeExpr)
 	)
 }
 
-export type LiteralShape = DatatypeConstraint &
-	({} | { pattern: string; flags: string })
-
-export function makeLiteralShape({
-	type,
-	datatype,
-	...rest
-}: APG.Literal): LiteralShape {
-	return { type: "NodeConstraint", datatype, ...rest }
+export function makeLiteralShape(
+	id: string,
+	{ id: {}, type, datatype, ...rest }: APG.Literal
+): LiteralShape {
+	return { id: id, type: "NodeConstraint", datatype, ...rest }
 }

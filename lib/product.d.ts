@@ -1,9 +1,10 @@
 /// <reference types="shexjs" />
 import ShExParser from "@shexjs/parser";
 import { SuccessResult, EachOfSolutions, OneOfSolutions, TripleConstraintSolutions } from "@shexjs/validator";
-import { APG } from "./schema.js";
+import { APG } from "./apg.js";
 import { BlankNodeConstraintResult, anyTypeResult, BlankNodeConstraint, anyType } from "./utils.js";
 export declare type ProductShape = {
+    id: string;
     type: "ShapeAnd";
     shapeExprs: [BlankNodeConstraint, {
         type: "Shape";
@@ -21,7 +22,7 @@ export declare type ComponentExpression = {
     valueExpr: ShExParser.shapeExpr;
 };
 export declare function isProductShape(shapeExpr: ShExParser.shapeExpr): shapeExpr is ProductShape;
-export declare function makeProductShape(type: APG.Product, makeShapeExpr: (type: APG.Type) => ShExParser.shapeExpr): ProductShape;
+export declare function makeProductShape(id: string, type: APG.Product): ProductShape;
 export declare type ComponentResult = {
     type: "TripleConstraintSolutions";
     predicate: string;
@@ -50,5 +51,5 @@ export declare type ProductResult = {
         };
     }];
 };
-export declare function isProductResult(result: SuccessResult): result is ProductResult;
+export declare function isProductResult(result: SuccessResult, id: string): result is ProductResult;
 export declare function parseProductResult(result: ProductResult): ComponentResult[];

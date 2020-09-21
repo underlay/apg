@@ -1,83 +1,222 @@
-import N3 from "n3.ts"
+import { Store, Parse, BlankNode } from "n3.ts"
 
-export namespace APG {
-	export type Schema = Label[]
+import { Either } from "fp-ts/Either"
 
-	export type Label = {
-		id: string
-		type: "label"
-		key: string
-		value: Type
-	}
+import { FailureResult } from "@shexjs/validator"
 
-	export type Type = Reference | Unit | Iri | Literal | Product | Coproduct
+import { APG } from "./apg.js"
 
-	type Pattern = {} | { pattern: string; flags: string }
-	export type Reference = { id: string }
-	export type Unit = { type: "unit" }
-	export type Iri = { type: "iri" } & Pattern
-	export type Literal = { type: "literal"; datatype: string } & Pattern
-	export type Product = { type: "product"; components: Component[] }
-	export type Component = { type: "component"; key: string; value: Type }
-	export type Coproduct = { type: "coproduct"; options: Option[] }
-	export type Option = { type: "option"; value: Type }
+import { parse } from "./shex.js"
+
+export const ns = {
+	label: "http://underlay.org/ns/label",
+	unit: "http://underlay.org/ns/unit",
+	product: "http://underlay.org/ns/product",
+	coproduct: "http://underlay.org/ns/coproduct",
+	component: "http://underlay.org/ns/component",
+	option: "http://underlay.org/ns/option",
+	source: "http://underlay.org/ns/source",
+	key: "http://underlay.org/ns/key",
+	value: "http://underlay.org/ns/value",
+	iri: "http://underlay.org/ns/iri",
+	literal: "http://underlay.org/ns/literal",
+	datatype: "http://underlay.org/ns/datatype",
+	pattern: "http://underlay.org/ns/pattern",
+	flags: "http://underlay.org/ns/flags",
 }
 
-export const context = {
-	id: "@id",
-	type: "@type",
-	"@vocab": "http://underlay.org/ns/",
-	key: { "@type": "@id" },
-	datatype: { "@type": "@id" },
-	options: {
-		"@reverse": "source",
-	},
-	components: {
-		"@reverse": "source",
-	},
+export function parseSchemaString(
+	input: string,
+	schemaSchema: APG.Schema
+): Either<FailureResult, APG.Schema> {
+	const store = new Store(Parse(input))
+	return parseSchema(store, schemaSchema)
 }
 
-export const isReference = (
-	expression: APG.Type
-): expression is APG.Reference => expression.hasOwnProperty("id")
+export function parseSchema(
+	store: Store,
+	schemaSchema: APG.Schema
+): Either<FailureResult, APG.Schema> {
+	const database = parse(store, schemaSchema)
+	if (database._tag === "Left") {
+		return database
+	}
 
-export const iriHasPattern = (
-	expression: APG.Iri
-): expression is { type: "iri"; pattern: string; flags: null | string } =>
-	expression.hasOwnProperty("pattern")
+	const schema: APG.Schema = new Map()
 
-export const literalHasPattern = (
-	expression: APG.Literal
-): expression is {
-	type: "literal"
-	datatype: string
-	pattern: string
-	flags: null | string
-} => expression.hasOwnProperty("pattern")
+	const labels = database.right.get("_:label") as APG.LabelValue[]
+	for (const { value: labelValue } of labels) {
+		const {
+			node: { id },
+			components: [keyValue, valueValue],
+		} = labelValue as APG.ProductValue
+		const {
+			node: { value: key },
+		} = keyValue as APG.IriValue
+		const value = parseReference(valueValue as APG.CoproductValue)
+		schema.set(id, { id, type: "label", key, value: value.id })
+	}
 
-export class Tree {
-	private readonly children: Map<string, Value>
-	constructor(
-		readonly node: N3.BlankNode,
-		children: Iterable<[string, Value]>
-	) {
-		this.children = children instanceof Map ? children : new Map(children)
+	const units = database.right.get("_:unit") as APG.LabelValue[]
+	for (const { value: labelValue } of units as APG.LabelValue[]) {
+		const {
+			node: { id },
+		} = labelValue as APG.UnitValue
+		const unit: APG.Unit = { id, type: "unit" }
+		schema.set(id, unit)
 	}
-	public get termType() {
-		return "Tree"
+
+	const iris = database.right.get("_:iri") as APG.LabelValue[]
+	for (const { value: labelValue } of iris as APG.LabelValue[]) {
+		const { option, value: optionValue } = labelValue as APG.CoproductValue
+		if (option === "_:iri-option-unit" && optionValue.type === "unit") {
+			const {
+				node: { id },
+			} = optionValue
+			schema.set(id, { id, type: "iri" })
+		} else if (
+			option === "_:iri-option-product" &&
+			optionValue.type === "product"
+		) {
+			const {
+				node: { id },
+				components: [patternValue, flagsValue],
+			} = optionValue as APG.ProductValue
+			const {
+				node: { value: pattern },
+			} = patternValue as APG.LiteralValue
+			const {
+				node: { value: flags },
+			} = flagsValue as APG.LiteralValue
+			schema.set(id, { id, type: "iri", pattern, flags })
+		} else {
+			throw new Error("Invalid iri value")
+		}
 	}
-	public get value() {
-		return this.node.value
+
+	const literals = database.right.get("_:literal") as APG.LabelValue[]
+	for (const { value: labelValue } of literals as APG.LabelValue[]) {
+		const { option, value: optionValue } = labelValue as APG.CoproductValue
+		if (
+			option === "_:literal-option-datatype" &&
+			optionValue.type === "product"
+		) {
+			const {
+				node: { id },
+				components: [datatypeValue],
+			} = optionValue as APG.ProductValue
+			const {
+				node: { value: datatype },
+			} = datatypeValue as APG.IriValue
+			schema.set(id, { id, type: "literal", datatype })
+		} else if (
+			option === "_:literal-option-pattern" &&
+			optionValue.type === "product"
+		) {
+			const {
+				node: { id },
+				components: [datatypeValue, patternValue, flagsValue],
+			} = optionValue as APG.ProductValue
+			const {
+				node: { value: datatype },
+			} = datatypeValue as APG.IriValue
+			const {
+				node: { value: pattern },
+			} = patternValue as APG.LiteralValue
+			const {
+				node: { value: flags },
+			} = flagsValue as APG.LiteralValue
+			schema.set(id, { id, type: "literal", datatype, pattern, flags })
+		}
 	}
-	public get size() {
-		return this.children.size
+
+	const products = database.right.get("_:product") as APG.LabelValue[]
+	for (const { value: labelValue } of products as APG.LabelValue[]) {
+		const {
+			node: { id },
+		} = labelValue as APG.UnitValue
+		schema.set(id, { id, type: "product", components: [] })
 	}
-	public [Symbol.iterator]() {
-		return this.children[Symbol.iterator]()
+
+	const coproducts = database.right.get("_:coproduct") as APG.LabelValue[]
+	for (const { value: labelValue } of coproducts as APG.LabelValue[]) {
+		const {
+			node: { id },
+		} = labelValue as APG.UnitValue
+		schema.set(id, { id, type: "coproduct", options: [] })
 	}
-	public get(node: string) {
-		return this.children.get(node)
+
+	const components = database.right.get("_:component") as APG.LabelValue[]
+	for (const { value: labelValue } of components as APG.LabelValue[]) {
+		const {
+			components: [sourceValue, keyValue, valueValue],
+		} = labelValue as APG.ProductValue
+		const { value: sourceLabelValue } = sourceValue as APG.LabelValue
+		const {
+			node: { id },
+		} = sourceLabelValue as APG.UnitValue
+		const {
+			node: { value: key },
+		} = keyValue as APG.IriValue
+		const { id: value } = parseReference(valueValue as APG.CoproductValue)
+		const product = schema.get(id) as APG.Product
+		product.components.push({ type: "component", key, value })
 	}
+
+	const options = database.right.get("_:option") as APG.LabelValue[]
+	for (const { value: labelValue } of options as APG.LabelValue[]) {
+		const {
+			components: [sourceValue, valueValue],
+		} = labelValue as APG.ProductValue
+		const { value: sourceLabelValue } = sourceValue as APG.LabelValue
+		const {
+			node: { id },
+		} = sourceLabelValue as APG.UnitValue
+		const { id: value } = parseReference(valueValue as APG.CoproductValue)
+		const coproduct = schema.get(id) as APG.Coproduct
+		coproduct.options.push({ type: "option", value })
+	}
+
+	return { _tag: "Right", right: schema }
 }
 
-export type Value = N3.BlankNode | N3.NamedNode | N3.Literal | Tree
+function parseReference(coproduct: APG.CoproductValue): BlankNode {
+	const { value } = coproduct.value as APG.LabelValue
+	if (coproduct.option === "_:unit") {
+		const { node } = value as APG.UnitValue
+		return node
+	} else if (coproduct.option === "_:label") {
+		const { node } = value as APG.ProductValue
+		return node
+	} else if (coproduct.option === "_:iri") {
+		const { option, value: optionValue } = value as APG.CoproductValue
+		if (option === "_:iri-option-unit") {
+			const { node } = optionValue as APG.UnitValue
+			return node
+		} else if (option === "_:iri-option-product") {
+			const { node } = optionValue as APG.ProductValue
+			return node
+		} else {
+			throw new Error("Invalid iri value option")
+		}
+	} else if (coproduct.option === "_:literal") {
+		const { option, value: optionValue } = value as APG.CoproductValue
+		if (option === "_:literal-option-datatype") {
+			const { node } = optionValue as APG.ProductValue
+			return node
+		} else if (option === "_:literal-option-pattern") {
+			const { node } = optionValue as APG.ProductValue
+			return node
+		} else {
+			throw new Error("Invalid literal value option")
+		}
+	} else if (coproduct.option === "_:product") {
+		const { node } = value as APG.UnitValue
+		return node
+	} else if (coproduct.option === "_:coproduct") {
+		const { node } = value as APG.UnitValue
+		return node
+	} else {
+		throw new Error("Invalid value option")
+	}
+}

@@ -15,17 +15,22 @@ const rdfType = rdf.type
 export const zip = <A, B>(
 	a: Iterable<A>,
 	b: Iterable<B>
-): Iterable<[A, B]> => ({
+): Iterable<[A, B, number]> => ({
 	[Symbol.iterator]() {
 		const iterA = a[Symbol.iterator]()
 		const iterB = b[Symbol.iterator]()
+		let i = 0
 		return {
 			next() {
 				const resultA = iterA.next()
 				const resultB = iterB.next()
-				return {
-					value: [resultA.value, resultB.value],
-					done: resultA.done || resultB.done,
+				if (resultA.done || resultB.done) {
+					return { done: true, value: undefined }
+				} else {
+					return {
+						done: false,
+						value: [resultA.value, resultB.value, i++],
+					}
 				}
 			},
 		}
@@ -105,14 +110,6 @@ function isAnyTypeTripleResult(
 	)
 }
 
-export type DatatypeConstraint = { type: "NodeConstraint"; datatype: string }
-export const isDatatypeConstraint = (
-	shapeExpr: ShExParser.shapeExpr
-): shapeExpr is DatatypeConstraint =>
-	typeof shapeExpr !== "string" &&
-	shapeExpr.type === "NodeConstraint" &&
-	shapeExpr.hasOwnProperty("datatype")
-
 export const isNodeConstraint = (
 	shapeExpr: ShExParser.shapeExpr
 ): shapeExpr is { type: "NodeConstraint"; nodeKind: "bnode" | "iri" } =>
@@ -146,29 +143,3 @@ export function isBlankNodeConstraintResult(
 		isBlankNodeConstraint(result.shapeExpr)
 	)
 }
-
-type baseNamedNodeConstraint = {
-	type: "NodeConstraint"
-	nodeKind: "iri"
-}
-
-type patternNamedNodeConstraint = {
-	type: "NodeConstraint"
-	nodeKind: "iri"
-	pattern: string
-	flags: string
-}
-
-export type NamedNodeConstraint =
-	| baseNamedNodeConstraint
-	| patternNamedNodeConstraint
-
-export const isNamedNodeConstraint = (
-	shapeExpr: ShExParser.shapeExpr
-): shapeExpr is NamedNodeConstraint =>
-	isNodeConstraint(shapeExpr) && shapeExpr.nodeKind === "iri"
-
-export const isPatternNamedNodeConstraint = (
-	shapeExpr: NamedNodeConstraint
-): shapeExpr is patternNamedNodeConstraint =>
-	shapeExpr.hasOwnProperty("pattern")

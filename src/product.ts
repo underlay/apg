@@ -8,7 +8,7 @@ import {
 	TripleConstraintSolutions,
 } from "@shexjs/validator"
 
-import { APG } from "./schema.js"
+import { APG } from "./apg.js"
 import {
 	BlankNodeConstraintResult,
 	anyTypeResult,
@@ -22,6 +22,7 @@ import {
 } from "./utils.js"
 
 export type ProductShape = {
+	id: string
 	type: "ShapeAnd"
 	shapeExprs: [
 		BlankNodeConstraint,
@@ -44,7 +45,7 @@ export type ComponentExpression = {
 	valueExpr: ShExParser.shapeExpr
 }
 
-function isProductShapeEachOf(
+function isProductExpression(
 	tripleExpr: ShExParser.tripleExpr
 ): tripleExpr is ProductExpression {
 	if (typeof tripleExpr === "string") {
@@ -91,16 +92,14 @@ export function isProductShape(
 
 	return (
 		isBlankNodeConstraint(nodeConstraint) &&
-		isProductShapeEachOf(shape.expression)
+		isProductExpression(shape.expression)
 	)
 }
 
-export function makeProductShape(
-	type: APG.Product,
-	makeShapeExpr: (type: APG.Type) => ShExParser.shapeExpr
-): ProductShape {
-	const expression = makeProductShapeExpression(type, makeShapeExpr)
+export function makeProductShape(id: string, type: APG.Product): ProductShape {
+	const expression = makeProductExpression(type)
 	return {
+		id: id,
 		type: "ShapeAnd",
 		shapeExprs: [
 			blankNodeConstraint,
@@ -109,10 +108,7 @@ export function makeProductShape(
 	}
 }
 
-function makeProductShapeExpression(
-	type: APG.Product,
-	makeShapeExpr: (type: APG.Type) => ShExParser.shapeExpr
-): ProductExpression {
+function makeProductExpression(type: APG.Product): ProductExpression {
 	const expressions: [anyType, ...ComponentExpression[]] = [anyType]
 	const values: Set<string> = new Set()
 	for (const { key, value } of type.components) {
@@ -125,7 +121,7 @@ function makeProductShapeExpression(
 		expressions.push({
 			type: "TripleConstraint",
 			predicate: key,
-			valueExpr: makeShapeExpr(value),
+			valueExpr: value,
 		})
 	}
 	return { type: "EachOf", expressions }
@@ -176,7 +172,8 @@ export type ProductResult = {
 }
 
 export function isProductResult(
-	result: SuccessResult
+	result: SuccessResult,
+	id: string
 ): result is ProductResult {
 	if (result.type !== "ShapeAndResults") {
 		return false
@@ -185,6 +182,8 @@ export function isProductResult(
 	}
 	const [nodeConstraint, shape] = result.solutions
 	if (shape.type !== "ShapeTest") {
+		return false
+	} else if (shape.shape !== id) {
 		return false
 	} else if (shape.solution.type !== "EachOfSolutions") {
 		return false
@@ -195,6 +194,7 @@ export function isProductResult(
 	const [first, ...rest] = expressions
 	return (
 		isBlankNodeConstraintResult(nodeConstraint) &&
+		nodeConstraint.shape === id &&
 		isAnyTypeResult(first) &&
 		rest.every(isComponentResult)
 	)

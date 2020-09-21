@@ -3,8 +3,8 @@ import { NamedNode, BlankNode, Literal } from "n3.ts";
 import ShExParser from "@shexjs/parser";
 import { EachOfSolutions, OneOfSolutions, TripleConstraintSolutions, SuccessResult } from "@shexjs/validator";
 declare const rdfType: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-export declare const zip: <A, B>(a: Iterable<A>, b: Iterable<B>) => Iterable<[A, B]>;
-export declare function parseObjectValue(object: ShExParser.objectValue): Literal | NamedNode<string> | BlankNode;
+export declare const zip: <A, B>(a: Iterable<A>, b: Iterable<B>) => Iterable<[A, B, number]>;
+export declare function parseObjectValue(object: ShExParser.objectValue): BlankNode | NamedNode<string> | Literal;
 export interface anyType extends ShExParser.TripleConstraint<typeof rdfType, undefined> {
     min: 0;
     max: -1;
@@ -23,14 +23,9 @@ declare type anyTypeTripleResult = {
     predicate: typeof rdfType;
     object: string;
 };
-export declare type DatatypeConstraint = {
-    type: "NodeConstraint";
-    datatype: string;
-};
-export declare const isDatatypeConstraint: (shapeExpr: ShExParser.shapeExpr) => shapeExpr is DatatypeConstraint;
 export declare const isNodeConstraint: (shapeExpr: ShExParser.shapeExpr) => shapeExpr is {
     type: "NodeConstraint";
-    nodeKind: "iri" | "bnode";
+    nodeKind: "bnode" | "iri";
 };
 export declare type BlankNodeConstraint = {
     type: "NodeConstraint";
@@ -45,17 +40,4 @@ export declare type BlankNodeConstraintResult = {
     shapeExpr: BlankNodeConstraint;
 };
 export declare function isBlankNodeConstraintResult(result: SuccessResult): result is BlankNodeConstraintResult;
-declare type baseNamedNodeConstraint = {
-    type: "NodeConstraint";
-    nodeKind: "iri";
-};
-declare type patternNamedNodeConstraint = {
-    type: "NodeConstraint";
-    nodeKind: "iri";
-    pattern: string;
-    flags: string;
-};
-export declare type NamedNodeConstraint = baseNamedNodeConstraint | patternNamedNodeConstraint;
-export declare const isNamedNodeConstraint: (shapeExpr: ShExParser.shapeExpr) => shapeExpr is NamedNodeConstraint;
-export declare const isPatternNamedNodeConstraint: (shapeExpr: NamedNodeConstraint) => shapeExpr is patternNamedNodeConstraint;
 export {};
