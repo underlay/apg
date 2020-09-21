@@ -40,7 +40,6 @@ export namespace APG {
 	export type CoproductValue = {
 		id: string
 		type: "coproduct"
-		option: string
 		value: Value
 	}
 	export type Value =

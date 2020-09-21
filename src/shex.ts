@@ -298,7 +298,6 @@ function parseResult(
 						const value: APG.Value = {
 							id,
 							type: "coproduct",
-							option: option.value,
 							value: { id: option.value, type: "iri", node },
 						}
 						const key = `${id} ${node.value}`
@@ -312,7 +311,6 @@ function parseResult(
 					const value: APG.Value = {
 						id,
 						type: "coproduct",
-						option: option.value,
 						value: { id: option.value, type: "literal", node },
 					}
 					return { _tag: "Some", value: value }
@@ -323,7 +321,6 @@ function parseResult(
 							const value: APG.Value = {
 								id,
 								type: "coproduct",
-								option: option.value,
 								value: cache,
 							}
 							const key = `${id} ${node.value}`
@@ -336,7 +333,6 @@ function parseResult(
 						const value: APG.Value = {
 							id,
 							type: "coproduct",
-							option: option.value,
 							value: match.value,
 						}
 						if (node instanceof BlankNode || node instanceof NamedNode) {

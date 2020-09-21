@@ -4,7 +4,7 @@ import ShExParser from "@shexjs/parser";
 import { EachOfSolutions, OneOfSolutions, TripleConstraintSolutions, SuccessResult } from "@shexjs/validator";
 declare const rdfType: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 export declare const zip: <A, B>(a: Iterable<A>, b: Iterable<B>) => Iterable<[A, B, number]>;
-export declare function parseObjectValue(object: ShExParser.objectValue): BlankNode | NamedNode<string> | Literal;
+export declare function parseObjectValue(object: ShExParser.objectValue): Literal | NamedNode<string> | BlankNode;
 export interface anyType extends ShExParser.TripleConstraint<typeof rdfType, undefined> {
     min: 0;
     max: -1;
@@ -25,7 +25,7 @@ declare type anyTypeTripleResult = {
 };
 export declare const isNodeConstraint: (shapeExpr: ShExParser.shapeExpr) => shapeExpr is {
     type: "NodeConstraint";
-    nodeKind: "bnode" | "iri";
+    nodeKind: "iri" | "bnode";
 };
 export declare type BlankNodeConstraint = {
     type: "NodeConstraint";

@@ -78,7 +78,6 @@ export declare namespace APG {
     type CoproductValue = {
         id: string;
         type: "coproduct";
-        option: string;
         value: Value;
     };
     type Value = LabelValue | UnitValue | IriValue | LiteralValue | ProductValue | CoproductValue;

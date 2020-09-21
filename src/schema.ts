@@ -42,9 +42,23 @@ export function parseSchema(
 		return database
 	}
 
+	// types is indexed by iri key, not blank node label
+	const dictionary: Map<string, string> = new Map()
+	const types: APG.Instance = new Map()
+	for (const type of schemaSchema.values()) {
+		if (type.type === "label") {
+			const values = database.right.get(type.id)
+			if (values === undefined) {
+				throw new Error(`Cannot find ${type.id} in database`)
+			}
+			types.set(type.key, values)
+			dictionary.set(type.key, type.id)
+		}
+	}
+
 	const schema: APG.Schema = new Map()
 
-	const labels = database.right.get("_:label") as APG.LabelValue[]
+	const labels = types.get(ns.label) as APG.LabelValue[]
 	for (const { value: labelValue } of labels) {
 		const {
 			node: { id },
@@ -53,12 +67,12 @@ export function parseSchema(
 		const {
 			node: { value: key },
 		} = keyValue as APG.IriValue
-		const value = parseReference(valueValue as APG.CoproductValue)
+		const value = parseReference(valueValue as APG.CoproductValue, dictionary)
 		schema.set(id, { id, type: "label", key, value: value.id })
 	}
 
-	const units = database.right.get("_:unit") as APG.LabelValue[]
-	for (const { value: labelValue } of units as APG.LabelValue[]) {
+	const units = types.get(ns.unit) as APG.LabelValue[]
+	for (const { value: labelValue } of units) {
 		const {
 			node: { id },
 		} = labelValue as APG.UnitValue
@@ -66,18 +80,15 @@ export function parseSchema(
 		schema.set(id, unit)
 	}
 
-	const iris = database.right.get("_:iri") as APG.LabelValue[]
-	for (const { value: labelValue } of iris as APG.LabelValue[]) {
-		const { option, value: optionValue } = labelValue as APG.CoproductValue
-		if (option === "_:iri-option-unit" && optionValue.type === "unit") {
+	const iris = types.get(ns.iri) as APG.LabelValue[]
+	for (const { value: labelValue } of iris) {
+		const { value: optionValue } = labelValue as APG.CoproductValue
+		if (optionValue.type === "unit") {
 			const {
 				node: { id },
 			} = optionValue
 			schema.set(id, { id, type: "iri" })
-		} else if (
-			option === "_:iri-option-product" &&
-			optionValue.type === "product"
-		) {
+		} else if (optionValue.type === "product") {
 			const {
 				node: { id },
 				components: [patternValue, flagsValue],
@@ -94,29 +105,26 @@ export function parseSchema(
 		}
 	}
 
-	const literals = database.right.get("_:literal") as APG.LabelValue[]
+	const literals = types.get(ns.literal) as APG.LabelValue[]
 	for (const { value: labelValue } of literals as APG.LabelValue[]) {
-		const { option, value: optionValue } = labelValue as APG.CoproductValue
-		if (
-			option === "_:literal-option-datatype" &&
-			optionValue.type === "product"
-		) {
+		const { value: optionValue } = labelValue as APG.CoproductValue
+		if (optionValue.type === "product" && optionValue.components.length === 1) {
 			const {
 				node: { id },
 				components: [datatypeValue],
-			} = optionValue as APG.ProductValue
+			} = optionValue
 			const {
 				node: { value: datatype },
 			} = datatypeValue as APG.IriValue
 			schema.set(id, { id, type: "literal", datatype })
 		} else if (
-			option === "_:literal-option-pattern" &&
-			optionValue.type === "product"
+			optionValue.type === "product" &&
+			optionValue.components.length === 3
 		) {
 			const {
 				node: { id },
 				components: [datatypeValue, patternValue, flagsValue],
-			} = optionValue as APG.ProductValue
+			} = optionValue
 			const {
 				node: { value: datatype },
 			} = datatypeValue as APG.IriValue
@@ -130,24 +138,24 @@ export function parseSchema(
 		}
 	}
 
-	const products = database.right.get("_:product") as APG.LabelValue[]
-	for (const { value: labelValue } of products as APG.LabelValue[]) {
+	const products = types.get(ns.product) as APG.LabelValue[]
+	for (const { value: labelValue } of products) {
 		const {
 			node: { id },
 		} = labelValue as APG.UnitValue
 		schema.set(id, { id, type: "product", components: [] })
 	}
 
-	const coproducts = database.right.get("_:coproduct") as APG.LabelValue[]
-	for (const { value: labelValue } of coproducts as APG.LabelValue[]) {
+	const coproducts = types.get(ns.coproduct) as APG.LabelValue[]
+	for (const { value: labelValue } of coproducts) {
 		const {
 			node: { id },
 		} = labelValue as APG.UnitValue
 		schema.set(id, { id, type: "coproduct", options: [] })
 	}
 
-	const components = database.right.get("_:component") as APG.LabelValue[]
-	for (const { value: labelValue } of components as APG.LabelValue[]) {
+	const components = types.get(ns.component) as APG.LabelValue[]
+	for (const { value: labelValue } of components) {
 		const {
 			components: [sourceValue, keyValue, valueValue],
 		} = labelValue as APG.ProductValue
@@ -158,13 +166,16 @@ export function parseSchema(
 		const {
 			node: { value: key },
 		} = keyValue as APG.IriValue
-		const { id: value } = parseReference(valueValue as APG.CoproductValue)
+		const { id: value } = parseReference(
+			valueValue as APG.CoproductValue,
+			dictionary
+		)
 		const product = schema.get(id) as APG.Product
 		product.components.push({ type: "component", key, value })
 	}
 
-	const options = database.right.get("_:option") as APG.LabelValue[]
-	for (const { value: labelValue } of options as APG.LabelValue[]) {
+	const options = types.get(ns.option) as APG.LabelValue[]
+	for (const { value: labelValue } of options) {
 		const {
 			components: [sourceValue, valueValue],
 		} = labelValue as APG.ProductValue
@@ -172,7 +183,10 @@ export function parseSchema(
 		const {
 			node: { id },
 		} = sourceLabelValue as APG.UnitValue
-		const { id: value } = parseReference(valueValue as APG.CoproductValue)
+		const { id: value } = parseReference(
+			valueValue as APG.CoproductValue,
+			dictionary
+		)
 		const coproduct = schema.get(id) as APG.Coproduct
 		coproduct.options.push({ type: "option", value })
 	}
@@ -180,40 +194,37 @@ export function parseSchema(
 	return { _tag: "Right", right: schema }
 }
 
-function parseReference(coproduct: APG.CoproductValue): BlankNode {
+function parseReference(
+	coproduct: APG.CoproductValue,
+	dictionary: Map<string, string>
+): BlankNode {
 	const { value } = coproduct.value as APG.LabelValue
-	if (coproduct.option === "_:unit") {
+	if (coproduct.value.id === dictionary.get(ns.unit)) {
 		const { node } = value as APG.UnitValue
 		return node
-	} else if (coproduct.option === "_:label") {
+	} else if (coproduct.value.id === dictionary.get(ns.label)) {
 		const { node } = value as APG.ProductValue
 		return node
-	} else if (coproduct.option === "_:iri") {
-		const { option, value: optionValue } = value as APG.CoproductValue
-		if (option === "_:iri-option-unit") {
-			const { node } = optionValue as APG.UnitValue
-			return node
-		} else if (option === "_:iri-option-product") {
-			const { node } = optionValue as APG.ProductValue
-			return node
+	} else if (coproduct.value.id === dictionary.get(ns.iri)) {
+		const { value: optionValue } = value as APG.CoproductValue
+		if (optionValue.type === "unit") {
+			return optionValue.node
+		} else if (optionValue.type === "product") {
+			return optionValue.node
 		} else {
 			throw new Error("Invalid iri value option")
 		}
-	} else if (coproduct.option === "_:literal") {
-		const { option, value: optionValue } = value as APG.CoproductValue
-		if (option === "_:literal-option-datatype") {
-			const { node } = optionValue as APG.ProductValue
-			return node
-		} else if (option === "_:literal-option-pattern") {
-			const { node } = optionValue as APG.ProductValue
-			return node
+	} else if (coproduct.value.id === dictionary.get(ns.literal)) {
+		const { value: optionValue } = value as APG.CoproductValue
+		if (optionValue.type === "product") {
+			return optionValue.node
 		} else {
 			throw new Error("Invalid literal value option")
 		}
-	} else if (coproduct.option === "_:product") {
+	} else if (coproduct.value.id === dictionary.get(ns.product)) {
 		const { node } = value as APG.UnitValue
 		return node
-	} else if (coproduct.option === "_:coproduct") {
+	} else if (coproduct.value.id === dictionary.get(ns.coproduct)) {
 		const { node } = value as APG.UnitValue
 		return node
 	} else {
