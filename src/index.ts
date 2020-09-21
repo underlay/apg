@@ -1,5 +1,5 @@
 import { APG } from "./apg.js"
 import { parse } from "./shex.js"
-// import { parseSchema, parseSchemaString } from "./schema.js"
+import { parseSchema, parseSchemaString, ns } from "./schema.js"
 
-export { APG, parse }
+export { APG, parse, parseSchema, parseSchemaString, ns }
