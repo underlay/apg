@@ -36,6 +36,7 @@ export declare namespace APG {
         components: Component[];
     };
     type Component = {
+        id: string;
         type: "component";
         key: string;
         value: string;
@@ -46,6 +47,7 @@ export declare namespace APG {
         options: Option[];
     };
     type Option = {
+        id: string;
         type: "option";
         value: string;
     };

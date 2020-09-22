@@ -1,6 +1,6 @@
 {
 	"name": "apg",
-	"version": "0.2.0",
+	"version": "0.2.2",
 	"description": "Underlay APG utilities",
 	"type": "module",
 	"main": "lib/index.js",
@@ -28,7 +28,7 @@
 		"@shexjs/util": "file:shex.js/packages/shex-util",
 		"@shexjs/validator": "file:shex.js/packages/shex-validator",
 		"@types/jsonld": "^1.5.1",
-		"fp-ts": "^2.8.2",
+		"fp-ts": "^2.8.3",
 		"jsonld": "^3.1.1"
 	},
 	"peerDependencies": {

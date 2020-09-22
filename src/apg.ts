@@ -23,9 +23,14 @@ export namespace APG {
 
 	export type Literal = literal | patternLiteral
 	export type Product = { id: string; type: "product"; components: Component[] }
-	export type Component = { type: "component"; key: string; value: string }
+	export type Component = {
+		id: string
+		type: "component"
+		key: string
+		value: string
+	}
 	export type Coproduct = { id: string; type: "coproduct"; options: Option[] }
-	export type Option = { type: "option"; value: string }
+	export type Option = { id: string; type: "option"; value: string }
 
 	export type LabelValue = { id: string; type: "label"; value: Value }
 	export type UnitValue = { id: string; type: "unit"; node: N3.BlankNode }

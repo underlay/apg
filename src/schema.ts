@@ -157,11 +157,12 @@ export function parseSchema(
 	const components = types.get(ns.component) as APG.LabelValue[]
 	for (const { value: labelValue } of components) {
 		const {
+			node: { id: componentId },
 			components: [sourceValue, keyValue, valueValue],
 		} = labelValue as APG.ProductValue
 		const { value: sourceLabelValue } = sourceValue as APG.LabelValue
 		const {
-			node: { id },
+			node: { id: valueId },
 		} = sourceLabelValue as APG.UnitValue
 		const {
 			node: { value: key },
@@ -170,25 +171,26 @@ export function parseSchema(
 			valueValue as APG.CoproductValue,
 			dictionary
 		)
-		const product = schema.get(id) as APG.Product
-		product.components.push({ type: "component", key, value })
+		const product = schema.get(valueId) as APG.Product
+		product.components.push({ id: componentId, type: "component", key, value })
 	}
 
 	const options = types.get(ns.option) as APG.LabelValue[]
 	for (const { value: labelValue } of options) {
 		const {
+			node: { id: optionId },
 			components: [sourceValue, valueValue],
 		} = labelValue as APG.ProductValue
 		const { value: sourceLabelValue } = sourceValue as APG.LabelValue
 		const {
-			node: { id },
+			node: { id: valueId },
 		} = sourceLabelValue as APG.UnitValue
 		const { id: value } = parseReference(
 			valueValue as APG.CoproductValue,
 			dictionary
 		)
-		const coproduct = schema.get(id) as APG.Coproduct
-		coproduct.options.push({ type: "option", value })
+		const coproduct = schema.get(valueId) as APG.Coproduct
+		coproduct.options.push({ id: optionId, type: "option", value })
 	}
 
 	return { _tag: "Right", right: schema }
