@@ -203,7 +203,7 @@
 					"value": "_:literal-pattern"
 				},
 				{
-					"id": "_:literal-with-pattern-component-pattern",
+					"id": "_:literal-with-pattern-component-flags",
 					"type": "component",
 					"key": "http://underlay.org/ns/flags",
 					"value": "_:literal-flags"
