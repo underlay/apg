@@ -125,11 +125,13 @@
 			"type": "product",
 			"components": [
 				{
+					"id": "_:iri-component-pattern",
 					"type": "component",
 					"key": "http://underlay.org/ns/pattern",
 					"value": "_:iri-pattern"
 				},
 				{
+					"id": "_:iri-component-flags",
 					"type": "component",
 					"key": "http://underlay.org/ns/flags",
 					"value": "_:iri-flags"
@@ -173,6 +175,7 @@
 			"type": "product",
 			"components": [
 				{
+					"id": "_:literal-without-pattern-component-datatype",
 					"type": "component",
 					"key": "http://underlay.org/ns/datatype",
 					"value": "_:literal-datatype"
@@ -188,16 +191,19 @@
 			"type": "product",
 			"components": [
 				{
+					"id": "_:literal-with-pattern-component-datatype",
 					"type": "component",
 					"key": "http://underlay.org/ns/datatype",
 					"value": "_:literal-datatype"
 				},
 				{
+					"id": "_:literal-with-pattern-component-pattern",
 					"type": "component",
 					"key": "http://underlay.org/ns/pattern",
 					"value": "_:literal-pattern"
 				},
 				{
+					"id": "_:literal-with-pattern-component-pattern",
 					"type": "component",
 					"key": "http://underlay.org/ns/flags",
 					"value": "_:literal-flags"
