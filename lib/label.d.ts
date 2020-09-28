@@ -1,7 +1,7 @@
 /// <reference types="shexjs" />
 import { rdf } from "n3.ts";
 import { SuccessResult } from "@shexjs/validator";
-import { APG } from "./apg.js";
+import APG from "./apg.js";
 export declare type LabelShape = {
     id: string;
     type: "ShapeAnd";

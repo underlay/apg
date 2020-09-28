@@ -8,7 +8,7 @@ import {
 	TripleConstraintSolutions,
 } from "@shexjs/validator"
 
-import { APG } from "./apg.js"
+import APG from "./apg.js"
 import {
 	BlankNodeConstraintResult,
 	anyTypeResult,

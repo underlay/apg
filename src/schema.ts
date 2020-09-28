@@ -4,7 +4,7 @@ import { Either } from "fp-ts/Either"
 
 import { FailureResult } from "@shexjs/validator"
 
-import { APG } from "./apg.js"
+import APG from "./apg.js"
 
 import { parse } from "./shex.js"
 import { pivotTree } from "./utils.js"

@@ -10,7 +10,7 @@ import {
 	blankNodeConstraint,
 	getBlankNodeId,
 } from "./utils.js"
-import { APG } from "./apg.js"
+import APG from "./apg.js"
 
 type emptyShape = {
 	type: "Shape"

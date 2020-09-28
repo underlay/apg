@@ -2,7 +2,7 @@
 import { Store } from "n3.ts";
 import { Either } from "fp-ts/Either";
 import { FailureResult } from "@shexjs/validator";
-import { APG } from "./apg.js";
+import APG from "./apg.js";
 export declare const ns: {
     label: string;
     reference: string;

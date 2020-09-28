@@ -1,6 +1,6 @@
 import { SuccessResult, ShapeOrResults } from "@shexjs/validator"
 
-import { APG } from "./apg.js"
+import APG from "./apg.js"
 import { getBlankNodeId } from "./utils.js"
 
 export function isShapeOrResult(

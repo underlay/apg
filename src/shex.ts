@@ -9,7 +9,7 @@ import ShExParser from "@shexjs/parser"
 import ShExUtil from "@shexjs/util"
 import ShExValidator, { SuccessResult, FailureResult } from "@shexjs/validator"
 
-import { APG } from "./apg.js"
+import APG from "./apg.js"
 import { zip, parseObjectValue, getBlankNodeId } from "./utils.js"
 import { isUnitResult, makeUnitShape } from "./unit.js"
 import { isIriResult, makeIriShape } from "./iri.js"

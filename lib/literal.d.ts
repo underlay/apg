@@ -1,7 +1,7 @@
 /// <reference types="shexjs" />
 import { SuccessResult } from "@shexjs/validator";
 import ShExParser from "@shexjs/parser";
-import { APG } from "./apg.js";
+import APG from "./apg.js";
 declare type literalShape = {
     id: string;
     type: "NodeConstraint";

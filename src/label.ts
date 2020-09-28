@@ -2,7 +2,7 @@ import { rdf } from "n3.ts"
 
 import { SuccessResult } from "@shexjs/validator"
 
-import { APG } from "./apg.js"
+import APG from "./apg.js"
 import { getBlankNodeId } from "./utils.js"
 
 export type LabelShape = {

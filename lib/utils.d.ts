@@ -2,7 +2,7 @@
 import { NamedNode, BlankNode, Literal } from "n3.ts";
 import ShExParser from "@shexjs/parser";
 import { EachOfSolutions, OneOfSolutions, TripleConstraintSolutions, SuccessResult } from "@shexjs/validator";
-import { APG } from "./apg";
+import APG from "./apg.js";
 declare const rdfType: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 export declare function pivotTree<V extends T, T extends APG.Value = APG.Value>(trees: Set<APG.Tree<T>>, key: string): Map<V, Set<APG.Tree<T>>>;
 export declare const getBlankNodeId: (a: string | Readonly<{

@@ -1,7 +1,7 @@
 /// <reference types="shexjs" />
 import ShExParser from "@shexjs/parser";
 import { SuccessResult } from "@shexjs/validator";
-import { APG } from "./apg.js";
+import APG from "./apg.js";
 declare type iriShape = {
     id: string;
     type: "NodeConstraint";

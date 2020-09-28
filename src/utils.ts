@@ -8,7 +8,7 @@ import {
 	TestedTriple,
 	SuccessResult,
 } from "@shexjs/validator"
-import { APG } from "./apg"
+import APG from "./apg.js"
 
 const xsdString = new NamedNode(xsd.string)
 const rdfType = rdf.type

@@ -1,7 +1,7 @@
 /// <reference types="shexjs" />
 import ShExParser from "@shexjs/parser";
 import { SuccessResult, EachOfSolutions, OneOfSolutions, TripleConstraintSolutions } from "@shexjs/validator";
-import { APG } from "./apg.js";
+import APG from "./apg.js";
 import { BlankNodeConstraintResult, anyTypeResult, BlankNodeConstraint, anyType } from "./utils.js";
 export declare type ProductShape = {
     id: string;
