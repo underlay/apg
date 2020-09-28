@@ -17,11 +17,11 @@ export declare type ProductExpression = {
     expressions: [anyType, ...ComponentExpression[]];
 };
 export declare type ComponentExpression = {
+    id: string;
     type: "TripleConstraint";
     predicate: string;
     valueExpr: ShExParser.shapeExpr;
 };
-export declare function isProductShape(shapeExpr: ShExParser.shapeExpr): shapeExpr is ProductShape;
 export declare function makeProductShape(id: string, type: APG.Product): ProductShape;
 export declare type ComponentResult = {
     type: "TripleConstraintSolutions";

@@ -1,8 +1,7 @@
 /// <reference types="shexjs" />
-import ShExParser from "@shexjs/parser";
 import { SuccessResult } from "@shexjs/validator";
 import { BlankNodeConstraint, BlankNodeConstraintResult, anyType, anyTypeResult } from "./utils.js";
-import { APG } from "./index.js";
+import { APG } from "./apg.js";
 declare type emptyShape = {
     type: "Shape";
     closed: true;
@@ -15,7 +14,6 @@ export declare type UnitShape = {
     shapeExprs: [BlankNodeConstraint, emptyShape];
 };
 export declare function makeUnitShape(id: string, {}: APG.Unit): UnitShape;
-export declare function isUnitShapeExpr(shapeExpr: ShExParser.shapeExpr): shapeExpr is UnitShape;
 declare type EmptyShapeResult = {
     type: "ShapeTest";
     node: string;

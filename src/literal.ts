@@ -2,6 +2,7 @@ import { SuccessResult } from "@shexjs/validator"
 import ShExParser from "@shexjs/parser"
 
 import { APG } from "./apg.js"
+import { getBlankNodeId } from "./utils.js"
 
 type literalShape = { id: string; type: "NodeConstraint"; datatype: string }
 type patternLiteralShape = literalShape & { pattern: string; flags: string }
@@ -23,18 +24,18 @@ export type LiteralResult = {
 
 export function isLiteralResult(
 	result: SuccessResult,
-	id: string
+	value: string | APG.Reference
 ): result is LiteralResult {
 	return (
 		result.type === "NodeConstraintTest" &&
-		result.shape === id &&
+		result.shape === getBlankNodeId(value) &&
 		isLiteralShape(result.shapeExpr)
 	)
 }
 
 export function makeLiteralShape(
 	id: string,
-	{ id: {}, type, datatype, ...rest }: APG.Literal
+	{ type, datatype, ...rest }: APG.Literal
 ): LiteralShape {
-	return { id: id, type: "NodeConstraint", datatype, ...rest }
+	return { id: getBlankNodeId(id), type: "NodeConstraint", datatype, ...rest }
 }

@@ -3,6 +3,7 @@ import { rdf } from "n3.ts"
 import { SuccessResult } from "@shexjs/validator"
 
 import { APG } from "./apg.js"
+import { getBlankNodeId } from "./utils.js"
 
 export type LabelShape = {
 	id: string
@@ -24,12 +25,10 @@ export type LabelShape = {
 	]
 }
 
-export function makeLabelShape(
-	id: string,
-	{ key, value }: APG.Label
-): LabelShape {
+export function makeLabelShape(id: string, label: APG.Label): LabelShape {
+	console.log("making label shape", id, getBlankNodeId(id))
 	return {
-		id: id,
+		id: getBlankNodeId(id),
 		type: "ShapeAnd",
 		shapeExprs: [
 			{
@@ -40,11 +39,11 @@ export function makeLabelShape(
 					predicate: rdf.type,
 					valueExpr: {
 						type: "NodeConstraint",
-						values: [key],
+						values: [label.key],
 					},
 				},
 			},
-			value,
+			getBlankNodeId(label.value),
 		],
 	}
 }
@@ -86,7 +85,7 @@ export function isLabelResult(
 	const [shape] = result.solutions
 	if (shape.type !== "ShapeTest") {
 		return false
-	} else if (shape.shape !== id) {
+	} else if (shape.shape !== getBlankNodeId(id)) {
 		return false
 	} else if (shape.solution.type !== "TripleConstraintSolutions") {
 		return false
@@ -96,7 +95,7 @@ export function isLabelResult(
 		return false
 	}
 	const [{ object, predicate }] = shape.solution.solutions
-	return predicate === rdf.type && object === key
+	return object === key && predicate === rdf.type
 }
 
 export function parseLabelResult(result: LabelResult): SuccessResult {

@@ -1,6 +1,6 @@
 {
 	"name": "apg",
-	"version": "0.2.4",
+	"version": "0.3.0",
 	"description": "Underlay APG utilities",
 	"type": "module",
 	"main": "lib/index.js",
@@ -22,7 +22,10 @@
 	"homepage": "https://github.com/underlay/apg#readme",
 	"dependencies": {
 		"@types/shexjs": "gist:423141cd96c858931f618fbf97fdc1b9",
-		"n3.ts": "^0.1.3"
+		"@types/uuid": "^8.3.0",
+		"io-ts": "^2.2.10",
+		"n3.ts": "^0.1.3",
+		"uuid": "^8.3.0"
 	},
 	"devDependencies": {
 		"@shexjs/util": "file:shex.js/packages/shex-util",

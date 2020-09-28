@@ -16,9 +16,8 @@ import {
 	isAnyTypeResult,
 	BlankNodeConstraint,
 	anyType,
-	isAnyType,
-	isBlankNodeConstraint,
 	blankNodeConstraint,
+	getBlankNodeId,
 } from "./utils.js"
 
 export type ProductShape = {
@@ -40,66 +39,17 @@ export type ProductExpression = {
 }
 
 export type ComponentExpression = {
+	id: string
 	type: "TripleConstraint"
 	predicate: string
 	valueExpr: ShExParser.shapeExpr
 }
 
-function isProductExpression(
-	tripleExpr: ShExParser.tripleExpr
-): tripleExpr is ProductExpression {
-	if (typeof tripleExpr === "string") {
-		return false
-	} else if (tripleExpr.type !== "EachOf") {
-		return false
-	} else if (tripleExpr.expressions.length === 0) {
-		return false
-	}
-	const [first, ...rest] = tripleExpr.expressions
-	return isAnyType(first) && rest.every(isComponentExpression)
-}
-
-function isComponentExpression(
-	tripleExpr: ShExParser.tripleExpr
-): tripleExpr is ComponentExpression {
-	return (
-		typeof tripleExpr !== "string" && tripleExpr.type === "TripleConstraint"
-	)
-}
-
-export function isProductShape(
-	shapeExpr: ShExParser.shapeExpr
-): shapeExpr is ProductShape {
-	if (typeof shapeExpr === "string") {
-		return false
-	} else if (shapeExpr.type !== "ShapeAnd") {
-		return false
-	} else if (shapeExpr.shapeExprs.length !== 2) {
-		return false
-	}
-
-	const [nodeConstraint, shape] = shapeExpr.shapeExprs
-
-	if (typeof shape === "string") {
-		return false
-	} else if (shape.type !== "Shape") {
-		return false
-	} else if (shape.closed !== true) {
-		return false
-	} else if (shape.expression === undefined) {
-		return false
-	}
-
-	return (
-		isBlankNodeConstraint(nodeConstraint) &&
-		isProductExpression(shape.expression)
-	)
-}
-
 export function makeProductShape(id: string, type: APG.Product): ProductShape {
+	console.log("making product shape", id, getBlankNodeId(id))
 	const expression = makeProductExpression(type)
 	return {
-		id: id,
+		id: getBlankNodeId(id),
 		type: "ShapeAnd",
 		shapeExprs: [
 			blankNodeConstraint,
@@ -110,18 +60,19 @@ export function makeProductShape(id: string, type: APG.Product): ProductShape {
 
 function makeProductExpression(type: APG.Product): ProductExpression {
 	const expressions: [anyType, ...ComponentExpression[]] = [anyType]
-	const values: Set<string> = new Set()
-	for (const { key, value } of type.components) {
+	const keys: Set<string> = new Set()
+	for (const [id, { key, value }] of type.components) {
 		if (key === rdf.type) {
 			throw new Error("Product object cannot have an rdf:type component")
-		} else if (values.has(key)) {
-			throw new Error("Product objects cannot repeat component values")
+		} else if (keys.has(key)) {
+			throw new Error("Product objects cannot repeat component keys")
 		}
-		values.add(key)
+		keys.add(key)
 		expressions.push({
+			id: getBlankNodeId(id),
 			type: "TripleConstraint",
 			predicate: key,
-			valueExpr: value,
+			valueExpr: getBlankNodeId(value),
 		})
 	}
 	return { type: "EachOf", expressions }
@@ -175,6 +126,7 @@ export function isProductResult(
 	result: SuccessResult,
 	id: string
 ): result is ProductResult {
+	const blankNodeId = getBlankNodeId(id)
 	if (result.type !== "ShapeAndResults") {
 		return false
 	} else if (result.solutions.length !== 2) {
@@ -183,7 +135,7 @@ export function isProductResult(
 	const [nodeConstraint, shape] = result.solutions
 	if (shape.type !== "ShapeTest") {
 		return false
-	} else if (shape.shape !== id) {
+	} else if (shape.shape !== blankNodeId) {
 		return false
 	} else if (shape.solution.type !== "EachOfSolutions") {
 		return false
@@ -194,7 +146,7 @@ export function isProductResult(
 	const [first, ...rest] = expressions
 	return (
 		isBlankNodeConstraintResult(nodeConstraint) &&
-		nodeConstraint.shape === id &&
+		nodeConstraint.shape === blankNodeId &&
 		isAnyTypeResult(first) &&
 		rest.every(isComponentResult)
 	)

@@ -18,7 +18,7 @@ export declare type LabelShape = {
         };
     }, string];
 };
-export declare function makeLabelShape(id: string, { key, value }: APG.Label): LabelShape;
+export declare function makeLabelShape(id: string, label: APG.Label): LabelShape;
 export declare type LabelResult = {
     type: "ShapeAndResults";
     solutions: [{

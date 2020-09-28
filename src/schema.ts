@@ -1,4 +1,4 @@
-import { Store, Parse, BlankNode } from "n3.ts"
+import { Store, Parse, BlankNode, NamedNode, Literal } from "n3.ts"
 
 import { Either } from "fp-ts/Either"
 
@@ -7,9 +7,11 @@ import { FailureResult } from "@shexjs/validator"
 import { APG } from "./apg.js"
 
 import { parse } from "./shex.js"
+import { pivotTree } from "./utils.js"
 
 export const ns = {
 	label: "http://underlay.org/ns/label",
+	reference: "http://underlay.org/ns/reference",
 	unit: "http://underlay.org/ns/unit",
 	product: "http://underlay.org/ns/product",
 	coproduct: "http://underlay.org/ns/coproduct",
@@ -42,194 +44,153 @@ export function parseSchema(
 		return database
 	}
 
-	// types is indexed by iri key, not blank node label
-	const dictionary: Map<string, string> = new Map()
-	const types: APG.Instance = new Map()
-	for (const type of schemaSchema.values()) {
-		if (type.type === "label") {
-			const values = database.right.get(type.id)
-			if (values === undefined) {
-				throw new Error(`Cannot find ${type.id} in database`)
-			}
-			types.set(type.key, values)
-			dictionary.set(type.key, type.id)
-		}
+	const schema: APG.Schema = { labels: new Map(), types: new Map() }
+
+	const labels = database.right.get("label") as Set<APG.Tree>
+	const units = database.right.get("unit") as Set<BlankNode>
+	const iris = database.right.get("iri") as Set<BlankNode | APG.Tree>
+	const literals = database.right.get("literal") as Set<APG.Tree>
+	const products = database.right.get("product") as Set<BlankNode>
+	const components = database.right.get("component") as Set<APG.Tree>
+	const coproducts = database.right.get("coproduct") as Set<BlankNode>
+	const options = database.right.get("option") as Set<APG.Tree>
+
+	for (const label of labels) {
+		const key = label.get("label-component-key") as NamedNode<string>
+		const value = label.get("label-component-value") as BlankNode | APG.Tree
+		// Okay this is for sure some value, but to form good JSON
+		// we need to figure out it it's a reference or not.
+		// Type values are units (unit, product, coproduct, maybe iri) or trees (reference, literal, maybe iri)
+		schema.labels.set(label.node.value, {
+			type: "label",
+			key: key.value,
+			value: parseID(value),
+		})
 	}
 
-	const schema: APG.Schema = new Map()
-
-	const labels = types.get(ns.label) as APG.LabelValue[]
-	for (const { value: labelValue } of labels) {
-		const {
-			node: { id },
-			components: [keyValue, valueValue],
-		} = labelValue as APG.ProductValue
-		const {
-			node: { value: key },
-		} = keyValue as APG.IriValue
-		const value = parseReference(valueValue as APG.CoproductValue, dictionary)
-		schema.set(id, { id, type: "label", key, value: value.id })
+	for (const { value } of units) {
+		schema.types.set(value, { type: "unit" })
 	}
 
-	const units = types.get(ns.unit) as APG.LabelValue[]
-	for (const { value: labelValue } of units) {
-		const {
-			node: { id },
-		} = labelValue as APG.UnitValue
-		const unit: APG.Unit = { id, type: "unit" }
-		schema.set(id, unit)
-	}
-
-	const iris = types.get(ns.iri) as APG.LabelValue[]
-	for (const { value: labelValue } of iris) {
-		const { value: optionValue } = labelValue as APG.CoproductValue
-		if (optionValue.type === "unit") {
-			const {
-				node: { id },
-			} = optionValue
-			schema.set(id, { id, type: "iri" })
-		} else if (optionValue.type === "product") {
-			const {
-				node: { id },
-				components: [patternValue, flagsValue],
-			} = optionValue as APG.ProductValue
-			const {
-				node: { value: pattern },
-			} = patternValue as APG.LiteralValue
-			const {
-				node: { value: flags },
-			} = flagsValue as APG.LiteralValue
-			schema.set(id, { id, type: "iri", pattern, flags })
+	for (const iri of iris) {
+		if (iri.termType === "BlankNode") {
+			schema.types.set(iri.value, { type: "iri" })
+		} else if (iri.termType === "Tree") {
+			const pattern = iri.get("iri-component-pattern") as Literal
+			const flags = iri.get("iri-component-flags") as Literal
+			schema.types.set(iri.node.value, {
+				type: "iri",
+				pattern: pattern.value,
+				flags: flags.value,
+			})
 		} else {
 			throw new Error("Invalid iri value")
 		}
 	}
 
-	const literals = types.get(ns.literal) as APG.LabelValue[]
-	for (const { value: labelValue } of literals as APG.LabelValue[]) {
-		const { value: optionValue } = labelValue as APG.CoproductValue
-		if (optionValue.type === "product" && optionValue.components.length === 1) {
-			const {
-				node: { id },
-				components: [datatypeValue],
-			} = optionValue
-			const {
-				node: { value: datatype },
-			} = datatypeValue as APG.IriValue
-			schema.set(id, { id, type: "literal", datatype })
-		} else if (
-			optionValue.type === "product" &&
-			optionValue.components.length === 3
-		) {
-			const {
-				node: { id },
-				components: [datatypeValue, patternValue, flagsValue],
-			} = optionValue
-			const {
-				node: { value: datatype },
-			} = datatypeValue as APG.IriValue
-			const {
-				node: { value: pattern },
-			} = patternValue as APG.LiteralValue
-			const {
-				node: { value: flags },
-			} = flagsValue as APG.LiteralValue
-			schema.set(id, { id, type: "literal", datatype, pattern, flags })
+	for (const literal of literals) {
+		const datatype = literal.get("literal-without-pattern-component-datatype")
+		if (datatype === undefined) {
+			const datatype = literal.get(
+				"literal-with-pattern-component-datatype"
+			) as NamedNode
+			const pattern = literal.get(
+				"literal-with-pattern-component-pattern"
+			) as Literal
+			const flags = literal.get(
+				"literal-with-pattern-component-flags"
+			) as Literal
+			schema.types.set(literal.node.value, {
+				type: "literal",
+				datatype: datatype.value,
+				pattern: pattern.value,
+				flags: flags.value,
+			})
+		} else if (datatype.termType === "NamedNode") {
+			schema.types.set(literal.node.value, {
+				type: "literal",
+				datatype: datatype.value,
+			})
+		} else {
+			throw new Error("Invalid literal value")
 		}
 	}
 
-	const products = types.get(ns.product) as APG.LabelValue[]
-	for (const { value: labelValue } of products) {
-		const {
-			node: { id },
-		} = labelValue as APG.UnitValue
-		schema.set(id, { id, type: "product", components: [] })
+	for (const product of products) {
+		schema.types.set(product.value, { type: "product", components: new Map() })
+	}
+	for (const coproduct of coproducts) {
+		schema.types.set(coproduct.value, { type: "coproduct", options: new Map() })
 	}
 
-	const coproducts = types.get(ns.coproduct) as APG.LabelValue[]
-	for (const { value: labelValue } of coproducts) {
-		const {
-			node: { id },
-		} = labelValue as APG.UnitValue
-		schema.set(id, { id, type: "coproduct", options: [] })
+	const componentSourcePivot = pivotTree<BlankNode>(
+		components,
+		"component-component-source"
+	)
+
+	for (const [source, components] of componentSourcePivot) {
+		const product = schema.types.get(source.value)
+		if (product === undefined || product.type !== "product") {
+			throw new Error("Invalid component source")
+		}
+		product.components = new Map(generateComponents(components))
 	}
 
-	const components = types.get(ns.component) as APG.LabelValue[]
-	for (const { value: labelValue } of components) {
-		const {
-			node: { id: componentId },
-			components: [sourceValue, keyValue, valueValue],
-		} = labelValue as APG.ProductValue
-		const { value: sourceLabelValue } = sourceValue as APG.LabelValue
-		const {
-			node: { id: valueId },
-		} = sourceLabelValue as APG.UnitValue
-		const {
-			node: { value: key },
-		} = keyValue as APG.IriValue
-		const { id: value } = parseReference(
-			valueValue as APG.CoproductValue,
-			dictionary
-		)
-		const product = schema.get(valueId) as APG.Product
-		product.components.push({ id: componentId, type: "component", key, value })
-	}
+	const optionSourcePivot = pivotTree<BlankNode>(
+		options,
+		"option-component-source"
+	)
 
-	const options = types.get(ns.option) as APG.LabelValue[]
-	for (const { value: labelValue } of options) {
-		const {
-			node: { id: optionId },
-			components: [sourceValue, valueValue],
-		} = labelValue as APG.ProductValue
-		const { value: sourceLabelValue } = sourceValue as APG.LabelValue
-		const {
-			node: { id: valueId },
-		} = sourceLabelValue as APG.UnitValue
-		const { id: value } = parseReference(
-			valueValue as APG.CoproductValue,
-			dictionary
-		)
-		const coproduct = schema.get(valueId) as APG.Coproduct
-		coproduct.options.push({ id: optionId, type: "option", value })
+	for (const [source, options] of optionSourcePivot) {
+		const coproduct = schema.types.get(source.value)
+		if (coproduct === undefined || coproduct.type !== "coproduct") {
+			throw new Error("Invalid component source")
+		}
+		coproduct.options = new Map(generateOptions(options))
 	}
 
 	return { _tag: "Right", right: schema }
 }
 
-function parseReference(
-	coproduct: APG.CoproductValue,
-	dictionary: Map<string, string>
-): BlankNode {
-	const { value } = coproduct.value as APG.LabelValue
-	if (coproduct.value.id === dictionary.get(ns.unit)) {
-		const { node } = value as APG.UnitValue
-		return node
-	} else if (coproduct.value.id === dictionary.get(ns.label)) {
-		const { node } = value as APG.ProductValue
-		return node
-	} else if (coproduct.value.id === dictionary.get(ns.iri)) {
-		const { value: optionValue } = value as APG.CoproductValue
-		if (optionValue.type === "unit") {
-			return optionValue.node
-		} else if (optionValue.type === "product") {
-			return optionValue.node
+function parseID(value: APG.Value): string | APG.Reference {
+	if (value.termType === "Tree") {
+		const reference = value.get("reference-component-value")
+		if (reference !== undefined) {
+			if (reference.termType === "Tree") {
+				return { type: "reference", value: reference.node.value }
+			} else {
+				throw new Error("Unexpected reference value")
+			}
 		} else {
-			throw new Error("Invalid iri value option")
+			return value.node.value
 		}
-	} else if (coproduct.value.id === dictionary.get(ns.literal)) {
-		const { value: optionValue } = value as APG.CoproductValue
-		if (optionValue.type === "product") {
-			return optionValue.node
-		} else {
-			throw new Error("Invalid literal value option")
-		}
-	} else if (coproduct.value.id === dictionary.get(ns.product)) {
-		const { node } = value as APG.UnitValue
-		return node
-	} else if (coproduct.value.id === dictionary.get(ns.coproduct)) {
-		const { node } = value as APG.UnitValue
-		return node
+	} else if (value.termType === "BlankNode") {
+		return value.value
 	} else {
-		throw new Error("Invalid value option")
+		throw new Error("Invalid id")
+	}
+}
+
+function* generateComponents(
+	components: Set<APG.Tree<APG.Value>>
+): Iterable<[string, APG.Component]> {
+	for (const component of components) {
+		const key = component.get("component-component-key") as NamedNode
+		const value = component.get("component-component-value") as
+			| APG.Tree
+			| BlankNode
+		yield [
+			component.node.value,
+			{ type: "component", key: key.value, value: parseID(value) },
+		]
+	}
+}
+
+function* generateOptions(
+	options: Set<APG.Tree<APG.Value>>
+): Iterable<[string, APG.Option]> {
+	for (const option of options) {
+		const value = option.get("option-component-value") as APG.Tree | BlankNode
+		return [option.node.value, { type: "option", value: parseID(value) }]
 	}
 }

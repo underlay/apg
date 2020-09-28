@@ -8,9 +8,38 @@ import {
 	TestedTriple,
 	SuccessResult,
 } from "@shexjs/validator"
+import { APG } from "./apg"
 
 const xsdString = new NamedNode(xsd.string)
 const rdfType = rdf.type
+
+export function pivotTree<V extends T, T extends APG.Value = APG.Value>(
+	trees: Set<APG.Tree<T>>,
+	key: string
+): Map<V, Set<APG.Tree<T>>> {
+	const pivot: Map<V, Set<APG.Tree<T>>> = new Map()
+	for (const tree of trees) {
+		const value = tree.get(key) as V
+		if (value === undefined) {
+			throw new Error("Pivot failure")
+		} else {
+			const trees = pivot.get(value)
+			if (trees === undefined) {
+				pivot.set(value, new Set([tree]))
+			} else {
+				trees.add(tree)
+			}
+		}
+	}
+	return pivot
+}
+
+export const getBlankNodeId = (a: string | APG.Reference): string =>
+	typeof a === "string" ? `_:${a}` : `_:${a.value}`
+
+export const equal = (a: string | APG.Reference, b: string | APG.Reference) =>
+	(typeof a === "string" && typeof b === "string" && a === b) ||
+	(typeof a !== "string" && typeof b !== "string" && a.value === b.value)
 
 export const zip = <A, B>(
 	a: Iterable<A>,

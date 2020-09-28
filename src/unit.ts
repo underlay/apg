@@ -1,17 +1,16 @@
-import ShExParser from "@shexjs/parser"
 import { SuccessResult } from "@shexjs/validator"
 
 import {
 	BlankNodeConstraint,
-	isBlankNodeConstraint,
 	BlankNodeConstraintResult,
 	isBlankNodeConstraintResult,
 	anyType,
 	anyTypeResult,
 	isAnyTypeResult,
 	blankNodeConstraint,
+	getBlankNodeId,
 } from "./utils.js"
-import { APG } from "./index.js"
+import { APG } from "./apg.js"
 
 type emptyShape = {
 	type: "Shape"
@@ -25,12 +24,6 @@ const emptyShape: emptyShape = {
 	expression: anyType,
 }
 
-function isEmptyShape(
-	shapeExpr: ShExParser.shapeExpr
-): shapeExpr is emptyShape {
-	return shapeExpr === emptyShape
-}
-
 export type UnitShape = {
 	id: string
 	type: "ShapeAnd"
@@ -39,24 +32,10 @@ export type UnitShape = {
 
 export function makeUnitShape(id: string, {}: APG.Unit): UnitShape {
 	return {
-		id: id,
+		id: getBlankNodeId(id),
 		type: "ShapeAnd",
 		shapeExprs: [blankNodeConstraint, emptyShape],
 	}
-}
-
-export function isUnitShapeExpr(
-	shapeExpr: ShExParser.shapeExpr
-): shapeExpr is UnitShape {
-	if (typeof shapeExpr === "string") {
-		return false
-	} else if (shapeExpr.type !== "ShapeAnd") {
-		return false
-	} else if (shapeExpr.shapeExprs.length !== 2) {
-		return false
-	}
-	const [nodeConstraint, shape] = shapeExpr.shapeExprs
-	return isBlankNodeConstraint(nodeConstraint) && isEmptyShape(shape)
 }
 
 type EmptyShapeResult = {
@@ -64,10 +43,6 @@ type EmptyShapeResult = {
 	node: string
 	shape: string
 	solution: anyTypeResult
-}
-
-function isEmptyShapeResult(result: SuccessResult): result is EmptyShapeResult {
-	return result.type === "ShapeTest" && isAnyTypeResult(result.solution)
 }
 
 export type UnitResult = {
@@ -84,11 +59,16 @@ export function isUnitResult(
 	} else if (result.solutions.length !== 2) {
 		return false
 	}
+	const blankNodeId = getBlankNodeId(id)
 	const [nodeConstraint, shape] = result.solutions
 	return (
 		isBlankNodeConstraintResult(nodeConstraint) &&
-		nodeConstraint.shape === id &&
+		nodeConstraint.shape === blankNodeId &&
 		isEmptyShapeResult(shape) &&
-		shape.shape === id
+		shape.shape === blankNodeId
 	)
+}
+
+function isEmptyShapeResult(result: SuccessResult): result is EmptyShapeResult {
+	return result.type === "ShapeTest" && isAnyTypeResult(result.solution)
 }

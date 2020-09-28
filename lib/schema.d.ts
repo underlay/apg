@@ -5,6 +5,7 @@ import { FailureResult } from "@shexjs/validator";
 import { APG } from "./apg.js";
 export declare const ns: {
     label: string;
+    reference: string;
     unit: string;
     product: string;
     coproduct: string;

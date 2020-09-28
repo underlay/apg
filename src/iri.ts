@@ -2,7 +2,7 @@ import ShExParser from "@shexjs/parser"
 import { SuccessResult } from "@shexjs/validator"
 
 import { APG } from "./apg.js"
-import { isNodeConstraint } from "./utils.js"
+import { getBlankNodeId, isNodeConstraint } from "./utils.js"
 
 type iriShape = { id: string; type: "NodeConstraint"; nodeKind: "iri" }
 type patternIriShape = iriShape & { pattern: string; flags: string }
@@ -24,21 +24,18 @@ export type IriResult = {
 
 export function isIriResult(
 	result: SuccessResult,
-	id: string
+	value: string | APG.Reference
 ): result is IriResult {
 	return (
 		result.type === "NodeConstraintTest" &&
-		isIriShape(result.shapeExpr) &&
-		result.shape === id
+		result.shape === getBlankNodeId(value) &&
+		isIriShape(result.shapeExpr)
 	)
 }
 
-export function makeIriShape(
-	id: string,
-	{ id: {}, type, ...rest }: APG.Iri
-): IriShape {
+export function makeIriShape(id: string, { type, ...rest }: APG.Iri): IriShape {
 	return {
-		id: id,
+		id: getBlankNodeId(id),
 		type: "NodeConstraint",
 		nodeKind: "iri",
 		...rest,
