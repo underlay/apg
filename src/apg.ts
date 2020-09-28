@@ -94,8 +94,8 @@ export namespace APG {
 		morphisms: Map<string, Morphism>
 	}>
 
-	const toId = (id: string) => `_:${id}` as t.TypeOf<typeof blankNodeId>
-	const toValue = (id: string | Reference): t.TypeOf<typeof value> =>
+	export const toId = (id: string) => `_:${id}` as t.TypeOf<typeof blankNodeId>
+	export const toValue = (id: string | Reference): t.TypeOf<typeof value> =>
 		typeof id === "string"
 			? toId(id)
 			: { type: "reference", value: toId(id.value) }

@@ -89,6 +89,14 @@ export declare namespace APG {
         type: "case";
         morphisms: Map<string, Morphism>;
     }>;
+    const toId: (id: string) => t.Branded<string, ID>;
+    const toValue: (id: string | Readonly<{
+        type: "reference";
+        value: string;
+    }>) => t.Branded<string, ID> | {
+        type: "reference";
+        value: t.Branded<string, ID>;
+    };
     function toJSON(schema: Schema): t.TypeOf<typeof codec>;
 }
 export declare function validateMorphism(morphism: APG.Morphism, source: string | APG.Reference, target: string | APG.Reference, schema: APG.Schema): boolean;
