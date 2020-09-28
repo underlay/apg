@@ -94,37 +94,51 @@ export namespace APG {
 		morphisms: Map<string, Morphism>
 	}>
 
+	const toId = (id: string) => `_:${id}` as t.TypeOf<typeof blankNodeId>
+	const toValue = (id: string | Reference): t.TypeOf<typeof value> =>
+		typeof id === "string"
+			? toId(id)
+			: { type: "reference", value: toId(id.value) }
+
 	export function toJSON(schema: Schema): t.TypeOf<typeof codec> {
 		const graph: t.TypeOf<typeof codec> = []
 		for (const [id, label] of schema.labels) {
-			if (blankNodeId.is(id) && reference.is(label.value)) {
-				graph.push({ id, type: "label", key: label.key, value: label.value })
-			}
+			graph.push({
+				id: toId(id),
+				type: "label",
+				key: label.key,
+				value: toValue(label.value),
+			})
 		}
 		for (const [id, type] of schema.types) {
 			if (blankNodeId.is(id)) {
 				if (type.type === "unit") {
-					graph.push({ id, type: "unit" })
+					graph.push({ id: toId(id), type: "unit" })
 				} else if (type.type === "iri") {
-					graph.push({ id, type: "iri" })
+					graph.push({ id: toId(id), type: "iri" })
 				} else if (type.type === "literal") {
-					graph.push({ id, ...type })
+					graph.push({ id: toId(id), ...type })
 				} else if (type.type === "product") {
 					const components: t.TypeOf<typeof component>[] = []
 					for (const [id, { key, value }] of type.components) {
-						if (blankNodeId.is(id) && reference.is(value)) {
-							components.push({ id, type: "component", key, value })
-						}
+						components.push({
+							id: toId(id),
+							type: "component",
+							key,
+							value: toValue(value),
+						})
 					}
-					graph.push({ id, type: "product", components })
+					graph.push({ id: toId(id), type: "product", components })
 				} else if (type.type === "coproduct") {
 					const options: t.TypeOf<typeof option>[] = []
 					for (const [id, { value }] of type.options) {
-						if (blankNodeId.is(id) && reference.is(value)) {
-							options.push({ id, type: "option", value })
-						}
+						options.push({
+							id: toId(id),
+							type: "option",
+							value: toValue(value),
+						})
 					}
-					graph.push({ id, type: "coproduct", options })
+					graph.push({ id: toId(id), type: "coproduct", options })
 				}
 			}
 		}

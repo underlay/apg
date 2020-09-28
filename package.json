@@ -1,6 +1,6 @@
 {
 	"name": "apg",
-	"version": "0.3.1",
+	"version": "0.3.2",
 	"description": "Underlay APG utilities",
 	"type": "module",
 	"main": "lib/index.js",
