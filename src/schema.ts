@@ -61,28 +61,34 @@ export function parseSchema(
 		// Okay this is for sure some value, but to form good JSON
 		// we need to figure out it it's a reference or not.
 		// Type values are units (unit, product, coproduct, maybe iri) or trees (reference, literal, maybe iri)
-		schema.labels.set(label.node.value, {
-			type: "label",
-			key: key.value,
-			value: parseID(value),
-		})
+		schema.labels.set(
+			label.node.value,
+			Object.freeze({
+				type: "label",
+				key: key.value,
+				value: parseID(value),
+			})
+		)
 	}
 
 	for (const { value } of units) {
-		schema.types.set(value, { type: "unit" })
+		schema.types.set(value, Object.freeze({ type: "unit" }))
 	}
 
 	for (const iri of iris) {
 		if (iri.termType === "BlankNode") {
-			schema.types.set(iri.value, { type: "iri" })
+			schema.types.set(iri.value, Object.freeze({ type: "iri" }))
 		} else if (iri.termType === "Tree") {
 			const pattern = iri.get("iri-component-pattern") as Literal
 			const flags = iri.get("iri-component-flags") as Literal
-			schema.types.set(iri.node.value, {
-				type: "iri",
-				pattern: pattern.value,
-				flags: flags.value,
-			})
+			schema.types.set(
+				iri.node.value,
+				Object.freeze({
+					type: "iri",
+					pattern: pattern.value,
+					flags: flags.value,
+				})
+			)
 		} else {
 			throw new Error("Invalid iri value")
 		}
@@ -100,25 +106,28 @@ export function parseSchema(
 			const flags = literal.get(
 				"literal-with-pattern-component-flags"
 			) as Literal
-			schema.types.set(literal.node.value, {
-				type: "literal",
-				datatype: datatype.value,
-				pattern: pattern.value,
-				flags: flags.value,
-			})
+			schema.types.set(
+				literal.node.value,
+				Object.freeze({
+					type: "literal",
+					datatype: datatype.value,
+					pattern: pattern.value,
+					flags: flags.value,
+				})
+			)
 		} else if (datatype.termType === "NamedNode") {
-			schema.types.set(literal.node.value, {
-				type: "literal",
-				datatype: datatype.value,
-			})
+			schema.types.set(
+				literal.node.value,
+				Object.freeze({
+					type: "literal",
+					datatype: datatype.value,
+				})
+			)
 		} else {
 			throw new Error("Invalid literal value")
 		}
 	}
 
-	for (const product of products) {
-		schema.types.set(product.value, { type: "product", components: new Map() })
-	}
 	for (const coproduct of coproducts) {
 		schema.types.set(coproduct.value, { type: "coproduct", options: new Map() })
 	}
@@ -129,11 +138,29 @@ export function parseSchema(
 	)
 
 	for (const [source, components] of componentSourcePivot) {
-		const product = schema.types.get(source.value)
-		if (product === undefined || product.type !== "product") {
+		if (products.has(source)) {
+			schema.types.set(
+				source.value,
+				Object.freeze({
+					type: "product",
+					components: new Map(generateComponents(components)),
+				})
+			)
+		} else {
 			throw new Error("Invalid component source")
 		}
-		product.components = new Map(generateComponents(components))
+	}
+
+	for (const product of products) {
+		if (!schema.types.has(product.value)) {
+			schema.types.set(
+				product.value,
+				Object.freeze({
+					type: "product",
+					components: new Map(),
+				})
+			)
+		}
 	}
 
 	const optionSourcePivot = pivotTree<BlankNode>(
@@ -142,22 +169,40 @@ export function parseSchema(
 	)
 
 	for (const [source, options] of optionSourcePivot) {
-		const coproduct = schema.types.get(source.value)
-		if (coproduct === undefined || coproduct.type !== "coproduct") {
+		if (coproducts.has(source)) {
+			schema.types.set(
+				source.value,
+				Object.freeze({
+					type: "coproduct",
+					options: new Map(generateOptions(options)),
+				})
+			)
+		} else {
 			throw new Error("Invalid component source")
 		}
-		coproduct.options = new Map(generateOptions(options))
+	}
+
+	for (const coproduct of coproducts) {
+		if (!schema.types.has(coproduct.value)) {
+			schema.types.set(
+				coproduct.value,
+				Object.freeze({
+					type: "coproduct",
+					options: new Map(),
+				})
+			)
+		}
 	}
 
 	return { _tag: "Right", right: schema }
 }
 
-function parseID(value: APG.Value): string | APG.Reference {
+function parseID(value: APG.Value): string | Readonly<APG.Reference> {
 	if (value.termType === "Tree") {
 		const reference = value.get("reference-component-value")
 		if (reference !== undefined) {
 			if (reference.termType === "Tree") {
-				return { type: "reference", value: reference.node.value }
+				return Object.freeze({ type: "reference", value: reference.node.value })
 			} else {
 				throw new Error("Unexpected reference value")
 			}
@@ -173,7 +218,7 @@ function parseID(value: APG.Value): string | APG.Reference {
 
 function* generateComponents(
 	components: Set<APG.Tree<APG.Value>>
-): Iterable<[string, APG.Component]> {
+): Iterable<[string, Readonly<APG.Component>]> {
 	for (const component of components) {
 		const key = component.get("component-component-key") as NamedNode
 		const value = component.get("component-component-value") as
@@ -181,16 +226,23 @@ function* generateComponents(
 			| BlankNode
 		yield [
 			component.node.value,
-			{ type: "component", key: key.value, value: parseID(value) },
+			Object.freeze({
+				type: "component",
+				key: key.value,
+				value: parseID(value),
+			}),
 		]
 	}
 }
 
 function* generateOptions(
 	options: Set<APG.Tree<APG.Value>>
-): Iterable<[string, APG.Option]> {
+): Iterable<[string, Readonly<APG.Option>]> {
 	for (const option of options) {
 		const value = option.get("option-component-value") as APG.Tree | BlankNode
-		return [option.node.value, { type: "option", value: parseID(value) }]
+		return [
+			option.node.value,
+			Object.freeze({ type: "option", value: parseID(value) }),
+		]
 	}
 }

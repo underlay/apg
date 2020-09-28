@@ -14,42 +14,42 @@ declare type literal = {
 };
 declare type patternLiteral = literal & pattern;
 export declare namespace APG {
-    interface Schema {
+    type Schema = Readonly<{
         labels: Map<string, Label>;
         types: Map<string, Type>;
-    }
-    type Label = {
+    }>;
+    type Label = Readonly<{
         type: "label";
         key: string;
         value: string | Reference;
-    };
+    }>;
     type Type = Unit | Iri | Literal | Product | Coproduct;
-    type Reference = {
+    type Reference = Readonly<{
         type: "reference";
         value: string;
-    };
-    type Unit = {
+    }>;
+    type Unit = Readonly<{
         type: "unit";
-    };
+    }>;
     type Iri = iri | patternIri;
-    type Literal = literal | patternLiteral;
-    type Product = {
+    type Literal = Readonly<literal | patternLiteral>;
+    type Product = Readonly<{
         type: "product";
         components: Map<string, Component>;
-    };
-    type Component = {
+    }>;
+    type Component = Readonly<{
         type: "component";
         key: string;
         value: string | Reference;
-    };
-    type Coproduct = {
+    }>;
+    type Coproduct = Readonly<{
         type: "coproduct";
         options: Map<string, Option>;
-    };
-    type Option = {
+    }>;
+    type Option = Readonly<{
         type: "option";
         value: string | Reference;
-    };
+    }>;
     type Instance = Map<string, Set<Value>>;
     type Value = N3.BlankNode | N3.NamedNode | N3.Literal | Tree;
     class Tree<C extends Value = Value> implements Iterable<[string, C]> {
@@ -65,34 +65,35 @@ export declare namespace APG {
         get(component: string): C | undefined;
     }
     type Morphism = Identity | Composition | Projection | Injection | Tuple | Case;
-    type Identity = {
+    type Identity = Readonly<{
         type: "identity";
-    };
-    type Composition = {
+    }>;
+    type Composition = Readonly<{
         type: "composition";
         objects: [string, string, string];
         morphisms: [Morphism, Morphism];
-    };
-    type Projection = {
+    }>;
+    type Projection = Readonly<{
         type: "projection";
         component: string;
-    };
-    type Injection = {
+    }>;
+    type Injection = Readonly<{
         type: "injection";
         option: string;
-    };
-    type Tuple = {
+    }>;
+    type Tuple = Readonly<{
         type: "tuple";
         morphisms: Map<string, Morphism>;
-    };
-    type Case = {
+    }>;
+    type Case = Readonly<{
         type: "case";
         morphisms: Map<string, Morphism>;
-    };
+    }>;
+    function toJSON(schema: Schema): t.TypeOf<typeof codec>;
 }
 export declare function validateMorphism(morphism: APG.Morphism, source: string | APG.Reference, target: string | APG.Reference, schema: APG.Schema): boolean;
 export declare const iriHasPattern: (expression: APG.Iri) => expression is patternIri;
-export declare const literalHasPattern: (expression: APG.Literal) => expression is patternLiteral;
+export declare const literalHasPattern: (expression: Readonly<literal> | Readonly<patternLiteral>) => expression is patternLiteral;
 interface ID {
     readonly ID: unique symbol;
 }
@@ -113,16 +114,6 @@ declare const literal: t.UnionC<[t.TypeC<{
 }>]>;
 export declare const codec: t.Type<({
     id: t.Branded<string, ID>;
-    type: "literal";
-    datatype: string;
-} | {
-    id: t.Branded<string, ID>;
-    type: "literal";
-    datatype: string;
-    pattern: string;
-    flags: string;
-} | {
-    id: t.Branded<string, ID>;
     type: "label";
     key: string;
     value: t.Branded<string, ID> | {
@@ -135,6 +126,16 @@ export declare const codec: t.Type<({
 } | {
     id: t.Branded<string, ID>;
     type: "iri";
+} | {
+    id: t.Branded<string, ID>;
+    type: "literal";
+    datatype: string;
+} | {
+    id: t.Branded<string, ID>;
+    type: "literal";
+    datatype: string;
+    pattern: string;
+    flags: string;
 } | {
     id: t.Branded<string, ID>;
     type: "product";
@@ -158,5 +159,15 @@ export declare const codec: t.Type<({
             value: t.Branded<string, ID>;
         };
     }[];
-})[], Readonly<APG.Schema>, unknown>;
+})[], Readonly<{
+    labels: Map<string, Readonly<{
+        type: "label";
+        key: string;
+        value: string | Readonly<{
+            type: "reference";
+            value: string;
+        }>;
+    }>>;
+    types: Map<string, APG.Type>;
+}>, unknown>;
 export {};

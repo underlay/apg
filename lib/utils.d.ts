@@ -5,8 +5,17 @@ import { EachOfSolutions, OneOfSolutions, TripleConstraintSolutions, SuccessResu
 import { APG } from "./apg";
 declare const rdfType: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 export declare function pivotTree<V extends T, T extends APG.Value = APG.Value>(trees: Set<APG.Tree<T>>, key: string): Map<V, Set<APG.Tree<T>>>;
-export declare const getBlankNodeId: (a: string | APG.Reference) => string;
-export declare const equal: (a: string | APG.Reference, b: string | APG.Reference) => boolean;
+export declare const getBlankNodeId: (a: string | Readonly<{
+    type: "reference";
+    value: string;
+}>) => string;
+export declare const equal: (a: string | Readonly<{
+    type: "reference";
+    value: string;
+}>, b: string | Readonly<{
+    type: "reference";
+    value: string;
+}>) => boolean;
 export declare const zip: <A, B>(a: Iterable<A>, b: Iterable<B>) => Iterable<[A, B, number]>;
 export declare function parseObjectValue(object: ShExParser.objectValue): Literal | NamedNode<string> | BlankNode;
 export interface anyType extends ShExParser.TripleConstraint<typeof rdfType, undefined> {

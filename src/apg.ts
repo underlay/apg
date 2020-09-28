@@ -10,25 +10,35 @@ type literal = { type: "literal"; datatype: string }
 type patternLiteral = literal & pattern
 
 export namespace APG {
-	export interface Schema {
+	export type Schema = Readonly<{
 		labels: Map<string, Label>
 		types: Map<string, Type>
-	}
+	}>
 
-	export type Label = { type: "label"; key: string; value: string | Reference }
+	export type Label = Readonly<{
+		type: "label"
+		key: string
+		value: string | Reference
+	}>
 	export type Type = Unit | Iri | Literal | Product | Coproduct
-	export type Reference = { type: "reference"; value: string }
-	export type Unit = { type: "unit" }
+	export type Reference = Readonly<{ type: "reference"; value: string }>
+	export type Unit = Readonly<{ type: "unit" }>
 	export type Iri = iri | patternIri
-	export type Literal = literal | patternLiteral
-	export type Product = { type: "product"; components: Map<string, Component> }
-	export type Component = {
+	export type Literal = Readonly<literal | patternLiteral>
+	export type Product = Readonly<{
+		type: "product"
+		components: Map<string, Component>
+	}>
+	export type Component = Readonly<{
 		type: "component"
 		key: string
 		value: string | Reference
-	}
-	export type Coproduct = { type: "coproduct"; options: Map<string, Option> }
-	export type Option = { type: "option"; value: string | Reference }
+	}>
+	export type Coproduct = Readonly<{
+		type: "coproduct"
+		options: Map<string, Option>
+	}>
+	export type Option = Readonly<{ type: "option"; value: string | Reference }>
 
 	export type Instance = Map<string, Set<Value>>
 	export type Value = N3.BlankNode | N3.NamedNode | N3.Literal | Tree
@@ -67,16 +77,59 @@ export namespace APG {
 		| Injection
 		| Tuple
 		| Case
-	export type Identity = { type: "identity" }
-	export type Composition = {
+	export type Identity = Readonly<{ type: "identity" }>
+	export type Composition = Readonly<{
 		type: "composition"
 		objects: [string, string, string]
 		morphisms: [Morphism, Morphism]
+	}>
+	export type Projection = Readonly<{ type: "projection"; component: string }>
+	export type Injection = Readonly<{ type: "injection"; option: string }>
+	export type Tuple = Readonly<{
+		type: "tuple"
+		morphisms: Map<string, Morphism>
+	}>
+	export type Case = Readonly<{
+		type: "case"
+		morphisms: Map<string, Morphism>
+	}>
+
+	export function toJSON(schema: Schema): t.TypeOf<typeof codec> {
+		const graph: t.TypeOf<typeof codec> = []
+		for (const [id, label] of schema.labels) {
+			if (blankNodeId.is(id) && reference.is(label.value)) {
+				graph.push({ id, type: "label", key: label.key, value: label.value })
+			}
+		}
+		for (const [id, type] of schema.types) {
+			if (blankNodeId.is(id)) {
+				if (type.type === "unit") {
+					graph.push({ id, type: "unit" })
+				} else if (type.type === "iri") {
+					graph.push({ id, type: "iri" })
+				} else if (type.type === "literal") {
+					graph.push({ id, ...type })
+				} else if (type.type === "product") {
+					const components: t.TypeOf<typeof component>[] = []
+					for (const [id, { key, value }] of type.components) {
+						if (blankNodeId.is(id) && reference.is(value)) {
+							components.push({ id, type: "component", key, value })
+						}
+					}
+					graph.push({ id, type: "product", components })
+				} else if (type.type === "coproduct") {
+					const options: t.TypeOf<typeof option>[] = []
+					for (const [id, { value }] of type.options) {
+						if (blankNodeId.is(id) && reference.is(value)) {
+							options.push({ id, type: "option", value })
+						}
+					}
+					graph.push({ id, type: "coproduct", options })
+				}
+			}
+		}
+		return graph
 	}
-	export type Projection = { type: "projection"; component: string }
-	export type Injection = { type: "injection"; option: string }
-	export type Tuple = { type: "tuple"; morphisms: Map<string, Morphism> }
-	export type Case = { type: "case"; morphisms: Map<string, Morphism> }
 }
 
 export function validateMorphism(
@@ -184,29 +237,29 @@ interface ID {
 	readonly ID: unique symbol
 }
 
-const id = t.brand(
+const blankNodeId = t.brand(
 	t.string,
 	(string): string is t.Branded<string, ID> => idPattern.test(string),
 	"ID"
 )
 
-const reference = t.type({ type: t.literal("reference"), value: id })
+const reference = t.type({ type: t.literal("reference"), value: blankNodeId })
 
-const value = t.union([id, reference])
+const value = t.union([blankNodeId, reference])
 
 const label = t.type({
-	id,
+	id: blankNodeId,
 	type: t.literal("label"),
 	key: t.string,
 	value,
 })
-const unit = t.type({ id, type: t.literal("unit") })
-const iri = t.type({ id, type: t.literal("iri") })
+const unit = t.type({ id: blankNodeId, type: t.literal("unit") })
+const iri = t.type({ id: blankNodeId, type: t.literal("iri") })
 
 const literal = t.union([
-	t.type({ id, type: t.literal("literal"), datatype: t.string }),
+	t.type({ id: blankNodeId, type: t.literal("literal"), datatype: t.string }),
 	t.type({
-		id,
+		id: blankNodeId,
 		type: t.literal("literal"),
 		datatype: t.string,
 		pattern: t.string,
@@ -215,26 +268,26 @@ const literal = t.union([
 ])
 
 const component = t.type({
-	id,
+	id: blankNodeId,
 	type: t.literal("component"),
 	key: t.string,
 	value,
 })
 
 const product = t.type({
-	id,
+	id: blankNodeId,
 	type: t.literal("product"),
 	components: t.array(component),
 })
 
 const option = t.type({
-	id,
+	id: blankNodeId,
 	type: t.literal("option"),
 	value,
 })
 
 const coproduct = t.type({
-	id,
+	id: blankNodeId,
 	type: t.literal("coproduct"),
 	options: t.array(option),
 })
@@ -242,11 +295,11 @@ const coproduct = t.type({
 const schema = t.array(t.union([label, unit, iri, literal, product, coproduct]))
 const isID = (
 	reference: t.TypeOf<typeof value>
-): reference is t.TypeOf<typeof id> => typeof reference === "string"
+): reference is t.TypeOf<typeof blankNodeId> => typeof reference === "string"
 
 const trimReference = (
 	reference: t.TypeOf<typeof value>
-): string | Readonly<APG.Reference> =>
+): string | APG.Reference =>
 	isID(reference)
 		? reference.slice(2)
 		: Object.freeze({ type: "reference", value: reference.value.slice(2) })
@@ -329,7 +382,7 @@ export const codec = new t.Type(
 		}
 		return result
 	},
-	(values): Readonly<APG.Schema> => {
+	(values): APG.Schema => {
 		const labels: Map<string, APG.Label> = new Map()
 		const types: Map<string, APG.Type> = new Map()
 		for (const { id, ...value } of values) {
