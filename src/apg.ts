@@ -3,12 +3,6 @@ import N3 from "n3.ts"
 
 import { equal, zip } from "./utils.js"
 
-type pattern = { pattern: string; flags: string }
-type iri = { type: "iri" }
-type patternIri = iri & pattern
-type literal = { type: "literal"; datatype: string }
-type patternLiteral = literal & pattern
-
 namespace APG {
 	export type Schema = Readonly<{
 		labels: Map<string, Label>
@@ -23,8 +17,8 @@ namespace APG {
 	export type Type = Unit | Iri | Literal | Product | Coproduct
 	export type Reference = Readonly<{ type: "reference"; value: string }>
 	export type Unit = Readonly<{ type: "unit" }>
-	export type Iri = iri | patternIri
-	export type Literal = Readonly<literal | patternLiteral>
+	export type Iri = Readonly<{ type: "iri" }>
+	export type Literal = Readonly<{ type: "literal"; datatype: string }>
 	export type Product = Readonly<{
 		type: "product"
 		components: Map<string, Component>
@@ -38,14 +32,22 @@ namespace APG {
 		type: "coproduct"
 		options: Map<string, Option>
 	}>
-	export type Option = Readonly<{ type: "option"; value: string | Reference }>
+	export type Option = Readonly<{
+		type: "option"
+		key: string
+		value: string | Reference
+	}>
 
 	export type Instance = Map<string, Set<Value>>
-	export type Value = N3.BlankNode | N3.NamedNode | N3.Literal | Tree
-	export class Tree<C extends Value = Value> implements Iterable<[string, C]> {
+	export type UnitValue = N3.BlankNode
+	export type IriValue = Readonly<{ type: "iri"; value: N3.NamedNode }>
+	export type LiteralValue = Readonly<{ type: "literal"; value: N3.Literal }>
+
+	export class ProductValue<C extends Value = Value>
+		implements Iterable<[string, C]> {
 		readonly children: Map<string, C>
-		constructor(readonly node: N3.BlankNode, children: Iterable<[string, C]>) {
-			this.children = new Map(children)
+		constructor(readonly node: N3.BlankNode, children?: Iterable<[string, C]>) {
+			this.children = new Map(children || [])
 		}
 		public [Symbol.iterator]() {
 			return this.children.entries()
@@ -59,8 +61,8 @@ namespace APG {
 		public entries(): Iterable<[string, C]> {
 			return this.children.entries()
 		}
-		public get termType(): "Tree" {
-			return "Tree"
+		public get termType(): "Product" {
+			return "Product"
 		}
 		public get size() {
 			return this.children.size
@@ -69,6 +71,30 @@ namespace APG {
 			return this.children.get(component)
 		}
 	}
+
+	export class CoproductValue<O extends Value = Value> {
+		value: O
+		constructor(
+			readonly node: N3.BlankNode,
+			readonly option: string,
+			value: O
+		) {
+			this.value = value
+		}
+		public get termType(): "Coproduct" {
+			return "Coproduct"
+		}
+		public set(value: O) {
+			this.value = value
+		}
+	}
+
+	export type Value =
+		| N3.BlankNode
+		| N3.NamedNode
+		| N3.Literal
+		| ProductValue
+		| CoproductValue
 
 	export type Morphism =
 		| Identity
@@ -95,10 +121,20 @@ namespace APG {
 	}>
 
 	export const toId = (id: string) => `_:${id}` as t.TypeOf<typeof blankNodeId>
-	export const toValue = (id: string | Reference): t.TypeOf<typeof value> =>
-		typeof id === "string"
-			? toId(id)
-			: { type: "reference", value: toId(id.value) }
+	export const toValue = (
+		id: string | Reference,
+		schema: Schema
+	): t.TypeOf<typeof value> => {
+		if (typeof id === "string") {
+			const { type } = schema.types.get(id)!
+			return { [type]: toId(id) } as Exclude<
+				t.TypeOf<typeof value>,
+				t.TypeOf<typeof referenceValue>
+			>
+		} else {
+			return { reference: { type: "reference", value: toId(id.value) } }
+		}
+	}
 
 	export function toJSON(schema: Schema): t.TypeOf<typeof codec> {
 		const graph: t.TypeOf<typeof codec> = []
@@ -107,7 +143,7 @@ namespace APG {
 				id: toId(id),
 				type: "label",
 				key: label.key,
-				value: toValue(label.value),
+				value: toValue(label.value, schema),
 			})
 		}
 		for (const [id, type] of schema.types) {
@@ -116,7 +152,7 @@ namespace APG {
 			} else if (type.type === "iri") {
 				graph.push({ id: toId(id), type: "iri" })
 			} else if (type.type === "literal") {
-				graph.push({ id: toId(id), ...type })
+				graph.push({ id: toId(id), type: "literal", datatype: type.datatype })
 			} else if (type.type === "product") {
 				const components: t.TypeOf<typeof component>[] = []
 				for (const [id, { key, value }] of type.components) {
@@ -124,17 +160,18 @@ namespace APG {
 						id: toId(id),
 						type: "component",
 						key,
-						value: toValue(value),
+						value: toValue(value, schema),
 					})
 				}
 				graph.push({ id: toId(id), type: "product", components })
 			} else if (type.type === "coproduct") {
 				const options: t.TypeOf<typeof option>[] = []
-				for (const [id, { value }] of type.options) {
+				for (const [id, { key, value }] of type.options) {
 					options.push({
 						id: toId(id),
 						type: "option",
-						value: toValue(value),
+						key,
+						value: toValue(value, schema),
 					})
 				}
 				graph.push({ id: toId(id), type: "coproduct", options })
@@ -142,14 +179,6 @@ namespace APG {
 		}
 		return graph
 	}
-
-	export const iriHasPattern = (
-		expression: APG.Iri
-	): expression is patternIri => expression.hasOwnProperty("pattern")
-
-	export const literalHasPattern = (
-		expression: APG.Literal
-	): expression is patternLiteral => expression.hasOwnProperty("pattern")
 
 	export function validateMorphism(
 		morphism: APG.Morphism,
@@ -257,7 +286,15 @@ namespace APG {
 
 	const reference = t.type({ type: t.literal("reference"), value: blankNodeId })
 
-	const value = t.union([blankNodeId, reference])
+	const referenceValue = t.type({ reference: reference })
+	const value = t.union([
+		t.type({ unit: blankNodeId }),
+		t.type({ iri: blankNodeId }),
+		t.type({ literal: blankNodeId }),
+		t.type({ product: blankNodeId }),
+		t.type({ coproduct: blankNodeId }),
+		referenceValue,
+	])
 
 	const label = t.type({
 		id: blankNodeId,
@@ -265,6 +302,7 @@ namespace APG {
 		key: t.string,
 		value,
 	})
+
 	const unit = t.type({ id: blankNodeId, type: t.literal("unit") })
 	const iri = t.type({ id: blankNodeId, type: t.literal("iri") })
 
@@ -295,6 +333,7 @@ namespace APG {
 	const option = t.type({
 		id: blankNodeId,
 		type: t.literal("option"),
+		key: t.string,
 		value,
 	})
 
@@ -307,16 +346,35 @@ namespace APG {
 	const schema = t.array(
 		t.union([label, unit, iri, literal, product, coproduct])
 	)
-	const isID = (
+
+	const isReference = (
 		reference: t.TypeOf<typeof value>
-	): reference is t.TypeOf<typeof blankNodeId> => typeof reference === "string"
+	): reference is t.TypeOf<typeof referenceValue> =>
+		reference.hasOwnProperty("reference")
 
 	const trimReference = (
 		reference: t.TypeOf<typeof value>
-	): string | APG.Reference =>
-		isID(reference)
-			? reference.slice(2)
-			: Object.freeze({ type: "reference", value: reference.value.slice(2) })
+	): string | APG.Reference => {
+		if (isReference(reference)) {
+			const {
+				reference: { value },
+			} = reference
+			return Object.freeze({
+				type: "reference",
+				value: value.slice(2),
+			})
+		} else {
+			return getID(reference)
+		}
+	}
+
+	const getID = (
+		reference: Exclude<t.TypeOf<typeof value>, t.TypeOf<typeof referenceValue>>
+	): string => {
+		const [type] = Object.keys(reference)
+		const ref = reference as { [key: string]: t.Branded<string, ID> }
+		return ref[type].slice(2)
+	}
 
 	export const codec = new t.Type(
 		"Schema",
@@ -327,28 +385,18 @@ namespace APG {
 				return result
 			}
 			const labels: Set<string> = new Set()
-			const types: Set<string> = new Set()
+			const types: Map<string, Type["type"]> = new Map()
 			for (const value of result.right) {
 				if (value.type === "label") {
-					labels.add(value.id)
+					labels.add(value.id.slice(2))
 				} else {
-					types.add(value.id)
+					types.set(value.id.slice(2), value.type)
 				}
 			}
 			for (const value of result.right) {
 				if (value.type === "label") {
-					if (isID(value.value)) {
-						if (types.has(value.value)) {
-							continue
-						} else {
-							const message = `Invalid label value: ${value.value}`
-							return {
-								_tag: "Left",
-								left: [{ value: input, context, message }],
-							}
-						}
-					} else {
-						if (labels.has(value.value.value)) {
+					if (isReference(value.value)) {
+						if (labels.has(value.value.reference.value.slice(2))) {
 							continue
 						} else {
 							const message = `Invalid label alias: ${value.value}`
@@ -357,22 +405,34 @@ namespace APG {
 								left: [{ value: input, context, message }],
 							}
 						}
+					} else {
+						const id = getID(value.value)
+						if (types.has(id)) {
+							continue
+						} else {
+							const message = `Invalid label value: ${id}`
+							return {
+								_tag: "Left",
+								left: [{ value: input, context, message }],
+							}
+						}
 					}
 				} else if (value.type === "product") {
 					for (const component of value.components) {
-						if (isID(component.value)) {
-							if (types.has(component.value)) {
+						if (isReference(component.value)) {
+							if (labels.has(component.value.reference.value.slice(2))) {
 								continue
 							} else {
-								const message = `Invalid type: ${component.value}`
+								const message = `Invalid label reference: ${component.value.reference.value}`
 								const error = { value: input, context, message }
 								return { _tag: "Left", left: [error] }
 							}
 						} else {
-							if (labels.has(component.value.value)) {
+							const id = getID(component.value)
+							if (types.has(id)) {
 								continue
 							} else {
-								const message = `Invalid label reference: ${component.value.value}`
+								const message = `Invalid type: ${id}`
 								const error = { value: input, context, message }
 								return { _tag: "Left", left: [error] }
 							}
@@ -380,19 +440,20 @@ namespace APG {
 					}
 				} else if (value.type === "coproduct") {
 					for (const option of value.options) {
-						if (isID(option.value)) {
-							if (types.has(option.value)) {
+						if (isReference(option.value)) {
+							if (labels.has(option.value.reference.value.slice(2))) {
 								continue
 							} else {
-								const message = `Invalid type: ${option.value}`
+								const message = `Invalid label reference: ${option.value.reference.value}`
 								const error = { value: input, context, message }
 								return { _tag: "Left", left: [error] }
 							}
 						} else {
-							if (labels.has(option.value.value)) {
+							const id = getID(option.value)
+							if (types.has(id)) {
 								continue
 							} else {
-								const message = `Invalid label reference: ${option.value.value}`
+								const message = `Invalid type: ${id}`
 								const error = { value: input, context, message }
 								return { _tag: "Left", left: [error] }
 							}
@@ -433,7 +494,10 @@ namespace APG {
 						value.options.map((option): [string, APG.Option] => {
 							const id = option.id.slice(2)
 							const value = trimReference(option.value)
-							return [id, Object.freeze({ type: "option", value })]
+							return [
+								id,
+								Object.freeze({ type: "option", key: option.key, value }),
+							]
 						})
 					)
 					types.set(name, Object.freeze({ type: "coproduct", options }))

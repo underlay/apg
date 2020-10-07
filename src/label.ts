@@ -26,7 +26,6 @@ export type LabelShape = {
 }
 
 export function makeLabelShape(id: string, label: APG.Label): LabelShape {
-	console.log("making label shape", id, getBlankNodeId(id))
 	return {
 		id: getBlankNodeId(id),
 		type: "ShapeAnd",

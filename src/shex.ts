@@ -20,7 +20,11 @@ import {
 	parseProductResult,
 	makeProductShape,
 } from "./product.js"
-import { makeCoproductShape } from "./coproduct.js"
+import {
+	isCoproductResult,
+	makeCoproductShape,
+	parseCoproductResult,
+} from "./coproduct.js"
 
 type Token = {
 	node: Object<D>
@@ -46,11 +50,11 @@ export function parse(
 
 	const state: State = Object.freeze({ schema, stack: [], cache: new Map() })
 	for (const [id, label] of schema.labels) {
-		const values: Set<APG.Value> = new Set([])
-		const key = new NamedNode(label.key)
-		for (const subject of store.subjects(rdfType, key, null)) {
+		const values: Set<APG.Value> = new Set()
+		const subjects = store.subjects(rdfType, new NamedNode(label.key), null)
+		for (const subject of subjects) {
 			if (subject instanceof BlankNode) {
-				const key = `${id} ${subject.value}`
+				const key = `${id}\t${subject.value}`
 				const cache = state.cache.get(key)
 				if (cache !== undefined) {
 					values.add(cache)
@@ -169,7 +173,7 @@ function parseReferenceResult(
 ): Option<APG.Value> {
 	if (isLabelResult(result, id, label.key)) {
 		if (node instanceof BlankNode) {
-			const key = `${id} ${node.value}`
+			const key = `${id}\t${node.value}`
 			const cache = state.cache.get(key)
 			if (cache !== undefined) {
 				return { _tag: "Some", value: cache }
@@ -187,7 +191,7 @@ function parseReferenceResult(
 				const value = token.used
 					? replaceToken(node, match.value, `urn:uuid:${tokenRoot}#${index}`)
 					: match.value
-				state.cache.set(key, value)
+				state.cache.set(key, match.value)
 				return { _tag: "Some", value: value }
 			}
 		} else {
@@ -205,7 +209,7 @@ function parseReferenceResult(
 		} else {
 			state.stack[index].used = true
 			const value = new NamedNode(`urn:uuid:${tokenRoot}#${index}`)
-			return { _tag: "Some", value }
+			return { _tag: "Some", value: value }
 		}
 	} else {
 		return { _tag: "None" }
@@ -217,8 +221,20 @@ function replaceToken(
 	value: APG.Value,
 	uri: string
 ): APG.Value {
-	if (value.termType === "Tree") {
-		return new APG.Tree(value.node, replaceLeaves(value, value, uri))
+	if (value.termType === "Product") {
+		const product = new APG.ProductValue(value.node)
+		for (const [id, leaf] of replaceLeaves(product, value, uri)) {
+			product.children.set(id, leaf)
+		}
+		return product
+	} else if (value.termType === "Coproduct") {
+		const coproduct = new APG.CoproductValue<APG.Value>(
+			value.node,
+			value.option,
+			node
+		)
+		coproduct.set(replaceTokenValue(coproduct, value.value, uri))
+		return coproduct
 	} else if (value.termType === "NamedNode" && value.value === uri) {
 		return node
 	} else {
@@ -226,19 +242,39 @@ function replaceToken(
 	}
 }
 
+function replaceTokenValue(
+	root: APG.Value,
+	value: APG.Value,
+	uri: string
+): APG.Value {
+	if (value.termType === "Product") {
+		const product = new APG.ProductValue(value.node)
+		for (const [id, leaf] of replaceLeaves(root, value, uri)) {
+			product.children.set(id, leaf)
+		}
+		return product
+	} else if (value.termType === "Coproduct") {
+		const coproduct = new APG.CoproductValue<APG.Value>(
+			value.node,
+			value.option,
+			root
+		)
+		coproduct.set(replaceTokenValue(root, value.value, uri))
+		return coproduct
+	} else if (value.termType === "NamedNode" && value.value === uri) {
+		return root
+	} else {
+		return value
+	}
+}
+
 function* replaceLeaves(
-	root: APG.Tree,
-	tree: APG.Tree,
+	root: APG.Value,
+	product: APG.ProductValue,
 	uri: string
 ): Iterable<[string, APG.Value]> {
-	for (const [id, leaf] of tree) {
-		if (leaf.termType === "Tree") {
-			yield [id, new APG.Tree(leaf.node, replaceLeaves(root, leaf, uri))]
-		} else if (leaf.termType === "NamedNode" && leaf.value === uri) {
-			yield [id, root]
-		} else {
-			yield [id, leaf]
-		}
+	for (const [id, leaf] of product) {
+		yield [id, replaceTokenValue(root, leaf, uri)]
 	}
 }
 
@@ -284,8 +320,16 @@ function parseTypeResult(
 			if (node instanceof BlankNode) {
 				const solutions = parseProductResult(result)
 				const components: Map<string, APG.Value> = new Map()
+				if (type.components.size !== solutions.length) {
+					throw new Error("Invalid product result")
+				}
+
 				const iter = zip(type.components, solutions)
 				for (const [[componentId, component], solution] of iter) {
+					if (componentId !== solution.productionLabel.slice(2)) {
+						throw new Error("Invalid component result")
+					}
+
 					const {
 						valueExpr,
 						solutions: [{ object: objectValue, referenced: ref }],
@@ -303,10 +347,10 @@ function parseTypeResult(
 							components.set(componentId, match.value)
 						}
 					} else {
-						throw new Error("Invalid TripleConstraintSolutions result")
+						throw new Error("Invalid component result")
 					}
 				}
-				return { _tag: "Some", value: new APG.Tree(node, components) }
+				return { _tag: "Some", value: new APG.ProductValue(node, components) }
 			} else {
 				throw new Error("Invalid result for product type")
 			}
@@ -314,31 +358,35 @@ function parseTypeResult(
 			return { _tag: "None" }
 		}
 	} else if (type.type === "coproduct") {
-		// Okay so the approach here is to traverse the *type* as a tree of nested coproducts
-		// For each "leaf" (ie every non-coproduct), we check to see if result.solution is
-		// a result for that leaf type.
-		if (result.type === "ShapeOrResults") {
-			for (const option of type.options.values()) {
-				if (isIriResult(result.solution, option.value)) {
-					if (node instanceof NamedNode) {
-						return { _tag: "Some", value: node }
+		if (isCoproductResult(result, id)) {
+			if (node instanceof BlankNode) {
+				const optionResult = parseCoproductResult(result)
+				const optionId = optionResult.productionLabel.slice(2)
+				const option = type.options.get(optionId)
+				if (option === undefined) {
+					throw new Error("Invalid option result")
+				}
+
+				const {
+					valueExpr,
+					solutions: [{ object: objectValue, referenced: ref }],
+				} = optionResult
+				const object = parseObjectValue(objectValue)
+
+				if (ref !== undefined && valueExpr === getBlankNodeId(option.value)) {
+					const match = parseResult(object, option.value, ref, state)
+					if (match._tag === "None") {
+						return match
 					} else {
-						throw new Error("Invalid result for iri type")
-					}
-				} else if (isLiteralResult(result.solution, option.value)) {
-					if (node instanceof Literal) {
-						return { _tag: "Some", value: node }
-					} else {
-						throw new Error("Invalid result for literal type")
+						const value = new APG.CoproductValue(node, optionId, match.value)
+						return { _tag: "Some", value }
 					}
 				} else {
-					const match = parseResult(node, option.value, result.solution, state)
-					if (match._tag === "Some") {
-						return { _tag: "Some", value: match.value }
-					}
+					throw new Error("Invalid option result")
 				}
+			} else {
+				throw new Error("Invalid result for coproduct type")
 			}
-			return { _tag: "None" }
 		} else {
 			return { _tag: "None" }
 		}

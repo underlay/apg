@@ -1,18 +1,5 @@
 import t from "io-ts";
 import N3 from "n3.ts";
-declare type pattern = {
-    pattern: string;
-    flags: string;
-};
-declare type iri = {
-    type: "iri";
-};
-declare type patternIri = iri & pattern;
-declare type literal = {
-    type: "literal";
-    datatype: string;
-};
-declare type patternLiteral = literal & pattern;
 declare namespace APG {
     export type Schema = Readonly<{
         labels: Map<string, Label>;
@@ -31,8 +18,13 @@ declare namespace APG {
     export type Unit = Readonly<{
         type: "unit";
     }>;
-    export type Iri = iri | patternIri;
-    export type Literal = Readonly<literal | patternLiteral>;
+    export type Iri = Readonly<{
+        type: "iri";
+    }>;
+    export type Literal = Readonly<{
+        type: "literal";
+        datatype: string;
+    }>;
     export type Product = Readonly<{
         type: "product";
         components: Map<string, Component>;
@@ -48,22 +40,40 @@ declare namespace APG {
     }>;
     export type Option = Readonly<{
         type: "option";
+        key: string;
         value: string | Reference;
     }>;
     export type Instance = Map<string, Set<Value>>;
-    export type Value = N3.BlankNode | N3.NamedNode | N3.Literal | Tree;
-    export class Tree<C extends Value = Value> implements Iterable<[string, C]> {
+    export type UnitValue = N3.BlankNode;
+    export type IriValue = Readonly<{
+        type: "iri";
+        value: N3.NamedNode;
+    }>;
+    export type LiteralValue = Readonly<{
+        type: "literal";
+        value: N3.Literal;
+    }>;
+    export class ProductValue<C extends Value = Value> implements Iterable<[string, C]> {
         readonly node: N3.BlankNode;
         readonly children: Map<string, C>;
-        constructor(node: N3.BlankNode, children: Iterable<[string, C]>);
+        constructor(node: N3.BlankNode, children?: Iterable<[string, C]>);
         [Symbol.iterator](): IterableIterator<[string, C]>;
         keys(): Iterable<string>;
         values(): Iterable<C>;
         entries(): Iterable<[string, C]>;
-        get termType(): "Tree";
+        get termType(): "Product";
         get size(): number;
         get(component: string): C | undefined;
     }
+    export class CoproductValue<O extends Value = Value> {
+        readonly node: N3.BlankNode;
+        readonly option: string;
+        value: O;
+        constructor(node: N3.BlankNode, option: string, value: O);
+        get termType(): "Coproduct";
+        set(value: O): void;
+    }
+    export type Value = N3.BlankNode | N3.NamedNode | N3.Literal | ProductValue | CoproductValue;
     export type Morphism = Identity | Composition | Projection | Injection | Tuple | Case;
     export type Identity = Readonly<{
         type: "identity";
@@ -93,13 +103,33 @@ declare namespace APG {
     export const toValue: (id: string | Readonly<{
         type: "reference";
         value: string;
-    }>) => t.Branded<string, ID> | {
-        type: "reference";
-        value: t.Branded<string, ID>;
+    }>, schema: Readonly<{
+        labels: Map<string, Readonly<{
+            type: "label";
+            key: string;
+            value: string | Readonly<{
+                type: "reference";
+                value: string;
+            }>;
+        }>>;
+        types: Map<string, Type>;
+    }>) => {
+        unit: t.Branded<string, ID>;
+    } | {
+        iri: t.Branded<string, ID>;
+    } | {
+        literal: t.Branded<string, ID>;
+    } | {
+        product: t.Branded<string, ID>;
+    } | {
+        coproduct: t.Branded<string, ID>;
+    } | {
+        reference: {
+            type: "reference";
+            value: t.Branded<string, ID>;
+        };
     };
     export function toJSON(schema: Schema): t.TypeOf<typeof codec>;
-    export const iriHasPattern: (expression: Iri) => expression is patternIri;
-    export const literalHasPattern: (expression: Readonly<literal> | Readonly<patternLiteral>) => expression is patternLiteral;
     export function validateMorphism(morphism: APG.Morphism, source: string | APG.Reference, target: string | APG.Reference, schema: APG.Schema): boolean;
     interface ID {
         readonly ID: unique symbol;
@@ -108,9 +138,21 @@ declare namespace APG {
         id: t.Branded<string, ID>;
         type: "label";
         key: string;
-        value: t.Branded<string, ID> | {
-            type: "reference";
-            value: t.Branded<string, ID>;
+        value: {
+            unit: t.Branded<string, ID>;
+        } | {
+            iri: t.Branded<string, ID>;
+        } | {
+            literal: t.Branded<string, ID>;
+        } | {
+            product: t.Branded<string, ID>;
+        } | {
+            coproduct: t.Branded<string, ID>;
+        } | {
+            reference: {
+                type: "reference";
+                value: t.Branded<string, ID>;
+            };
         };
     } | {
         id: t.Branded<string, ID>;
@@ -135,9 +177,21 @@ declare namespace APG {
             id: t.Branded<string, ID>;
             type: "component";
             key: string;
-            value: t.Branded<string, ID> | {
-                type: "reference";
-                value: t.Branded<string, ID>;
+            value: {
+                unit: t.Branded<string, ID>;
+            } | {
+                iri: t.Branded<string, ID>;
+            } | {
+                literal: t.Branded<string, ID>;
+            } | {
+                product: t.Branded<string, ID>;
+            } | {
+                coproduct: t.Branded<string, ID>;
+            } | {
+                reference: {
+                    type: "reference";
+                    value: t.Branded<string, ID>;
+                };
             };
         }[];
     } | {
@@ -146,9 +200,22 @@ declare namespace APG {
         options: {
             id: t.Branded<string, ID>;
             type: "option";
-            value: t.Branded<string, ID> | {
-                type: "reference";
-                value: t.Branded<string, ID>;
+            key: string;
+            value: {
+                unit: t.Branded<string, ID>;
+            } | {
+                iri: t.Branded<string, ID>;
+            } | {
+                literal: t.Branded<string, ID>;
+            } | {
+                product: t.Branded<string, ID>;
+            } | {
+                coproduct: t.Branded<string, ID>;
+            } | {
+                reference: {
+                    type: "reference";
+                    value: t.Branded<string, ID>;
+                };
             };
         }[];
     })[], Readonly<{

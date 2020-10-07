@@ -42,11 +42,10 @@ export type ComponentExpression = {
 	id: string
 	type: "TripleConstraint"
 	predicate: string
-	valueExpr: ShExParser.shapeExpr
+	valueExpr: string
 }
 
 export function makeProductShape(id: string, type: APG.Product): ProductShape {
-	console.log("making product shape", id, getBlankNodeId(id))
 	const expression = makeProductExpression(type)
 	return {
 		id: getBlankNodeId(id),
@@ -81,7 +80,8 @@ function makeProductExpression(type: APG.Product): ProductExpression {
 export type ComponentResult = {
 	type: "TripleConstraintSolutions"
 	predicate: string
-	valueExpr: ShExParser.shapeExpr
+	valueExpr: string
+	productionLabel: string
 	solutions: [
 		{
 			type: "TestedTriple"
@@ -97,7 +97,9 @@ export function isComponentResult(
 	result: EachOfSolutions | OneOfSolutions | TripleConstraintSolutions
 ): result is ComponentResult {
 	return (
-		result.type === "TripleConstraintSolutions" && result.solutions.length === 1
+		result.type === "TripleConstraintSolutions" &&
+		result.solutions.length === 1 &&
+		result.productionLabel !== undefined
 	)
 }
 

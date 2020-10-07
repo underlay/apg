@@ -14,10 +14,10 @@ const xsdString = new NamedNode(xsd.string)
 const rdfType = rdf.type
 
 export function pivotTree<V extends T, T extends APG.Value = APG.Value>(
-	trees: Set<APG.Tree<T>>,
+	trees: Set<APG.ProductValue<T>>,
 	key: string
-): Map<V, Set<APG.Tree<T>>> {
-	const pivot: Map<V, Set<APG.Tree<T>>> = new Map()
+): Map<V, Set<APG.ProductValue<T>>> {
+	const pivot: Map<V, Set<APG.ProductValue<T>>> = new Map()
 	for (const tree of trees) {
 		const value = tree.get(key) as V
 		if (value === undefined) {

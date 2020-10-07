@@ -20,13 +20,14 @@ export declare type ComponentExpression = {
     id: string;
     type: "TripleConstraint";
     predicate: string;
-    valueExpr: ShExParser.shapeExpr;
+    valueExpr: string;
 };
 export declare function makeProductShape(id: string, type: APG.Product): ProductShape;
 export declare type ComponentResult = {
     type: "TripleConstraintSolutions";
     predicate: string;
-    valueExpr: ShExParser.shapeExpr;
+    valueExpr: string;
+    productionLabel: string;
     solutions: [{
         type: "TestedTriple";
         subject: string;
