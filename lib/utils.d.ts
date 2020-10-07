@@ -17,7 +17,7 @@ export declare const equal: (a: string | Readonly<{
     value: string;
 }>) => boolean;
 export declare const zip: <A, B>(a: Iterable<A>, b: Iterable<B>) => Iterable<[A, B, number]>;
-export declare function parseObjectValue(object: ShExParser.objectValue): BlankNode | Literal | NamedNode<string>;
+export declare function parseObjectValue(object: ShExParser.objectValue): NamedNode<string> | BlankNode | Literal;
 export interface anyType extends ShExParser.TripleConstraint<typeof rdfType, undefined> {
     min: 0;
     max: -1;
