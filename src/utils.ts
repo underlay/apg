@@ -13,6 +13,11 @@ import APG from "./apg.js"
 const xsdString = new NamedNode(xsd.string)
 const rdfType = rdf.type
 
+export function signalInvalidType(type: never): never {
+	console.error(type)
+	throw new Error("Invalid type")
+}
+
 export const sortKeys = (
 	[{}, { key: a }]: [string, { key: string }],
 	[{}, { key: b }]: [string, { key: string }]

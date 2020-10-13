@@ -4,7 +4,7 @@ import signedVarint from "signed-varint"
 
 import * as N3 from "n3.ts"
 import APG from "./apg.js"
-import { findCommonPrefixIndex } from "./utils.js"
+import { findCommonPrefixIndex, signalInvalidType } from "./utils.js"
 import { xsd } from "n3.ts"
 
 export function encode(instance: APG.Instance): Buffer {
@@ -173,6 +173,14 @@ export function decode(data: Buffer, schema: APG.Schema): APG.Instance {
 		}
 	}
 
+	for (const keys of componentKeys.values()) {
+		Object.freeze(keys)
+	}
+
+	for (const keys of optionKeys.values()) {
+		Object.freeze(keys)
+	}
+
 	const instance: APG.Instance = new Array(schema.length)
 	let id = 0
 	for (let i = 0; i < schema.length; i++) {
@@ -194,8 +202,10 @@ export function decode(data: Buffer, schema: APG.Schema): APG.Instance {
 			offset = newOffset
 			values[j] = value
 		}
+		Object.freeze(values)
 		instance[i] = values
 	}
+	Object.freeze(instance)
 	return instance
 }
 
@@ -299,7 +309,7 @@ function decodeValue(
 		}
 		return [id, offset, new APG.Variant(node, keys, index, value)]
 	} else {
-		throw new Error("Invalid type")
+		signalInvalidType(type)
 	}
 }
 

@@ -1,7 +1,7 @@
 import t from "io-ts"
 import * as N3 from "n3.ts"
 
-import { equal, sortKeys, zip, zip3 } from "./utils.js"
+import { equal, signalInvalidType, sortKeys, zip, zip3 } from "./utils.js"
 
 namespace APG {
 	export type Schema = Label[]
@@ -145,7 +145,7 @@ namespace APG {
 				return false
 			}
 		} else {
-			throw new Error(`Invalid type ${type}`)
+			signalInvalidType(type)
 		}
 	}
 
@@ -302,7 +302,7 @@ namespace APG {
 		} else if (type.type === "coproduct") {
 			return { coproduct: id }
 		} else {
-			throw new Error("Invalid type")
+			signalInvalidType(type)
 		}
 	}
 
@@ -646,7 +646,7 @@ namespace APG {
 			typeCache.set(id, coproduct)
 			return coproduct
 		} else {
-			throw new Error("Invalid type")
+			signalInvalidType(type)
 		}
 	}
 }

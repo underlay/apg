@@ -4,11 +4,12 @@ import ShExParser from "@shexjs/parser";
 import { EachOfSolutions, OneOfSolutions, TripleConstraintSolutions, SuccessResult } from "@shexjs/validator";
 import APG from "./apg.js";
 declare const rdfType: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+export declare function signalInvalidType(type: never): never;
 export declare const sortKeys: ([{}, { key: a }]: [string, {
     key: string;
 }], [{}, { key: b }]: [string, {
     key: string;
-}]) => 1 | 0 | -1;
+}]) => 1 | -1 | 0;
 export declare function rotateTree(trees: APG.Record[], pivot: string): Map<number, APG.Record[]>;
 export declare const getBlankNodeId: (type: APG.Type, typeCache: Map<Readonly<{
     type: "unit";

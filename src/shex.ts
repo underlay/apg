@@ -10,7 +10,12 @@ import ShExUtil from "@shexjs/util"
 import ShExValidator, { SuccessResult, FailureResult } from "@shexjs/validator"
 
 import APG from "./apg.js"
-import { zip, parseObjectValue, getBlankNodeId } from "./utils.js"
+import {
+	zip,
+	parseObjectValue,
+	getBlankNodeId,
+	signalInvalidType,
+} from "./utils.js"
 import { isUnitResult, makeUnitShape } from "./unit.js"
 import { isIriResult, makeIriShape } from "./iri.js"
 import { isLabelResult, parseLabelResult, makeLabelShape } from "./label.js"
@@ -25,6 +30,7 @@ import {
 	makeCoproductShape,
 	parseCoproductResult,
 } from "./coproduct.js"
+import { ObjectType } from "io-ts"
 
 type Token = {
 	node: Object<D>
@@ -134,32 +140,48 @@ function cacheType(
 	} else if (typeCache.has(type)) {
 		return i
 	} else if (type.type === "unit") {
-		typeCache.set(type, `_:t${i++}`)
+		if (!typeCache.has(type)) {
+			typeCache.set(type, `_:t${i++}`)
+		}
 		return i
 	} else if (type.type === "iri") {
-		typeCache.set(type, `_:t${i++}`)
+		if (!typeCache.has(type)) {
+			typeCache.set(type, `_:t${i++}`)
+		}
 		return i
 	} else if (type.type === "literal") {
-		typeCache.set(type, `_:t${i++}`)
+		if (!typeCache.has(type)) {
+			typeCache.set(type, `_:t${i++}`)
+		}
 		return i
 	} else if (type.type === "product") {
+		if (typeCache.has(type)) {
+			return i
+		}
 		const id = `_:t${i++}`
 		typeCache.set(type, id)
-		keyCache.set(id, type.components.map(({ key }) => key).sort())
+		const keys = type.components.map(({ key }) => key).sort()
+		Object.freeze(keys)
+		keyCache.set(id, keys)
 		return type.components.reduce(
 			(i, { value }) => cacheType(i, value, typeCache, keyCache),
 			i
 		)
 	} else if (type.type === "coproduct") {
+		if (typeCache.has(type)) {
+			return i
+		}
 		const id = `_:t${i++}`
 		typeCache.set(type, id)
-		keyCache.set(id, type.options.map(({ key }) => key).sort())
+		const keys = type.options.map(({ key }) => key).sort()
+		Object.freeze(keys)
+		keyCache.set(id, keys)
 		return type.options.reduce(
 			(i, { value }) => cacheType(i, value, typeCache, keyCache),
 			i
 		)
 	} else {
-		signalInvalidType("", type)
+		signalInvalidType(type)
 	}
 }
 
@@ -179,13 +201,8 @@ function makeShapeExpr(
 	} else if (type.type === "coproduct") {
 		return makeCoproductShape(id, type, typeCache)
 	} else {
-		signalInvalidType(id, type)
+		signalInvalidType(type)
 	}
-}
-
-function signalInvalidType(id: string, type: never): never {
-	console.error(type)
-	throw new Error(`Invalid type: ${id} ${type}`)
 }
 
 function isFailure(
@@ -449,7 +466,7 @@ function parseTypeResult(
 			return { _tag: "None" }
 		}
 	} else {
-		signalInvalidType(id, type)
+		signalInvalidType(type)
 	}
 }
 
