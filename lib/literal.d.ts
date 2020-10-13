@@ -19,6 +19,6 @@ export declare type LiteralResult = {
     shape: string;
     shapeExpr: LiteralShape;
 };
-export declare function isLiteralResult(result: SuccessResult, value: string | APG.Reference): result is LiteralResult;
-export declare function makeLiteralShape(id: string, { type, datatype, ...rest }: APG.Literal): LiteralShape;
+export declare function isLiteralResult(result: SuccessResult, id: string): result is LiteralResult;
+export declare function makeLiteralShape(id: string, { datatype }: APG.Literal): LiteralShape;
 export {};

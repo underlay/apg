@@ -1,4 +1,4 @@
-import { Store, Parse, BlankNode, NamedNode } from "n3.ts"
+import * as N3 from "n3.ts"
 
 import { Either } from "fp-ts/Either"
 
@@ -7,7 +7,7 @@ import { FailureResult } from "@shexjs/validator"
 import APG from "./apg.js"
 
 import { parse } from "./shex.js"
-import { pivotTree } from "./utils.js"
+import { rotateTree } from "./utils.js"
 
 export const ns = {
 	label: "http://underlay.org/ns/label",
@@ -31,201 +31,210 @@ export function parseSchemaString(
 	input: string,
 	schemaSchema: APG.Schema
 ): Either<FailureResult, APG.Schema> {
-	const store = new Store(Parse(input))
+	const store = new N3.Store(N3.Parse(input))
 	return parseSchema(store, schemaSchema)
 }
 
 export function parseSchema(
-	store: Store,
+	store: N3.Store,
 	schemaSchema: APG.Schema
 ): Either<FailureResult, APG.Schema> {
-	const database = parse(store, schemaSchema)
-	if (database._tag === "Left") {
-		return database
+	const result = parse(store, schemaSchema)
+	if (result._tag === "Left") {
+		return result
 	}
 
-	const schema: APG.Schema = { labels: new Map(), types: new Map() }
+	const database = new Map(
+		schemaSchema.map((label, index) => [label.key, result.right[index]])
+	)
 
-	const labels = database.right.get("label") as Set<APG.ProductValue>
-	const units = database.right.get("unit") as Set<BlankNode>
-	const iris = database.right.get("iri") as Set<BlankNode>
-	const literals = database.right.get("literal") as Set<APG.ProductValue>
-	const products = database.right.get("product") as Set<BlankNode>
-	const components = database.right.get("component") as Set<APG.ProductValue>
-	const coproducts = database.right.get("coproduct") as Set<BlankNode>
-	const options = database.right.get("option") as Set<APG.ProductValue>
+	const labels = database.get(ns.label) as APG.Record[]
+	const components = database.get(ns.component) as APG.Record[]
+	const options = database.get(ns.option) as APG.Record[]
 
-	for (const label of labels) {
-		const key = label.get("label-component-key") as NamedNode<string>
-		const value = label.get("label-component-value") as APG.CoproductValue<
-			BlankNode | APG.ProductValue
-		>
-		// Okay this is for sure some value, but to form good JSON
-		// we need to figure out it it's a reference or not.
-		// Type values are units (unit, product, coproduct, iri) or products (reference, literal)
-		schema.labels.set(
-			label.node.value,
-			Object.freeze({
-				type: "label",
-				key: key.value,
-				value: parseID(value),
-			})
+	const componentSources = rotateTree(components, ns.source)
+	const optionSources = rotateTree(options, ns.source)
+
+	const typeCache = new Map(schemaSchema.map(({ key }) => [key, new Map()]))
+
+	const sortedLabels = labels.slice().sort((a, b) => {
+		const { value: A } = a.get(ns.key) as N3.NamedNode
+		const { value: B } = b.get(ns.key) as N3.NamedNode
+		return A < B ? -1 : B < A ? 1 : 0
+	})
+
+	const permutation = labels.map((label) => sortedLabels.indexOf(label))
+
+	const schema: APG.Schema = sortedLabels.map((label) => {
+		const { value: key } = label.get(ns.key) as N3.NamedNode<string>
+		const target = label.get(ns.value) as APG.Variant
+		const value = parseValue(
+			target,
+			database,
+			typeCache,
+			componentSources,
+			optionSources,
+			permutation
 		)
-	}
+		return Object.freeze({ type: "label", key, value })
+	})
 
-	for (const { value } of units) {
-		schema.types.set(value, Object.freeze({ type: "unit" }))
-	}
-
-	for (const iri of iris) {
-		if (iri.termType === "BlankNode") {
-			schema.types.set(iri.value, Object.freeze({ type: "iri" }))
-		} else {
-			throw new Error("Invalid iri value")
-		}
-	}
-
-	for (const literal of literals) {
-		const datatype = literal.get("literal-component-datatype")!
-		if (datatype.termType === "NamedNode") {
-			schema.types.set(
-				literal.node.value,
-				Object.freeze({
-					type: "literal",
-					datatype: datatype.value,
-				})
-			)
-		} else {
-			throw new Error("Invalid literal value")
-		}
-	}
-
-	for (const coproduct of coproducts) {
-		schema.types.set(coproduct.value, { type: "coproduct", options: new Map() })
-	}
-
-	const componentSourcePivot = pivotTree<BlankNode>(
-		components,
-		"component-component-source"
-	)
-
-	for (const [source, components] of componentSourcePivot) {
-		if (products.has(source)) {
-			schema.types.set(
-				source.value,
-				Object.freeze({
-					type: "product",
-					components: new Map(generateComponents(components)),
-				})
-			)
-		} else {
-			throw new Error("Invalid component source")
-		}
-	}
-
-	for (const product of products) {
-		if (!schema.types.has(product.value)) {
-			schema.types.set(
-				product.value,
-				Object.freeze({
-					type: "product",
-					components: new Map(),
-				})
-			)
-		}
-	}
-
-	const optionSourcePivot = pivotTree<BlankNode>(
-		options,
-		"option-component-source"
-	)
-
-	for (const [source, options] of optionSourcePivot) {
-		if (coproducts.has(source)) {
-			schema.types.set(
-				source.value,
-				Object.freeze({
-					type: "coproduct",
-					options: new Map(generateOptions(options)),
-				})
-			)
-		} else {
-			throw new Error("Invalid component source")
-		}
-	}
-
-	for (const coproduct of coproducts) {
-		if (!schema.types.has(coproduct.value)) {
-			schema.types.set(
-				coproduct.value,
-				Object.freeze({
-					type: "coproduct",
-					options: new Map(),
-				})
-			)
-		}
-	}
+	Object.freeze(schema)
 
 	return { _tag: "Right", right: schema }
 }
 
-function parseID(
-	value: APG.CoproductValue<BlankNode | APG.ProductValue>
-): string | Readonly<APG.Reference> {
-	if (value.option === "value-option-reference") {
-		if (value.value.termType === "Product") {
-			const label = value.value.get("reference-component-value")
-			if (label !== undefined && label.termType === "Product") {
-				return Object.freeze({ type: "reference", value: label.node.value })
-			} else {
-				throw new Error("Invalid label value")
-			}
-		} else {
-			throw new Error("Invalid reference value")
-		}
-	} else if (value.value.termType === "BlankNode") {
-		return value.value.value
-	} else if (value.value.termType === "Product") {
-		return value.value.node.value
+function parseValue(
+	value: APG.Variant,
+	database: Map<string, APG.Value[]>,
+	typeCache: Map<string, Map<number, APG.Type>>,
+	componentSources: Map<number, APG.Record[]>,
+	optionSources: Map<number, APG.Record[]>,
+	permutation: number[]
+): APG.Type {
+	const { index } = value.value as APG.Pointer
+	// const { index } = record.get(ns.value) as APG.Pointer
+	const key = value.key
+	const cache = typeCache.get(key)!
+	if (cache.has(index)) {
+		return cache.get(index)!
+	} else if (key === ns.reference) {
+		const reference = database.get(ns.reference)![index] as APG.Record
+		return parseReference(index, reference, typeCache, permutation)
+	} else if (key === ns.unit) {
+		return parseUnit(index, typeCache)
+	} else if (key === ns.iri) {
+		return parseIri(index, typeCache)
+	} else if (key === ns.literal) {
+		const literal = database.get(ns.literal)![index] as APG.Record
+		return parseLiteral(index, literal, typeCache)
+	} else if (key === ns.product) {
+		return parseProduct(
+			index,
+			database,
+			typeCache,
+			componentSources,
+			optionSources,
+			permutation
+		)
+	} else if (key === ns.coproduct) {
+		return parseCoproduct(
+			index,
+			database,
+			typeCache,
+			componentSources,
+			optionSources,
+			permutation
+		)
 	} else {
-		throw new Error("Invalid value")
+		throw new Error(`Invalid value variant key ${key}`)
 	}
 }
 
-function* generateComponents(
-	components: Set<APG.ProductValue<APG.Value>>
-): Iterable<[string, Readonly<APG.Component>]> {
-	for (const component of components) {
-		const key = component.get("component-component-key") as NamedNode
-		const value = component.get(
-			"component-component-value"
-		) as APG.CoproductValue<APG.ProductValue | BlankNode>
-		yield [
-			component.node.value,
-			Object.freeze({
-				type: "component",
-				key: key.value,
-				value: parseID(value),
-			}),
-		]
-	}
+function parseReference(
+	index: number,
+	value: APG.Record,
+	typeCache: Map<string, Map<number, APG.Type>>,
+	permutation: number[]
+): APG.Reference {
+	const target = value.get(ns.value)! as APG.Pointer
+	const reference: APG.Reference = Object.freeze({
+		type: "reference",
+		value: permutation[target.index],
+	})
+	typeCache.get(ns.reference)!.set(index, reference)
+	return reference
 }
 
-function* generateOptions(
-	options: Set<APG.ProductValue<APG.Value>>
-): Iterable<[string, Readonly<APG.Option>]> {
-	for (const option of options) {
-		const value = option.get("option-component-value") as APG.CoproductValue<
-			APG.ProductValue | BlankNode
-		>
-		const key = option.get("option-component-key") as NamedNode
-		yield [
-			option.node.value,
-			Object.freeze({
-				type: "option",
-				key: key.value,
-				value: parseID(value),
-			}),
-		]
+function parseUnit(
+	index: number,
+	typeCache: Map<string, Map<number, APG.Type>>
+): APG.Unit {
+	const unit: APG.Unit = Object.freeze({ type: "unit" })
+	typeCache.get(ns.unit)!.set(index, unit)
+	return unit
+}
+
+function parseIri(
+	index: number,
+	typeCache: Map<string, Map<number, APG.Type>>
+): APG.Iri {
+	const iri: APG.Iri = Object.freeze({ type: "iri" })
+	typeCache.get(ns.iri)!.set(index, iri)
+	return iri
+}
+
+function parseLiteral(
+	index: number,
+	value: APG.Record,
+	typeCache: Map<string, Map<number, APG.Type>>
+): APG.Literal {
+	const { value: datatype } = value.get(ns.datatype) as N3.NamedNode
+	const literal: APG.Literal = Object.freeze({ type: "literal", datatype })
+	typeCache.get(ns.literal)!.set(index, literal)
+	return literal
+}
+
+function parseProduct(
+	index: number,
+	database: Map<string, APG.Value[]>,
+	typeCache: Map<string, Map<number, APG.Type>>,
+	componentSources: Map<number, APG.Record[]>,
+	optionSources: Map<number, APG.Record[]>,
+	permutation: number[]
+): APG.Product {
+	const components: APG.Component[] = []
+
+	for (const component of componentSources.get(index) || []) {
+		const { value: key } = component.get(ns.key) as N3.NamedNode
+		const value = parseValue(
+			component.get(ns.value) as APG.Variant,
+			database,
+			typeCache,
+			componentSources,
+			optionSources,
+			permutation
+		)
+		components.push({ type: "component", key, value })
 	}
+
+	Object.freeze(
+		components.sort(({ key: a }, { key: b }) => (a < b ? -1 : b < a ? 1 : 0))
+	)
+
+	const product: APG.Product = Object.freeze({ type: "product", components })
+	typeCache.get(ns.product)!.set(index, product)
+	return product
+}
+
+function parseCoproduct(
+	index: number,
+	database: Map<string, APG.Value[]>,
+	typeCache: Map<string, Map<number, APG.Type>>,
+	componentSources: Map<number, APG.Record[]>,
+	optionSources: Map<number, APG.Record[]>,
+	permutation: number[]
+): APG.Coproduct {
+	const options: APG.Option[] = []
+
+	for (const option of optionSources.get(index) || []) {
+		const { value: key } = option.get(ns.key) as N3.NamedNode
+		const value = parseValue(
+			option.get(ns.value) as APG.Variant,
+			database,
+			typeCache,
+			componentSources,
+			optionSources,
+			permutation
+		)
+		options.push({ type: "option", key, value })
+	}
+
+	Object.freeze(
+		options.sort(({ key: a }, { key: b }) => (a < b ? -1 : b < a ? 1 : 0))
+	)
+
+	const coproduct: APG.Coproduct = Object.freeze({ type: "coproduct", options })
+	typeCache.get(ns.coproduct)!.set(index, coproduct)
+	return coproduct
 }

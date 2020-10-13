@@ -1,0 +1,317 @@
+import { Buffer } from "buffer"
+import varint from "varint"
+import signedVarint from "signed-varint"
+
+import * as N3 from "n3.ts"
+import APG from "./apg.js"
+import { findCommonPrefixIndex } from "./utils.js"
+import { xsd } from "n3.ts"
+
+export function encode(instance: APG.Instance): Buffer {
+	const namedNodes: Set<string> = new Set()
+	for (const values of instance) {
+		for (const value of values) {
+			for (const leaf of traverseValues(value)) {
+				if (leaf.termType === "NamedNode") {
+					namedNodes.add(leaf.value)
+				}
+			}
+		}
+	}
+
+	const namedNodeArray = Array.from(namedNodes).sort()
+	const namedNodeIds = new Map(namedNodeArray.map((value, i) => [value, i]))
+
+	const data: Uint8Array[] = [
+		new Uint8Array(varint.encode(namedNodeArray.length)),
+	]
+
+	namedNodeArray.reduce((previous, current) => {
+		const prefix = findCommonPrefixIndex(previous, current)
+		const suffix = current.slice(prefix)
+		data.push(
+			new Uint8Array(varint.encode(prefix)),
+			new Uint8Array(varint.encode(suffix.length)),
+			new Uint8Array(new TextEncoder().encode(suffix))
+		)
+
+		return current
+	}, "")
+
+	for (const values of instance) {
+		data.push(new Uint8Array(varint.encode(values.length)))
+		for (const value of values) {
+			data.push(new Uint8Array(encodeValue(value, namedNodeIds)))
+		}
+	}
+
+	return Buffer.concat(data)
+}
+
+function* traverseValues(
+	value: APG.Value
+): Generator<N3.BlankNode | N3.NamedNode | N3.Literal, void, undefined> {
+	if (value.termType === "Record") {
+		for (const leaf of value) {
+			yield* traverseValues(leaf)
+		}
+	} else if (value.termType === "Variant") {
+		yield* traverseValues(value.value)
+	} else if (
+		value.termType === "BlankNode" ||
+		value.termType === "NamedNode" ||
+		value.termType === "Literal"
+	) {
+		yield value
+	}
+}
+
+const integerPattern = /^(?:\+|\-)?[0-9]+$/
+function* encodeValue(
+	value: APG.Value,
+	namedNodeIds: Map<string, number>
+): Generator<number, void, undefined> {
+	if (value.termType === "BlankNode") {
+		return
+	} else if (value.termType === "NamedNode") {
+		const id = namedNodeIds.get(value.value)
+		if (id === undefined) {
+			throw new Error(`Could not find id for named node ${value.value}`)
+		}
+		yield* varint.encode(id)
+	} else if (value.termType === "Literal") {
+		if (value.datatype.value === N3.xsd.boolean) {
+			if (value.value === "true") {
+				yield 1
+			} else if (value.value === "false") {
+				yield 0
+			} else {
+				throw new Error(`Invalid xsd:boolean value: ${value.value}`)
+			}
+		} else if (value.datatype.value === N3.xsd.integer) {
+			if (integerPattern.test(value.value)) {
+				const i = Number(value.value)
+				yield* signedVarint.encode(i)
+			} else {
+				throw new Error(`Invalid xsd:integer value: ${value.value}`)
+			}
+		} else if (value.datatype.value === N3.xsd.double) {
+			const f = Number(value.value)
+			if (isNaN(f)) {
+				throw new Error(`Invalid xsd:double value: ${value.value}`)
+			}
+			const buffer = new ArrayBuffer(8)
+			const view = new DataView(buffer)
+			view.setFloat64(0, f)
+			yield* new Uint8Array(buffer)
+		} else {
+			yield* varint.encode(value.value.length)
+			yield* new TextEncoder().encode(value.value)
+		}
+	} else if (value.termType === "Record") {
+		for (const field of value) {
+			yield* encodeValue(field, namedNodeIds)
+		}
+	} else if (value.termType === "Variant") {
+		yield* varint.encode(value.index)
+		yield* encodeValue(value.value, namedNodeIds)
+	} else {
+		throw new Error("Invalid value")
+	}
+}
+
+export function decode(data: Buffer, schema: APG.Schema): APG.Instance {
+	let offset = 0
+
+	const namedNodeArrayLength = varint.decode(data, offset)
+	offset += varint.encodingLength(namedNodeArrayLength)
+
+	const namedNodeArray: N3.NamedNode[] = new Array(namedNodeArrayLength)
+
+	const decoder = new TextDecoder()
+	let previous = ""
+	for (let i = 0; i < namedNodeArrayLength; i++) {
+		const prefix = varint.decode(data, offset)
+		offset += varint.encodingLength(prefix)
+		const length = varint.decode(data, offset)
+		offset += varint.encodingLength(length)
+		const remainder = decoder.decode(data.slice(offset, offset + length))
+		offset += length
+		const value = previous.slice(0, prefix) + remainder
+		namedNodeArray[i] = new N3.NamedNode(value)
+		previous = value
+	}
+
+	const componentKeys: Map<APG.Product, string[]> = new Map()
+	const optionKeys: Map<APG.Coproduct, string[]> = new Map()
+	const datatypes: Map<APG.Literal, N3.NamedNode> = new Map()
+	for (const label of schema) {
+		for (const type of traverseTypes(label.value)) {
+			if (type.type === "literal") {
+				if (datatypes.has(type)) {
+					continue
+				} else {
+					datatypes.set(type, new N3.NamedNode(type.datatype))
+				}
+			} else if (type.type === "product") {
+				if (componentKeys.has(type)) {
+					continue
+				} else {
+					const keys = type.components.map(({ key }) => key)
+					Object.freeze(keys)
+					componentKeys.set(type, keys)
+				}
+			} else if (type.type === "coproduct") {
+				if (optionKeys.has(type)) {
+					continue
+				} else {
+					const keys = type.options.map(({ key }) => key)
+					Object.freeze(keys)
+					optionKeys.set(type, keys)
+				}
+			}
+		}
+	}
+
+	const instance: APG.Instance = new Array(schema.length)
+	let id = 0
+	for (let i = 0; i < schema.length; i++) {
+		const valuesLength = varint.decode(data, offset)
+		offset += varint.encodingLength(valuesLength)
+		const values = new Array(valuesLength)
+		const { value: type } = schema[i]
+		for (let j = 0; j < valuesLength; j++) {
+			const [newId, newOffset, value] = decodeValue(
+				id,
+				offset,
+				data,
+				type,
+				namedNodeArray,
+				componentKeys,
+				optionKeys
+			)
+			id = newId
+			offset = newOffset
+			values[j] = value
+		}
+		instance[i] = values
+	}
+	return instance
+}
+
+function decodeValue(
+	id: number,
+	offset: number,
+	data: Buffer,
+	type: APG.Type,
+	namedNodes: N3.NamedNode[],
+	componentKeys: Map<APG.Product, string[]>,
+	optionKeys: Map<APG.Coproduct, string[]>
+): [number, number, APG.Value] {
+	if (type.type === "reference") {
+		const index = varint.decode(data, offset)
+		offset += varint.encodingLength(index)
+		const value = new APG.Pointer(index)
+		return [id, offset, value]
+	} else if (type.type === "unit") {
+		const value = new N3.BlankNode(`b${id++}`)
+		return [id, offset, value]
+	} else if (type.type === "iri") {
+		const index = varint.decode(data, offset)
+		offset += varint.encodingLength(index)
+		if (index >= namedNodes.length) {
+			throw new Error("Invalid named node index")
+		}
+		return [id, offset, namedNodes[index]]
+	} else if (type.type === "literal") {
+		const datatype = new N3.NamedNode(type.datatype)
+		if (type.datatype === xsd.boolean) {
+			const i = varint.decode(data, offset)
+			offset += varint.encodingLength(i)
+			if (i !== 0 && i !== 1) {
+				throw new Error(`Invalid boolean value ${i}`)
+			}
+			const value = i === 0 ? "false" : "true"
+			return [id, offset, new N3.Literal(value, datatype)]
+		} else if (type.datatype === xsd.integer) {
+			const i = signedVarint.decode(data, offset)
+			offset += signedVarint.encodingLength(i)
+			return [id, offset, new N3.Literal(i.toString(), datatype)]
+		} else if (type.datatype === xsd.double) {
+			const view = new DataView(data, offset, 8)
+			const value = view.getFloat64(0)
+			if (isNaN(value)) {
+				throw new Error("Invalid double value")
+			}
+			return [id, offset + 8, new N3.Literal(value.toString(), datatype)]
+		} else {
+			const length = varint.decode(data, offset)
+			offset += varint.encodingLength(length)
+			const view = new DataView(data, offset, length)
+			const value = new TextDecoder().decode(view)
+			offset += length
+			return [id, offset, new N3.Literal(value, datatype)]
+		}
+	} else if (type.type === "product") {
+		const components: APG.Value[] = []
+		for (const component of type.components) {
+			const [newId, newOffset, value] = decodeValue(
+				id,
+				offset,
+				data,
+				component.value,
+				namedNodes,
+				componentKeys,
+				optionKeys
+			)
+			id = newId
+			offset = newOffset
+			components.push(value)
+		}
+		const node = new N3.BlankNode(`b${id++}`)
+		const keys = componentKeys.get(type)
+		if (keys === undefined) {
+			throw new Error("No keys found for product")
+		}
+		return [id, offset, new APG.Record(node, keys, components)]
+	} else if (type.type === "coproduct") {
+		const index = varint.decode(data, offset)
+		offset += varint.encodingLength(index)
+		if (index >= type.options.length) {
+			throw new Error("Invalid option index")
+		}
+		const option = type.options[index]
+		const [newId, newOffset, value] = decodeValue(
+			id,
+			offset,
+			data,
+			option.value,
+			namedNodes,
+			componentKeys,
+			optionKeys
+		)
+		id = newId
+		offset = newOffset
+		const node = new N3.BlankNode(`b${id++}`)
+		const keys = optionKeys.get(type)
+		if (keys === undefined) {
+			throw new Error("No keys found for product")
+		}
+		return [id, offset, new APG.Variant(node, keys, index, value)]
+	} else {
+		throw new Error("Invalid type")
+	}
+}
+
+function* traverseTypes(type: APG.Type): Generator<APG.Type, void, undefined> {
+	yield type
+	if (type.type === "product") {
+		for (const component of type.components) {
+			yield* traverseTypes(component.value)
+		}
+	} else if (type.type === "coproduct") {
+		for (const option of type.options) {
+			yield* traverseTypes(option.value)
+		}
+	}
+}

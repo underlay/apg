@@ -19,6 +19,6 @@ export declare type IriResult = {
     shape: string;
     shapeExpr: IriShape;
 };
-export declare function isIriResult(result: SuccessResult, value: string | APG.Reference): result is IriResult;
-export declare function makeIriShape(id: string, { type, ...rest }: APG.Iri): IriShape;
+export declare function isIriResult(result: SuccessResult, id: string): result is IriResult;
+export declare function makeIriShape(id: string, {}: APG.Iri): IriShape;
 export {};

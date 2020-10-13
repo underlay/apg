@@ -14,7 +14,7 @@ The birds-eye view is that this library defines a collection of structures that 
 
 ## Structures
 
-There are three basic kinds of structures defined in [src/apg.ts](src/apg.ts): _schemas_, which are collections of _labels_ and _types_; _instances_, which are collections of _values_; and _schema mappings_, which map one schema onto another.
+There are three basic kinds of structures defined in [src/apg.ts](src/apg.ts): _labels_, which are terms in a grammar of _types_, _schemas_, which are collections of _labels_; _instances_, which are collections of _values_.
 
 ### Schemas, labels, and types
 
@@ -41,49 +41,36 @@ Except for references, there can't be any cycles in the "type tree" - for exampl
 
 So how does this all represented?
 
-In a schema, every label and type (even nested, "child" types) has a string identifier that is used as the key of an ES6 `Map`:
+A schema is just an array of labels:
 
 ```typescript
-type Schema = {
-	labels: Map<string, Label>
-	types: Map<string, Type>
-}
+type Schema = Label[]
 ```
 
-When a schema is parsed from an RDF dataset, these keys will be blank node labels (_without_ `_:` prefixes).
+A label is just a URI key and a `Type` value:
 
 ```typescript
-type Reference = {
-	type: "reference"
-	value: string
-}
-
-type Label = {
-	type: "label"
-	key: string
-	value: string | Reference
-}
+type Label = { type: "label"; key: string; value: Type }
 ```
 
-`Reference` is a kind of type, but it gets special treatment in the TypeScript representation. All of the other types are indexed by a string key in the `Schema.types` map, but references get "inlined" - they're not included in the map, and every place where types (_schema_ types) get used actually use a `string | Reference` type (_TypeScript_ type) instead. If it's a string, it means that string a key of `Schema.types`; if it's a `Reference` object, then `Reference.value` is a key of `Schema.labels`.
-
-Labels have a URI key `Label.key` and a value `Label.value` that is either a `Schema.types` key or a reference to another label. The keys of the `Schema.labels` map are _not_ the `Label.key` URI - instead, like `Schema.types`, the keys of `Schema.labels` are blank node labels from the dataset that the schema was parsed from. This is confusing at first, but having the two different kinds of identifiers for labels turns out to be useful in the long run.
+The labels in a schema are **always** sorted by their key, lexicographically ascending.
 
 The rest of the types follow the same overall pattern:
 
 ```typescript
-type Type = Unit | Iri | Literal | Product | Coproduct
+type Type = Reference | Unit | Iri | Literal | Product | Coproduct
 
 type Unit = { type: "unit" }
 type Iri = { type: "iri" }
 type Literal = { type: "literal"; datatype: string }
-type Product = { type: "product"; components: Map<string, Component> }
-type Component = { type: "component"; key: string; value: string | Reference }
-type Coproduct = { type: "coproduct"; options: Map<string, Option> }
-type Option = { type: "option"; key: string; value: string | Reference }
+type Product = { type: "product"; components: Component[] }
+type Component = { type: "component"; key: string; value: Type }
+type Coproduct = { type: "coproduct"; options: Option[] }
+type Option = { type: "option"; key: string; value: Type }
+type Reference = { type: "reference"; value: number }
 ```
 
-The "parts" of a product type are called _components_, and the parts of a coproduct type are called _options_. Both components and options have a URI key `Component.key` / `Option.key` and a value `Component.value` / `Option.value` that is either a `Schema.types` key or a label reference. Components and options are also both indexed by string keys in a map. The keys of this `Product.components` / `Coproduct.options` map are _not_ the URI keys of the components or options - they're actually also blank node labels from the dataset that the schema was parsed from. Again, this is confusing at first, but having the two different kinds of identifiers for components and options turns out to be useful in the long run.
+The "parts" of a product type are called _components_, and the parts of a coproduct type are called _options_. Both components and options have a URI key `Component.key` / `Option.key` and a value `Component.value` / `Option.value`. **Components and options are also always sorted by their key**.
 
 ### Instances and values
 
@@ -91,11 +78,12 @@ So we've seen how schemas and types are represented - what do _values of those t
 
 ```typescript
 type Value =
-	| N3.BlankNode
-	| N3.NamedNode
-	| N3.Literal
-	| ProductValue
-	| CoproductValue
+	| N3.BlankNode // Unit value
+	| N3.NamedNode // Iri value
+	| N3.Literal // Literal value
+	| Record // Product value
+	| Variant // Coproduct value
+	| Pointer // Reference value
 ```
 
 The primitives are easy: unit types have blank nodes as values, IRI types have named nodes as values, and literal types have literals as values.
@@ -103,24 +91,11 @@ The primitives are easy: unit types have blank nodes as values, IRI types have n
 What about the composite types?
 
 ```typescript
-type ProductValue = {
-	termType: "Product"
-	node: N3.BlankNode
-	children: Map<string, Value>
+class Record extends Array<Value> {}
+class Variant {
+	constructor(readonly index: number, readonly value: Value) {}
 }
-```
-
-For products we create our own class with its own `ProductValue.termType: "Product"` so that we can easily discrimitate instances from values of other types. Products are liek tuples or structs, so a product value is just a map with an entry for each component.
-
-The keys of the `ProductValue.children` map are the same as the keys of its type's `Product.component` map - they're blank node labels, not URI keys.
-
-How about coproducts? Coproduct values, on the other hand, have a value for just one of their options.
-
-```typescript
-type CoproductValue = {
-	termType: "Coproduct"
-	node: N3.BlankNode
-	option: string
-	value: Value
+class Pointer {
+	constructor(readonly index: number)
 }
 ```

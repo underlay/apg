@@ -25,9 +25,13 @@ export type LabelShape = {
 	]
 }
 
-export function makeLabelShape(id: string, label: APG.Label): LabelShape {
+export function makeLabelShape(
+	id: string,
+	label: APG.Label,
+	typeCache: Map<Exclude<APG.Type, APG.Reference>, string>
+): LabelShape {
 	return {
-		id: getBlankNodeId(id),
+		id: id,
 		type: "ShapeAnd",
 		shapeExprs: [
 			{
@@ -42,7 +46,7 @@ export function makeLabelShape(id: string, label: APG.Label): LabelShape {
 					},
 				},
 			},
-			getBlankNodeId(label.value),
+			getBlankNodeId(label.value, typeCache),
 		],
 	}
 }
@@ -84,7 +88,7 @@ export function isLabelResult(
 	const [shape] = result.solutions
 	if (shape.type !== "ShapeTest") {
 		return false
-	} else if (shape.shape !== getBlankNodeId(id)) {
+	} else if (shape.shape !== id) {
 		return false
 	} else if (shape.solution.type !== "TripleConstraintSolutions") {
 		return false

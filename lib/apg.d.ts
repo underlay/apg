@@ -1,19 +1,16 @@
 import t from "io-ts";
-import N3 from "n3.ts";
+import * as N3 from "n3.ts";
 declare namespace APG {
-    export type Schema = Readonly<{
-        labels: Map<string, Label>;
-        types: Map<string, Type>;
-    }>;
+    export type Schema = Label[];
     export type Label = Readonly<{
         type: "label";
         key: string;
-        value: string | Reference;
+        value: Type;
     }>;
-    export type Type = Unit | Iri | Literal | Product | Coproduct;
+    export type Type = Unit | Iri | Literal | Product | Coproduct | Reference;
     export type Reference = Readonly<{
         type: "reference";
-        value: string;
+        value: number;
     }>;
     export type Unit = Readonly<{
         type: "unit";
@@ -27,110 +24,78 @@ declare namespace APG {
     }>;
     export type Product = Readonly<{
         type: "product";
-        components: Map<string, Component>;
+        components: Component[];
     }>;
     export type Component = Readonly<{
         type: "component";
         key: string;
-        value: string | Reference;
+        value: Type;
     }>;
     export type Coproduct = Readonly<{
         type: "coproduct";
-        options: Map<string, Option>;
+        options: Option[];
     }>;
     export type Option = Readonly<{
         type: "option";
         key: string;
-        value: string | Reference;
+        value: Type;
     }>;
-    export type Instance = Map<string, Set<Value>>;
-    export type UnitValue = N3.BlankNode;
-    export type IriValue = Readonly<{
-        type: "iri";
-        value: N3.NamedNode;
-    }>;
-    export type LiteralValue = Readonly<{
-        type: "literal";
-        value: N3.Literal;
-    }>;
-    export class ProductValue<C extends Value = Value> implements Iterable<[string, C]> {
-        readonly node: N3.BlankNode;
-        readonly children: Map<string, C>;
-        constructor(node: N3.BlankNode, children?: Iterable<[string, C]>);
-        [Symbol.iterator](): IterableIterator<[string, C]>;
-        keys(): Iterable<string>;
-        values(): Iterable<C>;
-        entries(): Iterable<[string, C]>;
-        get termType(): "Product";
-        get size(): number;
-        get(component: string): C | undefined;
+    export type Instance = Value[][];
+    export type Value = N3.BlankNode | N3.NamedNode | N3.Literal | Record | Variant | Pointer;
+    export class Pointer {
+        readonly index: number;
+        constructor(index: number);
+        get termType(): "Pointer";
     }
-    export class CoproductValue<O extends Value = Value> {
+    export class Record extends Array<Value> {
         readonly node: N3.BlankNode;
-        readonly option: string;
-        value: O;
-        constructor(node: N3.BlankNode, option: string, value: O);
-        get termType(): "Coproduct";
-        set(value: O): void;
+        readonly componentKeys: string[];
+        constructor(node: N3.BlankNode, componentKeys: string[], values: Iterable<Value>);
+        get termType(): "Record";
+        get(key: string): Value;
     }
-    export type Value = N3.BlankNode | N3.NamedNode | N3.Literal | ProductValue | CoproductValue;
-    export type Morphism = Identity | Composition | Projection | Injection | Tuple | Case;
+    export class Variant {
+        readonly node: N3.BlankNode;
+        readonly optionKeys: string[];
+        readonly index: number;
+        readonly value: Value;
+        constructor(node: N3.BlankNode, optionKeys: string[], index: number, value: Value);
+        get termType(): "Variant";
+        get key(): string;
+    }
+    export type Morphism = Identity | Composition | Projection | Injection | Tuple | Case | Constant;
     export type Identity = Readonly<{
         type: "identity";
     }>;
     export type Composition = Readonly<{
         type: "composition";
-        objects: [string, string, string];
+        object: APG.Type;
         morphisms: [Morphism, Morphism];
     }>;
     export type Projection = Readonly<{
         type: "projection";
-        component: string;
+        index: number;
     }>;
     export type Injection = Readonly<{
         type: "injection";
-        option: string;
+        index: number;
     }>;
     export type Tuple = Readonly<{
         type: "tuple";
-        morphisms: Map<string, Morphism>;
+        morphisms: Morphism[];
     }>;
     export type Case = Readonly<{
         type: "case";
-        morphisms: Map<string, Morphism>;
+        morphisms: Morphism[];
     }>;
+    export type Constant = Readonly<{
+        type: "constant";
+        value: N3.BlankNode | N3.NamedNode | N3.Literal;
+    }>;
+    export function validateValue(value: Value, type: Type, schema: Schema): boolean;
+    export function validateMorphism(morphism: APG.Morphism, source: APG.Type, target: APG.Type, schema: APG.Schema): boolean;
     export const toId: (id: string) => t.Branded<string, ID>;
-    export const toValue: (id: string | Readonly<{
-        type: "reference";
-        value: string;
-    }>, schema: Readonly<{
-        labels: Map<string, Readonly<{
-            type: "label";
-            key: string;
-            value: string | Readonly<{
-                type: "reference";
-                value: string;
-            }>;
-        }>>;
-        types: Map<string, Type>;
-    }>) => {
-        unit: t.Branded<string, ID>;
-    } | {
-        iri: t.Branded<string, ID>;
-    } | {
-        literal: t.Branded<string, ID>;
-    } | {
-        product: t.Branded<string, ID>;
-    } | {
-        coproduct: t.Branded<string, ID>;
-    } | {
-        reference: {
-            type: "reference";
-            value: t.Branded<string, ID>;
-        };
-    };
     export function toJSON(schema: Schema): t.TypeOf<typeof codec>;
-    export function validateMorphism(morphism: APG.Morphism, source: string | APG.Reference, target: string | APG.Reference, schema: APG.Schema): boolean;
     interface ID {
         readonly ID: unique symbol;
     }
@@ -218,17 +183,7 @@ declare namespace APG {
                 };
             };
         }[];
-    })[], Readonly<{
-        labels: Map<string, Readonly<{
-            type: "label";
-            key: string;
-            value: string | Readonly<{
-                type: "reference";
-                value: string;
-            }>;
-        }>>;
-        types: Map<string, Type>;
-    }>, unknown>;
+    })[], Schema, unknown>;
     export {};
 }
 export default APG;

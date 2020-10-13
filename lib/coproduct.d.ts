@@ -25,7 +25,7 @@ export declare type OptionExpression = {
     predicate: string;
     valueExpr: string;
 };
-export declare function makeCoproductShape(id: string, type: APG.Coproduct): CoproductShape;
+export declare function makeCoproductShape(id: string, type: APG.Coproduct, typeCache: Map<Exclude<APG.Type, APG.Reference>, string>): CoproductShape;
 export declare type CoproductResult = {
     type: "ShapeAndResults";
     solutions: [BlankNodeConstraintResult, {

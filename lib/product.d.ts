@@ -22,7 +22,7 @@ export declare type ComponentExpression = {
     predicate: string;
     valueExpr: string;
 };
-export declare function makeProductShape(id: string, type: APG.Product): ProductShape;
+export declare function makeProductShape(id: string, type: APG.Product, typeCache: Map<Exclude<APG.Type, APG.Reference>, string>): ProductShape;
 export declare type ComponentResult = {
     type: "TripleConstraintSolutions";
     predicate: string;

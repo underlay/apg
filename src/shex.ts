@@ -31,10 +31,14 @@ type Token = {
 	shape: string
 	used: boolean
 }
+
 type State = Readonly<{
 	schema: APG.Schema
+	typeCache: Map<Exclude<APG.Type, APG.Reference>, string>
+	instance: APG.Instance
+	valueCache: Array<Map<string, number>>
+	keyCache: Map<string, string[]>
 	stack: Token[]
-	cache: Map<string, APG.Value>
 }>
 
 const rdfType = new NamedNode(rdf.type)
@@ -43,68 +47,126 @@ export function parse(
 	store: Store,
 	schema: APG.Schema
 ): Either<FailureResult, APG.Instance> {
-	const database: APG.Instance = new Map()
 	const db = ShExUtil.makeN3DB(store)
-	const shexSchema = makeShExSchema(schema)
+	const typeCache: Map<Exclude<APG.Type, APG.Reference>, string> = new Map()
+	const keyCache: Map<string, string[]> = new Map()
+	schema.reduce((i, { value }) => cacheType(i, value, typeCache, keyCache), 0)
+	const shexSchema = makeShExSchema(typeCache, schema)
 	const validator = ShExValidator.construct(shexSchema, {})
+	const state: State = Object.freeze({
+		schema,
+		typeCache,
+		instance: new Array(schema.length).fill(null).map(() => []),
+		valueCache: new Array(schema.length).fill(null).map(() => new Map()),
+		keyCache,
+		stack: [],
+	})
 
-	const state: State = Object.freeze({ schema, stack: [], cache: new Map() })
-	for (const [id, label] of schema.labels) {
-		const values: Set<APG.Value> = new Set()
+	for (const [label, cache, index] of zip(schema, state.valueCache)) {
+		const shape = `_:l${index}`
 		const subjects = store.subjects(rdfType, new NamedNode(label.key), null)
 		for (const subject of subjects) {
 			if (subject instanceof BlankNode) {
-				const key = `${id}\t${subject.value}`
-				const cache = state.cache.get(key)
-				if (cache !== undefined) {
-					values.add(cache)
+				if (cache.has(subject.value)) {
 					continue
 				}
-				const result = validator.validate(db, subject.id, getBlankNodeId(id))
+
+				const result = validator.validate(db, subject.id, shape)
 				if (isFailure(result)) {
 					return { _tag: "Left", left: result }
 				}
 
-				const match = parseResult(
-					subject,
-					{ type: "reference", value: id },
-					result,
-					state
-				)
+				const reference: APG.Reference = Object.freeze({
+					type: "reference",
+					value: index,
+				})
+
+				const match = parseResult(reference, subject, result, state)
+
 				if (match._tag === "None") {
 					const errors = [
-						{ message: "Subject failed parsing", node: subject.id, shape: id },
+						{ message: "Subject failed parsing", node: subject.id, shape },
 					]
 					return {
 						_tag: "Left",
-						left: { type: "Failure", shape: id, node: subject.id, errors },
+						left: { type: "Failure", shape, node: subject.id, errors },
 					}
 				}
 
-				values.add(match.value)
+				// cache.set(subject.value, values.push(match.value) - 1)
+			} else {
+				return {
+					_tag: "Left",
+					left: { type: "Failure", shape, node: subject.id, errors: [] },
+				}
 			}
 		}
-
-		database.set(id, values)
 	}
 
-	return { _tag: "Right", right: database }
+	return { _tag: "Right", right: state.instance }
 }
 
-function makeShExSchema(schema: APG.Schema): ShExParser.Schema {
+function makeShExSchema(
+	typeCache: Map<Exclude<APG.Type, APG.Reference>, string>,
+	schema: APG.Schema
+): ShExParser.Schema {
 	const shapes: ({ id: string } & ShExParser.shapeExprObject)[] = []
-	for (const [id, label] of schema.labels) {
-		shapes.push(makeLabelShape(id, label))
+
+	for (const [type, id] of typeCache) {
+		shapes.push(makeShapeExpr(id, type, typeCache))
 	}
-	for (const [id, type] of schema.types) {
-		shapes.push(makeShapeExpr(id, type))
+
+	for (const [index, label] of schema.entries()) {
+		shapes.push(makeLabelShape(`_:l${index}`, label, typeCache))
 	}
+
 	return { type: "Schema", shapes }
+}
+
+function cacheType(
+	i: number,
+	type: APG.Type,
+	typeCache: Map<Exclude<APG.Type, APG.Reference>, string>,
+	keyCache: Map<string, string[]>
+): number {
+	if (type.type === "reference") {
+		return i
+	} else if (typeCache.has(type)) {
+		return i
+	} else if (type.type === "unit") {
+		typeCache.set(type, `_:t${i++}`)
+		return i
+	} else if (type.type === "iri") {
+		typeCache.set(type, `_:t${i++}`)
+		return i
+	} else if (type.type === "literal") {
+		typeCache.set(type, `_:t${i++}`)
+		return i
+	} else if (type.type === "product") {
+		const id = `_:t${i++}`
+		typeCache.set(type, id)
+		keyCache.set(id, type.components.map(({ key }) => key).sort())
+		return type.components.reduce(
+			(i, { value }) => cacheType(i, value, typeCache, keyCache),
+			i
+		)
+	} else if (type.type === "coproduct") {
+		const id = `_:t${i++}`
+		typeCache.set(type, id)
+		keyCache.set(id, type.options.map(({ key }) => key).sort())
+		return type.options.reduce(
+			(i, { value }) => cacheType(i, value, typeCache, keyCache),
+			i
+		)
+	} else {
+		signalInvalidType("", type)
+	}
 }
 
 function makeShapeExpr(
 	id: string,
-	type: APG.Type
+	type: Exclude<APG.Type, APG.Reference>,
+	typeCache: Map<Exclude<APG.Type, APG.Reference>, string>
 ): { id: string } & ShExParser.shapeExprObject {
 	if (type.type === "unit") {
 		return makeUnitShape(id, type)
@@ -113,9 +175,9 @@ function makeShapeExpr(
 	} else if (type.type === "literal") {
 		return makeLiteralShape(id, type)
 	} else if (type.type === "product") {
-		return makeProductShape(id, type)
+		return makeProductShape(id, type, typeCache)
 	} else if (type.type === "coproduct") {
-		return makeCoproductShape(id, type)
+		return makeCoproductShape(id, type, typeCache)
 	} else {
 		signalInvalidType(id, type)
 	}
@@ -137,70 +199,66 @@ function isFailure(
 	)
 }
 
-const token = new NamedNode(`urn:uuid:${uuid()}`)
-
 function parseResult(
+	type: APG.Type,
 	node: NamedNode<string> | BlankNode | Literal,
-	value: string | APG.Reference,
 	result: SuccessResult,
 	state: State
 ): Option<APG.Value> {
-	if (typeof value === "string") {
-		const type = state.schema.types.get(value)
-		if (type === undefined) {
-			throw new Error(`Invalid type id ${value}`)
-		} else {
-			return parseTypeResult(node, value, type, result, state)
-		}
+	if (type.type === "reference") {
+		return parseReferenceResult(type.value, node, result, state)
 	} else {
-		const label = state.schema.labels.get(value.value)
-		if (label === undefined) {
-			throw new Error(`Invalid label id ${value.value}`)
-		} else {
-			return parseReferenceResult(node, value.value, label, result, state)
+		const id = state.typeCache.get(type)
+		if (id === undefined) {
+			throw new Error("No id for type")
 		}
+		return parseTypeResult(id, type, node, result, state)
 	}
 }
 
 const tokenRoot = uuid()
 
 function parseReferenceResult(
+	index: number,
 	node: NamedNode<string> | BlankNode | Literal,
-	id: string,
-	label: APG.Label,
 	result: SuccessResult,
 	state: State
 ): Option<APG.Value> {
+	const id = `_:l${index}`
+	const label = state.schema[index]
 	if (isLabelResult(result, id, label.key)) {
 		if (node instanceof BlankNode) {
-			const key = `${id}\t${node.value}`
-			const cache = state.cache.get(key)
+			const cache = state.valueCache[index].get(node.value)
 			if (cache !== undefined) {
-				return { _tag: "Some", value: cache }
+				return { _tag: "Some", value: new APG.Pointer(cache) }
 			}
 
 			const nextResult = parseLabelResult(result)
-			const index = state.stack.length
+			const l = state.stack.length
 			const token = { node, shape: id, used: false }
 			state.stack.push(token)
-			const match = parseResult(node, label.value, nextResult, state)
+			const match = parseResult(label.value, node, nextResult, state)
 			state.stack.pop()
 			if (match._tag === "None") {
 				return match
 			} else {
+				const pointer = state.instance[index].length
 				const value = token.used
-					? replaceToken(node, match.value, `urn:uuid:${tokenRoot}#${index}`)
+					? replaceTokenValue(
+							pointer,
+							match.value,
+							`urn:uuid:${tokenRoot}#${l}`
+					  )
 					: match.value
-				state.cache.set(key, match.value)
-				return { _tag: "Some", value: value }
+
+				state.instance[index].push(value)
+				state.valueCache[index].set(node.value, pointer)
+				return { _tag: "Some", value: new APG.Pointer(pointer) }
 			}
 		} else {
 			throw new Error("Invalid result for reference type")
 		}
-	} else if (
-		result.type === "Recursion" &&
-		result.shape === getBlankNodeId(id)
-	) {
+	} else if (result.type === "Recursion" && result.shape === id) {
 		const index = state.stack.findIndex(
 			(token) => node.equals(token.node) && token.shape === id
 		)
@@ -216,72 +274,45 @@ function parseReferenceResult(
 	}
 }
 
-function replaceToken(
-	node: BlankNode,
-	value: APG.Value,
-	uri: string
-): APG.Value {
-	if (value.termType === "Product") {
-		const product = new APG.ProductValue(value.node)
-		for (const [id, leaf] of replaceLeaves(product, value, uri)) {
-			product.children.set(id, leaf)
-		}
-		return product
-	} else if (value.termType === "Coproduct") {
-		const coproduct = new APG.CoproductValue<APG.Value>(
-			value.node,
-			value.option,
-			node
-		)
-		coproduct.set(replaceTokenValue(coproduct, value.value, uri))
-		return coproduct
-	} else if (value.termType === "NamedNode" && value.value === uri) {
-		return node
-	} else {
-		return value
-	}
-}
-
 function replaceTokenValue(
-	root: APG.Value,
+	pointer: number,
 	value: APG.Value,
 	uri: string
 ): APG.Value {
-	if (value.termType === "Product") {
-		const product = new APG.ProductValue(value.node)
-		for (const [id, leaf] of replaceLeaves(root, value, uri)) {
-			product.children.set(id, leaf)
-		}
-		return product
-	} else if (value.termType === "Coproduct") {
-		const coproduct = new APG.CoproductValue<APG.Value>(
+	if (value.termType === "Record") {
+		return new APG.Record(
 			value.node,
-			value.option,
-			root
+			value.componentKeys,
+			replaceLeaves(pointer, value, uri)
 		)
-		coproduct.set(replaceTokenValue(root, value.value, uri))
-		return coproduct
+	} else if (value.termType === "Variant") {
+		return new APG.Variant(
+			value.node,
+			value.optionKeys,
+			value.index,
+			replaceTokenValue(pointer, value.value, uri)
+		)
 	} else if (value.termType === "NamedNode" && value.value === uri) {
-		return root
+		return new APG.Pointer(pointer)
 	} else {
 		return value
 	}
 }
 
 function* replaceLeaves(
-	root: APG.Value,
-	product: APG.ProductValue,
+	pointer: number,
+	product: APG.Record,
 	uri: string
-): Iterable<[string, APG.Value]> {
-	for (const [id, leaf] of product) {
-		yield [id, replaceTokenValue(root, leaf, uri)]
+): Iterable<APG.Value> {
+	for (const leaf of product) {
+		yield replaceTokenValue(pointer, leaf, uri)
 	}
 }
 
 function parseTypeResult(
-	node: NamedNode<string> | BlankNode | Literal,
 	id: string,
-	type: APG.Type,
+	type: Exclude<APG.Type, APG.Reference>,
+	node: NamedNode<string> | BlankNode | Literal,
 	result: SuccessResult,
 	state: State
 ): Option<APG.Value> {
@@ -319,14 +350,22 @@ function parseTypeResult(
 		if (isProductResult(result, id)) {
 			if (node instanceof BlankNode) {
 				const solutions = parseProductResult(result)
-				const components: Map<string, APG.Value> = new Map()
-				if (type.components.size !== solutions.length) {
+
+				if (type.components.length !== solutions.length) {
 					throw new Error("Invalid product result")
 				}
 
+				const componentKeys = state.keyCache.get(id)
+				if (componentKeys === undefined) {
+					throw new Error(`Could not find keys for product ${id}`)
+				}
+
+				const components: APG.Value[] = new Array(solutions.length)
+
 				const iter = zip(type.components, solutions)
-				for (const [[componentId, component], solution] of iter) {
-					if (componentId !== solution.productionLabel.slice(2)) {
+				for (const [component, solution, index] of iter) {
+					const componentId = `${id}-c${index}`
+					if (componentId !== solution.productionLabel) {
 						throw new Error("Invalid component result")
 					}
 
@@ -336,21 +375,25 @@ function parseTypeResult(
 					} = solution
 					const object = parseObjectValue(objectValue)
 
-					if (
-						ref !== undefined &&
-						valueExpr === getBlankNodeId(component.value)
-					) {
-						const match = parseResult(object, component.value, ref, state)
+					const componentValueId = getBlankNodeId(
+						component.value,
+						state.typeCache
+					)
+					if (ref !== undefined && valueExpr === componentValueId) {
+						const match = parseResult(component.value, object, ref, state)
 						if (match._tag === "None") {
 							return match
 						} else {
-							components.set(componentId, match.value)
+							components[index] = match.value
 						}
 					} else {
 						throw new Error("Invalid component result")
 					}
 				}
-				return { _tag: "Some", value: new APG.ProductValue(node, components) }
+				return {
+					_tag: "Some",
+					value: new APG.Record(node, componentKeys, components),
+				}
 			} else {
 				throw new Error("Invalid result for product type")
 			}
@@ -360,12 +403,26 @@ function parseTypeResult(
 	} else if (type.type === "coproduct") {
 		if (isCoproductResult(result, id)) {
 			if (node instanceof BlankNode) {
-				const optionResult = parseCoproductResult(result)
-				const optionId = optionResult.productionLabel.slice(2)
-				const option = type.options.get(optionId)
-				if (option === undefined) {
-					throw new Error("Invalid option result")
+				const optionKeys = state.keyCache.get(id)
+				if (optionKeys === undefined) {
+					throw new Error(`Could not find keys for coproduct ${id}`)
 				}
+				const optionResult = parseCoproductResult(result)
+				const optionId = optionResult.productionLabel
+				if (!optionId.startsWith(id)) {
+					throw new Error(`Invalid option id ${optionId}`)
+				}
+				const tail = optionId.slice(id.length)
+				const tailMatch = optionIdTailPattern.exec(tail)
+				if (tailMatch === null) {
+					throw new Error(`Invalid option id ${optionId}`)
+				}
+				const [{}, indexId] = tailMatch
+				const index = parseInt(indexId)
+				if (isNaN(index) || index >= type.options.length) {
+					throw new Error(`Invalid option id ${optionId}`)
+				}
+				const option = type.options[index]
 
 				const {
 					valueExpr,
@@ -373,12 +430,13 @@ function parseTypeResult(
 				} = optionResult
 				const object = parseObjectValue(objectValue)
 
-				if (ref !== undefined && valueExpr === getBlankNodeId(option.value)) {
-					const match = parseResult(object, option.value, ref, state)
+				const optionValueId = getBlankNodeId(option.value, state.typeCache)
+				if (ref !== undefined && valueExpr === optionValueId) {
+					const match = parseResult(option.value, object, ref, state)
 					if (match._tag === "None") {
 						return match
 					} else {
-						const value = new APG.CoproductValue(node, optionId, match.value)
+						const value = new APG.Variant(node, optionKeys, index, match.value)
 						return { _tag: "Some", value }
 					}
 				} else {
@@ -394,3 +452,5 @@ function parseTypeResult(
 		signalInvalidType(id, type)
 	}
 }
+
+const optionIdTailPattern = /^-o(\d+)$/

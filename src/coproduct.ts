@@ -53,11 +53,12 @@ export type OptionExpression = {
 
 export function makeCoproductShape(
 	id: string,
-	type: APG.Coproduct
+	type: APG.Coproduct,
+	typeCache: Map<Exclude<APG.Type, APG.Reference>, string>
 ): CoproductShape {
-	const expression = makeCoproductExpression(type)
+	const expression = makeCoproductExpression(id, type, typeCache)
 	return {
-		id: getBlankNodeId(id),
+		id: id,
 		type: "ShapeAnd",
 		shapeExprs: [
 			blankNodeConstraint,
@@ -66,10 +67,14 @@ export function makeCoproductShape(
 	}
 }
 
-function makeCoproductExpression(type: APG.Coproduct): CoproductExpression {
+function makeCoproductExpression(
+	id: string,
+	type: APG.Coproduct,
+	typeCache: Map<Exclude<APG.Type, APG.Reference>, string>
+): CoproductExpression {
 	const expressions: OptionExpression[] = []
 	const keys: Set<string> = new Set()
-	for (const [id, { key, value }] of type.options) {
+	for (const [index, { key, value }] of type.options.entries()) {
 		if (key === rdf.type) {
 			throw new Error("Coproduct object cannot have an rdf:type option")
 		} else if (keys.has(key)) {
@@ -77,10 +82,10 @@ function makeCoproductExpression(type: APG.Coproduct): CoproductExpression {
 		}
 		keys.add(key)
 		expressions.push({
-			id: getBlankNodeId(id),
+			id: `${id}-o${index}`,
 			type: "TripleConstraint",
 			predicate: key,
-			valueExpr: getBlankNodeId(value),
+			valueExpr: getBlankNodeId(value, typeCache),
 		})
 	}
 	return {
@@ -148,7 +153,6 @@ export function isCoproductResult(
 	result: SuccessResult,
 	id: string
 ): result is CoproductResult {
-	const blankNodeId = getBlankNodeId(id)
 	if (result.type !== "ShapeAndResults") {
 		return false
 	} else if (result.solutions.length !== 2) {
@@ -157,7 +161,7 @@ export function isCoproductResult(
 	const [nodeConstraint, shape] = result.solutions
 	if (shape.type !== "ShapeTest") {
 		return false
-	} else if (shape.shape !== blankNodeId) {
+	} else if (shape.shape !== id) {
 		return false
 	} else if (shape.solution.type !== "EachOfSolutions") {
 		return false
@@ -183,13 +187,13 @@ export function isCoproductResult(
 
 	return (
 		isBlankNodeConstraintResult(nodeConstraint) &&
-		nodeConstraint.shape === blankNodeId &&
+		nodeConstraint.shape === id &&
 		isAnyTypeResult(first) &&
 		isOptionResult(option)
 	)
 }
 
-// lmao
+// Sorry
 export const parseCoproductResult = (result: CoproductResult) =>
 	result.solutions[1].solution.solutions[0].expressions[1].solutions[0]
 		.expressions[0]

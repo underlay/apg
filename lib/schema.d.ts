@@ -1,5 +1,5 @@
 /// <reference types="shexjs" />
-import { Store } from "n3.ts";
+import * as N3 from "n3.ts";
 import { Either } from "fp-ts/Either";
 import { FailureResult } from "@shexjs/validator";
 import APG from "./apg.js";
@@ -21,4 +21,4 @@ export declare const ns: {
     flags: string;
 };
 export declare function parseSchemaString(input: string, schemaSchema: APG.Schema): Either<FailureResult, APG.Schema>;
-export declare function parseSchema(store: Store, schemaSchema: APG.Schema): Either<FailureResult, APG.Schema>;
+export declare function parseSchema(store: N3.Store, schemaSchema: APG.Schema): Either<FailureResult, APG.Schema>;

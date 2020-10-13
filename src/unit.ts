@@ -32,7 +32,7 @@ export type UnitShape = {
 
 export function makeUnitShape(id: string, {}: APG.Unit): UnitShape {
 	return {
-		id: getBlankNodeId(id),
+		id: id,
 		type: "ShapeAnd",
 		shapeExprs: [blankNodeConstraint, emptyShape],
 	}
@@ -59,13 +59,12 @@ export function isUnitResult(
 	} else if (result.solutions.length !== 2) {
 		return false
 	}
-	const blankNodeId = getBlankNodeId(id)
 	const [nodeConstraint, shape] = result.solutions
 	return (
 		isBlankNodeConstraintResult(nodeConstraint) &&
-		nodeConstraint.shape === blankNodeId &&
+		nodeConstraint.shape === id &&
 		isEmptyShapeResult(shape) &&
-		shape.shape === blankNodeId
+		shape.shape === id
 	)
 }
 

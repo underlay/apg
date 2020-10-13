@@ -45,10 +45,14 @@ export type ComponentExpression = {
 	valueExpr: string
 }
 
-export function makeProductShape(id: string, type: APG.Product): ProductShape {
-	const expression = makeProductExpression(type)
+export function makeProductShape(
+	id: string,
+	type: APG.Product,
+	typeCache: Map<Exclude<APG.Type, APG.Reference>, string>
+): ProductShape {
+	const expression = makeProductExpression(id, type, typeCache)
 	return {
-		id: getBlankNodeId(id),
+		id: id,
 		type: "ShapeAnd",
 		shapeExprs: [
 			blankNodeConstraint,
@@ -57,10 +61,14 @@ export function makeProductShape(id: string, type: APG.Product): ProductShape {
 	}
 }
 
-function makeProductExpression(type: APG.Product): ProductExpression {
+function makeProductExpression(
+	id: string,
+	type: APG.Product,
+	typeCache: Map<Exclude<APG.Type, APG.Reference>, string>
+): ProductExpression {
 	const expressions: [anyType, ...ComponentExpression[]] = [anyType]
 	const keys: Set<string> = new Set()
-	for (const [id, { key, value }] of type.components) {
+	for (const [index, { key, value }] of type.components.entries()) {
 		if (key === rdf.type) {
 			throw new Error("Product object cannot have an rdf:type component")
 		} else if (keys.has(key)) {
@@ -68,10 +76,10 @@ function makeProductExpression(type: APG.Product): ProductExpression {
 		}
 		keys.add(key)
 		expressions.push({
-			id: getBlankNodeId(id),
+			id: `${id}-c${index}`,
 			type: "TripleConstraint",
 			predicate: key,
-			valueExpr: getBlankNodeId(value),
+			valueExpr: getBlankNodeId(value, typeCache),
 		})
 	}
 	return { type: "EachOf", expressions }
@@ -128,7 +136,6 @@ export function isProductResult(
 	result: SuccessResult,
 	id: string
 ): result is ProductResult {
-	const blankNodeId = getBlankNodeId(id)
 	if (result.type !== "ShapeAndResults") {
 		return false
 	} else if (result.solutions.length !== 2) {
@@ -137,7 +144,7 @@ export function isProductResult(
 	const [nodeConstraint, shape] = result.solutions
 	if (shape.type !== "ShapeTest") {
 		return false
-	} else if (shape.shape !== blankNodeId) {
+	} else if (shape.shape !== id) {
 		return false
 	} else if (shape.solution.type !== "EachOfSolutions") {
 		return false
@@ -148,7 +155,7 @@ export function isProductResult(
 	const [first, ...rest] = expressions
 	return (
 		isBlankNodeConstraintResult(nodeConstraint) &&
-		nodeConstraint.shape === blankNodeId &&
+		nodeConstraint.shape === id &&
 		isAnyTypeResult(first) &&
 		rest.every(isComponentResult)
 	)

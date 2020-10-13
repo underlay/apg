@@ -4,20 +4,38 @@ import ShExParser from "@shexjs/parser";
 import { EachOfSolutions, OneOfSolutions, TripleConstraintSolutions, SuccessResult } from "@shexjs/validator";
 import APG from "./apg.js";
 declare const rdfType: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-export declare function pivotTree<V extends T, T extends APG.Value = APG.Value>(trees: Set<APG.ProductValue<T>>, key: string): Map<V, Set<APG.ProductValue<T>>>;
-export declare const getBlankNodeId: (a: string | Readonly<{
-    type: "reference";
-    value: string;
-}>) => string;
-export declare const equal: (a: string | Readonly<{
-    type: "reference";
-    value: string;
-}>, b: string | Readonly<{
-    type: "reference";
-    value: string;
-}>) => boolean;
+export declare const sortKeys: ([{}, { key: a }]: [string, {
+    key: string;
+}], [{}, { key: b }]: [string, {
+    key: string;
+}]) => 1 | 0 | -1;
+export declare function rotateTree(trees: APG.Record[], pivot: string): Map<number, APG.Record[]>;
+export declare const getBlankNodeId: (type: APG.Type, typeCache: Map<Readonly<{
+    type: "unit";
+}> | Readonly<{
+    type: "iri";
+}> | Readonly<{
+    type: "literal";
+    datatype: string;
+}> | Readonly<{
+    type: "product";
+    components: Readonly<{
+        type: "component";
+        key: string;
+        value: APG.Type;
+    }>[];
+}> | Readonly<{
+    type: "coproduct";
+    options: Readonly<{
+        type: "option";
+        key: string;
+        value: APG.Type;
+    }>[];
+}>, string>) => string;
+export declare function equal(a: APG.Type, b: APG.Type): boolean;
 export declare const zip: <A, B>(a: Iterable<A>, b: Iterable<B>) => Iterable<[A, B, number]>;
-export declare function parseObjectValue(object: ShExParser.objectValue): NamedNode<string> | BlankNode | Literal;
+export declare const zip3: <A, B, C>(a: Iterable<A>, b: Iterable<B>, c: Iterable<C>) => Iterable<[A, B, C, number]>;
+export declare function parseObjectValue(object: ShExParser.objectValue): Literal | NamedNode<string> | BlankNode;
 export interface anyType extends ShExParser.TripleConstraint<typeof rdfType, undefined> {
     min: 0;
     max: -1;
@@ -53,4 +71,5 @@ export declare type BlankNodeConstraintResult = {
     shapeExpr: BlankNodeConstraint;
 };
 export declare function isBlankNodeConstraintResult(result: SuccessResult): result is BlankNodeConstraintResult;
+export declare function findCommonPrefixIndex(a: string, b: string): number;
 export {};
