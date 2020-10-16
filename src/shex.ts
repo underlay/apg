@@ -52,12 +52,12 @@ export function parse(
 	store: Store,
 	schema: APG.Schema
 ): Either<FailureResult, APG.Instance> {
-	const db = ShExUtil.makeN3DB(store)
+	const db = ShExUtil.rdfjsDB(store)
 	const typeCache: Map<Exclude<APG.Type, APG.Reference>, string> = new Map()
 	const keyCache: Map<string, string[]> = new Map()
 	schema.reduce((i, { value }) => cacheType(i, value, typeCache, keyCache), 0)
 	const shexSchema = makeShExSchema(typeCache, schema)
-	const validator = ShExValidator.construct(shexSchema, {})
+	const validator = ShExValidator.construct(shexSchema, db, {})
 	const state: State = Object.freeze({
 		schema,
 		typeCache,
@@ -76,7 +76,7 @@ export function parse(
 					continue
 				}
 
-				const result = validator.validate(db, subject.id, shape)
+				const result = validator.validate(subject.id, shape)
 				if (isFailure(result)) {
 					return { _tag: "Left", left: result }
 				}

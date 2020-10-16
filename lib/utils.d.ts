@@ -9,7 +9,7 @@ export declare const sortKeys: ([{}, { key: a }]: [string, {
     key: string;
 }], [{}, { key: b }]: [string, {
     key: string;
-}]) => 1 | 0 | -1;
+}]) => 1 | -1 | 0;
 export declare function rotateTree(trees: APG.Record[], pivot: string): Map<number, APG.Record[]>;
 export declare const getBlankNodeId: (type: APG.Type, typeCache: Map<Readonly<{
     type: "unit";
