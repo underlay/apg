@@ -30,7 +30,6 @@ import {
 	makeCoproductShape,
 	parseCoproductResult,
 } from "./coproduct.js"
-import { ObjectType } from "io-ts"
 
 type Token = {
 	node: Object<D>
@@ -300,7 +299,7 @@ function replaceTokenValue(
 		return new APG.Record(
 			value.node,
 			value.componentKeys,
-			replaceLeaves(pointer, value, uri)
+			Array.from(replaceLeaves(pointer, value, uri))
 		)
 	} else if (value.termType === "Variant") {
 		return new APG.Variant(

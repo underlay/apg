@@ -1,6 +1,6 @@
 {
 	"name": "apg",
-	"version": "0.4.1",
+	"version": "0.4.2",
 	"description": "Underlay APG utilities",
 	"type": "module",
 	"main": "lib/index.js",
@@ -22,6 +22,7 @@
 	"homepage": "https://github.com/underlay/apg#readme",
 	"dependencies": {
 		"@types/shexjs": "gist:423141cd96c858931f618fbf97fdc1b9",
+		"@types/signed-varint": "gist:b46025b5175e06c1586d714dc0960443",
 		"@types/uuid": "^8.3.0",
 		"@types/varint": "^5.0.0",
 		"buffer": "^5.6.0",
@@ -34,9 +35,11 @@
 		"@shexjs/util": "file:shex.js/packages/shex-util",
 		"@shexjs/validator": "file:shex.js/packages/shex-validator",
 		"@types/jsonld": "^1.5.1",
+		"@types/rdf-canonize": "gist:dc406f4c567dcab1da98cf19b2b8a6d8",
 		"fp-ts": "^2.8.4",
 		"io-ts": "^2.2.11",
-		"jsonld": "^3.2.0"
+		"jsonld": "^3.2.0",
+		"rdf-canonize": "^1.2.0"
 	},
 	"peerDependencies": {
 		"@shexjs/util": "1.0.0-alpha.6",
