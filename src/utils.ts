@@ -145,6 +145,8 @@ export const zip3 = <A, B, C>(
 	},
 })
 
+const rdfLangString = new NamedNode(rdf.langString)
+
 export function parseObjectValue(object: ShExParser.objectValue) {
 	if (typeof object === "string") {
 		if (object.startsWith("_:")) {
@@ -152,10 +154,12 @@ export function parseObjectValue(object: ShExParser.objectValue) {
 		} else {
 			return new NamedNode(object)
 		}
+	} else if (object.language) {
+		return new Literal(object.value, object.language, rdfLangString)
 	} else {
 		const datatype =
 			object.type === undefined ? xsdString : new NamedNode(object.type)
-		return new Literal(object.value, object.language || datatype)
+		return new Literal(object.value, "", datatype)
 	}
 }
 

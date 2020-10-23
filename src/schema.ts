@@ -8,36 +8,18 @@ import APG from "./apg.js"
 
 import { parse } from "./shex.js"
 import { rotateTree } from "./utils.js"
-
-export const ns = {
-	label: "http://underlay.org/ns/label",
-	reference: "http://underlay.org/ns/reference",
-	unit: "http://underlay.org/ns/unit",
-	product: "http://underlay.org/ns/product",
-	coproduct: "http://underlay.org/ns/coproduct",
-	component: "http://underlay.org/ns/component",
-	option: "http://underlay.org/ns/option",
-	source: "http://underlay.org/ns/source",
-	key: "http://underlay.org/ns/key",
-	value: "http://underlay.org/ns/value",
-	iri: "http://underlay.org/ns/iri",
-	literal: "http://underlay.org/ns/literal",
-	datatype: "http://underlay.org/ns/datatype",
-	pattern: "http://underlay.org/ns/pattern",
-	flags: "http://underlay.org/ns/flags",
-}
+import * as ns from "./namespace.js"
+import schemaSchema from "./bootstrap.js"
 
 export function parseSchemaString(
-	input: string,
-	schemaSchema: APG.Schema
+	input: string
 ): Either<FailureResult, APG.Schema> {
 	const store = new N3.Store(N3.Parse(input))
-	return parseSchema(store, schemaSchema)
+	return parseSchema(store)
 }
 
 export function parseSchema(
-	store: N3.Store,
-	schemaSchema: APG.Schema
+	store: N3.Store
 ): Either<FailureResult, APG.Schema> {
 	const result = parse(store, schemaSchema)
 	if (result._tag === "Left") {

@@ -71,7 +71,9 @@ function* encodeValue(
 	value: APG.Value,
 	namedNodeIds: Map<string, number>
 ): Generator<number, void, undefined> {
-	if (value.termType === "BlankNode") {
+	if (value.termType === "Pointer") {
+		yield* varint.encode(value.index)
+	} else if (value.termType === "BlankNode") {
 		return
 	} else if (value.termType === "NamedNode") {
 		const id = namedNodeIds.get(value.value)
@@ -242,25 +244,25 @@ function decodeValue(
 				throw new Error(`Invalid boolean value ${i}`)
 			}
 			const value = i === 0 ? "false" : "true"
-			return [id, offset, new N3.Literal(value, datatype)]
+			return [id, offset, new N3.Literal(value, "", datatype)]
 		} else if (type.datatype === xsd.integer) {
 			const i = signedVarint.decode(data, offset)
 			offset += signedVarint.encodingLength(i)
-			return [id, offset, new N3.Literal(i.toString(), datatype)]
+			return [id, offset, new N3.Literal(i.toString(), "", datatype)]
 		} else if (type.datatype === xsd.double) {
 			const view = new DataView(data, offset, 8)
 			const value = view.getFloat64(0)
 			if (isNaN(value)) {
 				throw new Error("Invalid double value")
 			}
-			return [id, offset + 8, new N3.Literal(value.toString(), datatype)]
+			return [id, offset + 8, new N3.Literal(value.toString(), "", datatype)]
 		} else {
 			const length = varint.decode(data, offset)
 			offset += varint.encodingLength(length)
 			const view = new DataView(data, offset, length)
 			const value = new TextDecoder().decode(view)
 			offset += length
-			return [id, offset, new N3.Literal(value, datatype)]
+			return [id, offset, new N3.Literal(value, "", datatype)]
 		}
 	} else if (type.type === "product") {
 		const components: APG.Value[] = []

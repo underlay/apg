@@ -6,11 +6,14 @@ import { BlankNodeConstraintResult, anyTypeResult, BlankNodeConstraint, anyType 
 export declare type ProductShape = {
     id: string;
     type: "ShapeAnd";
-    shapeExprs: [BlankNodeConstraint, {
-        type: "Shape";
-        closed: true;
-        expression: ProductExpression;
-    }];
+    shapeExprs: [
+        BlankNodeConstraint,
+        {
+            type: "Shape";
+            closed: true;
+            expression: ProductExpression;
+        }
+    ];
 };
 export declare type ProductExpression = {
     type: "EachOf";
@@ -28,29 +31,36 @@ export declare type ComponentResult = {
     predicate: string;
     valueExpr: string;
     productionLabel: string;
-    solutions: [{
-        type: "TestedTriple";
-        subject: string;
-        predicate: string;
-        object: ShExParser.objectValue;
-        referenced?: SuccessResult;
-    }];
+    solutions: [
+        {
+            type: "TestedTriple";
+            subject: string;
+            predicate: string;
+            object: ShExParser.objectValue;
+            referenced?: SuccessResult;
+        }
+    ];
 };
 export declare function isComponentResult(result: EachOfSolutions | OneOfSolutions | TripleConstraintSolutions): result is ComponentResult;
 export declare type ProductResult = {
     type: "ShapeAndResults";
-    solutions: [BlankNodeConstraintResult, {
-        type: "ShapeTest";
-        node: string;
-        shape: string;
-        solution: {
-            type: "EachOfSolutions";
-            solutions: [{
-                type: "EachOfSolution";
-                expressions: [anyTypeResult, ...ComponentResult[]];
-            }];
-        };
-    }];
+    solutions: [
+        BlankNodeConstraintResult,
+        {
+            type: "ShapeTest";
+            node: string;
+            shape: string;
+            solution: {
+                type: "EachOfSolutions";
+                solutions: [
+                    {
+                        type: "EachOfSolution";
+                        expressions: [anyTypeResult, ...ComponentResult[]];
+                    }
+                ];
+            };
+        }
+    ];
 };
 export declare function isProductResult(result: SuccessResult, id: string): result is ProductResult;
 export declare function parseProductResult(result: ProductResult): ComponentResult[];

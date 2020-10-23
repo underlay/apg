@@ -1,8 +1,10 @@
 import APG from "./apg.js"
 import { parse } from "./shex.js"
-import { parseSchema, parseSchemaString, ns } from "./schema.js"
+import { parseSchema, parseSchemaString } from "./schema.js"
 import { encode, decode } from "./binary.js"
 import { serialize } from "./serialize.js"
+import * as ns from "./namespace.js"
+import schemaSchema from "./bootstrap.js"
 
 export {
 	APG,
@@ -13,4 +15,5 @@ export {
 	encode,
 	decode,
 	serialize,
+	schemaSchema,
 }

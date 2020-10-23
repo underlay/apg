@@ -11,32 +11,11 @@ export declare const sortKeys: ([{}, { key: a }]: [string, {
     key: string;
 }]) => 1 | -1 | 0;
 export declare function rotateTree(trees: APG.Record[], pivot: string): Map<number, APG.Record[]>;
-export declare const getBlankNodeId: (type: APG.Type, typeCache: Map<Readonly<{
-    type: "unit";
-}> | Readonly<{
-    type: "iri";
-}> | Readonly<{
-    type: "literal";
-    datatype: string;
-}> | Readonly<{
-    type: "product";
-    components: Readonly<{
-        type: "component";
-        key: string;
-        value: APG.Type;
-    }>[];
-}> | Readonly<{
-    type: "coproduct";
-    options: Readonly<{
-        type: "option";
-        key: string;
-        value: APG.Type;
-    }>[];
-}>, string>) => string;
+export declare const getBlankNodeId: (type: APG.Type, typeCache: Map<Exclude<APG.Type, APG.Reference>, string>) => string;
 export declare function equal(a: APG.Type, b: APG.Type): boolean;
 export declare const zip: <A, B>(a: Iterable<A>, b: Iterable<B>) => Iterable<[A, B, number]>;
 export declare const zip3: <A, B, C>(a: Iterable<A>, b: Iterable<B>, c: Iterable<C>) => Iterable<[A, B, C, number]>;
-export declare function parseObjectValue(object: ShExParser.objectValue): Literal | NamedNode<string> | BlankNode;
+export declare function parseObjectValue(object: ShExParser.objectValue): BlankNode | NamedNode<string> | Literal<string>;
 export interface anyType extends ShExParser.TripleConstraint<typeof rdfType, undefined> {
     min: 0;
     max: -1;
@@ -57,7 +36,7 @@ declare type anyTypeTripleResult = {
 };
 export declare const isNodeConstraint: (shapeExpr: ShExParser.shapeExpr) => shapeExpr is {
     type: "NodeConstraint";
-    nodeKind: "iri" | "bnode";
+    nodeKind: "bnode" | "iri";
 };
 export declare type BlankNodeConstraint = {
     type: "NodeConstraint";
