@@ -88,7 +88,7 @@ export function parse(
 		const shape = `_:l${index}`
 		const subjects = store.subjects(rdfType, new NamedNode(label.key), null)
 		for (const subject of subjects) {
-			if (subject instanceof BlankNode) {
+			if (subject.termType === "BlankNode") {
 				if (cache.has(subject.value)) {
 					continue
 				}
@@ -260,7 +260,7 @@ function parseReferenceResult(
 	const id = `_:l${index}`
 	const label = state.schema[index]
 	if (isLabelResult(result, id, label.key)) {
-		if (node instanceof BlankNode) {
+		if (node.termType === "BlankNode") {
 			const cache = state.valueCache[index].get(node.value)
 			if (cache !== undefined) {
 				return { _tag: "Some", value: new APG.Pointer(cache) }
@@ -351,7 +351,7 @@ function parseTypeResult(
 ): Option<APG.Value> {
 	if (type.type === "unit") {
 		if (isUnitResult(result, id)) {
-			if (node instanceof BlankNode) {
+			if (node.termType === "BlankNode") {
 				return { _tag: "Some", value: node }
 			} else {
 				throw new Error("Invalid result for unit type")
@@ -361,7 +361,7 @@ function parseTypeResult(
 		}
 	} else if (type.type === "literal") {
 		if (isLiteralResult(result, id)) {
-			if (node instanceof Literal) {
+			if (node.termType === "Literal") {
 				return { _tag: "Some", value: node }
 			} else {
 				throw new Error("Invalid result for literal type")
@@ -371,7 +371,7 @@ function parseTypeResult(
 		}
 	} else if (type.type === "iri") {
 		if (isIriResult(result, id)) {
-			if (node instanceof NamedNode) {
+			if (node.termType === "NamedNode") {
 				return { _tag: "Some", value: node }
 			} else {
 				throw new Error("Invalid result for iri type")
@@ -381,7 +381,7 @@ function parseTypeResult(
 		}
 	} else if (type.type === "product") {
 		if (isProductResult(result, id)) {
-			if (node instanceof BlankNode) {
+			if (node.termType === "BlankNode") {
 				const solutions = parseProductResult(result)
 
 				if (type.components.length !== solutions.length) {
@@ -435,7 +435,7 @@ function parseTypeResult(
 		}
 	} else if (type.type === "coproduct") {
 		if (isCoproductResult(result, id)) {
-			if (node instanceof BlankNode) {
+			if (node.termType === "BlankNode") {
 				const optionKeys = state.keyCache.get(id)
 				if (optionKeys === undefined) {
 					throw new Error(`Could not find keys for coproduct ${id}`)
