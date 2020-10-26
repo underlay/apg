@@ -1,7 +1,7 @@
 import t from "io-ts"
 import * as N3 from "n3.ts"
 
-import { equal, signalInvalidType, sortKeys, zip, zip3 } from "./utils.js"
+import { equal, forType, signalInvalidType, zip } from "./utils.js"
 
 namespace APG {
 	export type Schema = Label[]
@@ -80,6 +80,51 @@ namespace APG {
 		}
 	}
 
+	export function validateValue(
+		value: Value,
+		type: Type,
+		schema: Schema
+	): boolean {
+		if (type.type === "reference") {
+			const label = schema[type.value]
+			return validateValue(value, label.value, schema)
+		} else if (type.type === "unit") {
+			return value.termType === "BlankNode"
+		} else if (type.type === "iri") {
+			return value.termType === "NamedNode"
+		} else if (type.type === "literal") {
+			return (
+				value.termType === "Literal" && value.datatype.value === type.datatype
+			)
+		} else if (type.type === "product") {
+			if (
+				value.termType === "Record" &&
+				value.length === type.components.length
+			) {
+				const iter = zip(value.componentKeys, value, type.components)
+				for (const [k, v, { key, value }] of iter) {
+					if (k === key && validateValue(v, value, schema)) {
+						continue
+					} else {
+						return false
+					}
+				}
+				return true
+			} else {
+				return false
+			}
+		} else if (type.type === "coproduct") {
+			if (value.termType === "Variant" && value.index < type.options.length) {
+				const option = type.options[value.index]
+				return validateValue(value.value, option.value, schema)
+			} else {
+				return false
+			}
+		} else {
+			signalInvalidType(type)
+		}
+	}
+
 	export type Morphism =
 		| Identity
 		| Composition
@@ -103,51 +148,6 @@ namespace APG {
 		type: "constant"
 		value: N3.BlankNode | N3.NamedNode | N3.Literal
 	}>
-
-	export function validateValue(
-		value: Value,
-		type: Type,
-		schema: Schema
-	): boolean {
-		if (type.type === "reference") {
-			const label = schema[type.value]
-			return validateValue(value, label.value, schema)
-		} else if (type.type === "unit") {
-			return value.termType === "BlankNode"
-		} else if (type.type === "iri") {
-			return value.termType === "NamedNode"
-		} else if (type.type === "literal") {
-			return (
-				value.termType === "Literal" && value.datatype.value === type.datatype
-			)
-		} else if (type.type === "product") {
-			if (
-				value.termType === "Record" &&
-				value.length === type.components.length
-			) {
-				const iter = zip3(value.componentKeys, value, type.components)
-				for (const [k, v, { key, value }] of iter) {
-					if (k === key && validateValue(v, value, schema)) {
-						continue
-					} else {
-						return false
-					}
-				}
-				return true
-			} else {
-				return false
-			}
-		} else if (type.type === "coproduct") {
-			if (value.termType === "Variant" && value.index < type.options.length) {
-				const option = type.options[value.index]
-				return validateValue(value.value, option.value, schema)
-			} else {
-				return false
-			}
-		} else {
-			signalInvalidType(type)
-		}
-	}
 
 	export function validateMorphism(
 		morphism: APG.Morphism,
@@ -214,440 +214,117 @@ namespace APG {
 		}
 	}
 
-	export const toId = (id: string) => `_:${id}` as t.TypeOf<typeof blankNodeId>
-
-	function makeValue(
-		type: Unit | Iri | Literal | Product | Coproduct,
-		graph: t.TypeOf<typeof codec>,
-		schema: Schema,
-		typeIds: Map<Type, t.Branded<string, ID>>
-	): t.Branded<string, ID> {
-		if (type.type === "unit") {
-			const id = toId(`t-${graph.length}`)
-			graph.push({ id, type: "unit" })
-			typeIds.set(type, id)
-			return id
-		} else if (type.type === "iri") {
-			const id = toId(`t-${graph.length}`)
-			graph.push({ id, type: "iri" })
-			typeIds.set(type, id)
-			return id
-		} else if (type.type === "literal") {
-			const id = toId(`t-${graph.length}`)
-			graph.push({ id, type: "literal", datatype: type.datatype })
-			typeIds.set(type, id)
-			return id
-		} else if (type.type === "product") {
-			const componentValues: t.TypeOf<
-				typeof value
-			>[] = type.components.map(({ value }) =>
-				getValue(value, graph, schema, typeIds)
-			)
-
-			const components: t.TypeOf<typeof component>[] = []
-			for (const [{ key }, value, i] of zip(type.components, componentValues)) {
-				const id = toId(`t-${graph.length}-${i}`)
-				components.push({ id, type: "component", key, value })
-			}
-
-			const id = toId(`t-${graph.length}`)
-			graph.push({ id, type: "product", components })
-			typeIds.set(type, id)
-			return id
-		} else if (type.type === "coproduct") {
-			const optionValues: t.TypeOf<
-				typeof value
-			>[] = type.options.map(({ value }) =>
-				getValue(value, graph, schema, typeIds)
-			)
-
-			const options: t.TypeOf<typeof option>[] = []
-			for (const [{ key }, value, i] of zip(type.options, optionValues)) {
-				const id = toId(`t-${graph.length}-${i}`)
-				options.push({ id, type: "option", key, value })
-			}
-
-			const id = toId(`t-${graph.length}`)
-			graph.push({ id, type: "coproduct", options })
-			typeIds.set(type, id)
-			return id
-		} else {
-			throw new Error("Invalid value")
-		}
-	}
-
-	function getValue(
-		type: Type,
-		graph: t.TypeOf<typeof codec>,
-		schema: Schema,
-		typeIds: Map<Type, t.Branded<string, ID>>
-	): t.TypeOf<typeof value> {
-		if (type.type === "reference") {
-			const value = toId(`l-${type.value}`)
-			return { reference: { type: "reference", value } }
-		}
-
-		const id = typeIds.has(type)
-			? typeIds.get(type)!
-			: makeValue(type, graph, schema, typeIds)
-
-		if (type.type === "unit") {
-			return { unit: id }
-		} else if (type.type === "iri") {
-			return { iri: id }
-		} else if (type.type === "literal") {
-			return { literal: id }
-		} else if (type.type === "product") {
-			return { product: id }
-		} else if (type.type === "coproduct") {
-			return { coproduct: id }
-		} else {
-			signalInvalidType(type)
-		}
-	}
-
-	export function toJSON(schema: Schema): t.TypeOf<typeof codec> {
-		const typeIds: Map<Type, t.Branded<string, ID>> = new Map()
-		const graph: t.TypeOf<typeof codec> = []
-		const values = schema.map(({ value }) =>
-			getValue(value, graph, schema, typeIds)
-		)
-		for (const [{ key }, value, index] of zip(schema, values)) {
-			const id = toId(`l-${index}`)
-			graph.push({ id, type: "label", key, value })
-		}
-
-		return graph
-	}
-
-	const idPattern = /^_:[a-z][a-zA-Z0-9-]*$/
-
-	interface ID {
-		readonly ID: unique symbol
-	}
-
-	const blankNodeId = t.brand(
-		t.string,
-		(string): string is t.Branded<string, ID> => idPattern.test(string),
-		"ID"
-	)
-
-	const reference = t.type({ type: t.literal("reference"), value: blankNodeId })
-
-	const referenceValue = t.type({ reference: reference })
-	const value = t.union([
-		t.type({ unit: blankNodeId }),
-		t.type({ iri: blankNodeId }),
-		t.type({ literal: blankNodeId }),
-		t.type({ product: blankNodeId }),
-		t.type({ coproduct: blankNodeId }),
-		referenceValue,
-	])
-
-	const label = t.type({
-		id: blankNodeId,
-		type: t.literal("label"),
-		key: t.string,
-		value,
+	export const reference: t.Type<APG.Reference> = t.type({
+		type: t.literal("reference"),
+		value: t.number,
 	})
 
-	const unit = t.type({ id: blankNodeId, type: t.literal("unit") })
-	const iri = t.type({ id: blankNodeId, type: t.literal("iri") })
+	export const unit: t.Type<APG.Unit> = t.type({ type: t.literal("unit") })
 
-	const literal = t.union([
-		t.type({ id: blankNodeId, type: t.literal("literal"), datatype: t.string }),
+	export const iri: t.Type<APG.Iri> = t.type({ type: t.literal("iri") })
+
+	export const literal: t.Type<APG.Literal> = t.type({
+		type: t.literal("literal"),
+		datatype: t.string,
+	})
+
+	export const product: t.Type<APG.Product> = t.recursion("Product", () =>
 		t.type({
-			id: blankNodeId,
-			type: t.literal("literal"),
-			datatype: t.string,
-			pattern: t.string,
-			flags: t.string,
-		}),
-	])
+			type: t.literal("product"),
+			components: t.array(component),
+		})
+	)
 
-	const component = t.type({
-		id: blankNodeId,
+	export const coproduct: t.Type<APG.Coproduct> = t.recursion("Coproduct", () =>
+		t.type({
+			type: t.literal("coproduct"),
+			options: t.array(option),
+		})
+	)
+
+	export const type: t.Type<Type> = t.recursion("Type", () =>
+		t.union([reference, unit, iri, literal, product, coproduct])
+	)
+
+	export const component: t.Type<APG.Component> = t.type({
 		type: t.literal("component"),
 		key: t.string,
-		value,
+		value: type,
 	})
 
-	const product = t.type({
-		id: blankNodeId,
-		type: t.literal("product"),
-		components: t.array(component),
-	})
-
-	const option = t.type({
-		id: blankNodeId,
+	export const option: t.Type<APG.Option> = t.type({
 		type: t.literal("option"),
 		key: t.string,
-		value,
+		value: type,
 	})
 
-	const coproduct = t.type({
-		id: blankNodeId,
-		type: t.literal("coproduct"),
-		options: t.array(option),
+	export const label = t.type({
+		type: t.literal("label"),
+		key: t.string,
+		value: type,
 	})
 
-	const schema = t.array(
-		t.union([label, unit, iri, literal, product, coproduct])
-	)
+	const labels = t.array(label)
 
-	const isReference = (
-		reference: t.TypeOf<typeof value>
-	): reference is t.TypeOf<typeof referenceValue> =>
-		reference.hasOwnProperty("reference")
-
-	const getID = (
-		reference: Exclude<t.TypeOf<typeof value>, t.TypeOf<typeof referenceValue>>
-	): t.Branded<string, ID> => {
-		const [type] = Object.keys(reference)
-		const ref = reference as { [key: string]: t.Branded<string, ID> }
-		return ref[type]
-	}
-
-	export const codec = new t.Type(
+	export const schema: t.Type<APG.Schema> = new t.Type(
 		"Schema",
-		schema.is,
+		labels.is,
 		(input: unknown, context: t.Context) => {
-			const result = schema.validate(input, context)
+			const result = labels.validate(input, context)
 			if (result._tag === "Left") {
 				return result
 			}
-			const labels: Set<t.Branded<string, ID>> = new Set()
-			const types: Map<t.Branded<string, ID>, Type["type"]> = new Map()
-			for (const value of result.right) {
-				if (value.type === "label") {
-					labels.add(value.id)
-				} else {
-					types.set(value.id, value.type)
-				}
+
+			// Check that the label keys are sorted
+			// (this also checks for duplicates)
+			if (isSorted(result.right) === false) {
+				return t.failure(result.right, context, "Labels must be sorted by key")
 			}
-			for (const value of result.right) {
-				if (value.type === "label") {
-					if (isReference(value.value)) {
-						if (labels.has(value.value.reference.value)) {
-							continue
-						} else {
-							const message = `Invalid label alias: ${value.value}`
-							return {
-								_tag: "Left",
-								left: [{ value: input, context, message }],
-							}
+
+			// Check that all the components and options are sorted,
+			// and that references have valid indices
+			for (const label of result.right) {
+				for (const [type] of forType(label.value)) {
+					if (type.type === "reference") {
+						if (result.right[type.value] === undefined) {
+							return t.failure(type, context, "Invalid reference index")
 						}
-					} else {
-						const id = getID(value.value)
-						if (types.has(id)) {
-							continue
-						} else {
-							const message = `Invalid label value: ${id}`
-							return {
-								_tag: "Left",
-								left: [{ value: input, context, message }],
-							}
+					} else if (type.type === "product") {
+						if (isSorted(type.components) === false) {
+							return t.failure(
+								type,
+								context,
+								"Product components must be sorted by key"
+							)
 						}
-					}
-				} else if (value.type === "product") {
-					for (const component of value.components) {
-						if (isReference(component.value)) {
-							if (labels.has(component.value.reference.value)) {
-								continue
-							} else {
-								const message = `Invalid label reference: ${component.value.reference.value}`
-								const error = { value: input, context, message }
-								return { _tag: "Left", left: [error] }
-							}
-						} else {
-							const id = getID(component.value)
-							if (types.has(id)) {
-								continue
-							} else {
-								const message = `Invalid type: ${id}`
-								const error = { value: input, context, message }
-								return { _tag: "Left", left: [error] }
-							}
-						}
-					}
-				} else if (value.type === "coproduct") {
-					for (const option of value.options) {
-						if (isReference(option.value)) {
-							if (labels.has(option.value.reference.value)) {
-								continue
-							} else {
-								const message = `Invalid label reference: ${option.value.reference.value}`
-								const error = { value: input, context, message }
-								return { _tag: "Left", left: [error] }
-							}
-						} else {
-							const id = getID(option.value)
-							if (types.has(id)) {
-								continue
-							} else {
-								const message = `Invalid type: ${id}`
-								const error = { value: input, context, message }
-								return { _tag: "Left", left: [error] }
-							}
+					} else if (type.type === "coproduct") {
+						if (isSorted(type.options) === false) {
+							return t.failure(
+								type,
+								context,
+								"Coproduct options must be sorted by key"
+							)
 						}
 					}
 				}
 			}
+
 			return result
 		},
-		(values): APG.Schema => {
-			const labels: Map<
-				t.Branded<string, ID>,
-				t.TypeOf<typeof label>
-			> = new Map()
-			const types: Map<
-				t.Branded<string, ID>,
-				| t.TypeOf<typeof unit>
-				| t.TypeOf<typeof iri>
-				| t.TypeOf<typeof literal>
-				| t.TypeOf<typeof product>
-				| t.TypeOf<typeof coproduct>
-			> = new Map()
-			for (const value of values) {
-				if (value.type === "label") {
-					labels.set(value.id, value)
-				} else {
-					types.set(value.id, value)
-				}
-			}
-
-			const labelArray = Array.from(labels).sort(sortKeys)
-			const labelIds: Map<t.Branded<string, ID>, number> = new Map(
-				labelArray.map(([id], index) => [id, index])
-			)
-
-			const typeCache: Map<
-				t.Branded<string, ID>,
-				Unit | Iri | Literal | Product | Coproduct
-			> = new Map()
-
-			const schema: Schema = labelArray.map(([{}, { key, value }]) =>
-				Object.freeze({
-					type: "label",
-					key,
-					value: cacheValue(value, types, typeCache, labelIds),
-				})
-			)
-			Object.freeze(schema)
-			return schema
-		}
+		t.identity
 	)
 
-	function cacheValue(
-		reference: t.TypeOf<typeof value>,
-		types: Map<
-			t.Branded<string, ID>,
-			| t.TypeOf<typeof unit>
-			| t.TypeOf<typeof iri>
-			| t.TypeOf<typeof literal>
-			| t.TypeOf<typeof product>
-			| t.TypeOf<typeof coproduct>
-		>,
-		typeCache: Map<
-			t.Branded<string, ID>,
-			Unit | Iri | Literal | Product | Coproduct
-		>,
-		labelIds: Map<t.Branded<string, ID>, number>
-	): Type {
-		if (isReference(reference)) {
-			const labelId = reference.reference.value
-			const index = labelIds.get(labelId)
-			if (index === undefined) {
-				throw new Error(`Cannot find label ${labelId}`)
+	function isSorted(keys: { key: string }[]): boolean {
+		const result = keys.reduce((previous: string | null, { key }) => {
+			if (previous === null) {
+				return null
+			} else if (previous < key) {
+				return key
+			} else {
+				return null
 			}
-
-			return Object.freeze({ type: "reference", value: index })
-		} else {
-			const id = getID(reference)
-			return cacheType(id, types, typeCache, labelIds)
-		}
-	}
-
-	function cacheType(
-		id: t.Branded<string, ID>,
-		types: Map<
-			t.Branded<string, ID>,
-			| t.TypeOf<typeof unit>
-			| t.TypeOf<typeof iri>
-			| t.TypeOf<typeof literal>
-			| t.TypeOf<typeof product>
-			| t.TypeOf<typeof coproduct>
-		>,
-		typeCache: Map<
-			t.Branded<string, ID>,
-			Unit | Iri | Literal | Product | Coproduct
-		>,
-		labelIds: Map<t.Branded<string, ID>, number>
-	): Unit | Iri | Literal | Product | Coproduct {
-		const cached = typeCache.get(id)
-		if (cached !== undefined) {
-			return cached
-		}
-
-		const type = types.get(id)!
-		if (type.type === "unit") {
-			const unit: Unit = Object.freeze({ type: "unit" })
-			typeCache.set(id, unit)
-			return unit
-		} else if (type.type === "iri") {
-			const iri: Iri = Object.freeze({ type: "iri" })
-			typeCache.set(id, iri)
-			return iri
-		} else if (type.type === "literal") {
-			const literal: Literal = Object.freeze({
-				type: "literal",
-				datatype: type.datatype,
-			})
-			typeCache.set(id, literal)
-			return literal
-		} else if (type.type === "product") {
-			const entries: [
-				string,
-				t.TypeOf<typeof component>
-			][] = type.components.map((component) => [component.id, component])
-			entries.sort(sortKeys)
-			const components: Component[] = entries.map(([{}, { key, value }]) =>
-				Object.freeze({
-					type: "component",
-					key,
-					value: cacheValue(value, types, typeCache, labelIds),
-				})
-			)
-			Object.freeze(
-				components.sort(({ key: a }, { key: b }) =>
-					a < b ? -1 : b < a ? 1 : 0
-				)
-			)
-			const product: Product = Object.freeze({ type: "product", components })
-			typeCache.set(id, product)
-			return product
-		} else if (type.type === "coproduct") {
-			const entries: [
-				string,
-				t.TypeOf<typeof option>
-			][] = type.options.map((option) => [option.id, option])
-			entries.sort(sortKeys)
-			const options: Option[] = entries.map(([{}, { key, value }]) =>
-				Object.freeze({
-					type: "option",
-					key,
-					value: cacheValue(value, types, typeCache, labelIds),
-				})
-			)
-			Object.freeze(
-				options.sort(({ key: a }, { key: b }) => (a < b ? -1 : b < a ? 1 : 0))
-			)
-			const coproduct: Coproduct = Object.freeze({ type: "coproduct", options })
-			typeCache.set(id, coproduct)
-			return coproduct
-		} else {
-			signalInvalidType(type)
-		}
+		}, "")
+		return result !== null
 	}
 }
 

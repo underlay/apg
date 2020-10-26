@@ -1,8 +1,9 @@
-import APG from "./apg.js";
-import { parse } from "./shex.js";
-import { parseSchema, parseSchemaString } from "./schema.js";
-import { encode, decode } from "./binary.js";
-import { serialize } from "./serialize.js";
 import * as ns from "./namespace.js";
+import APG from "./apg.js";
 import schemaSchema from "./bootstrap.js";
-export { APG, parse, parseSchema, parseSchemaString, ns, encode, decode, serialize, schemaSchema, };
+import { parse, parseString } from "./parse.js";
+import { parseSchema, parseSchemaString } from "./parseSchema.js";
+import { serialize, serializeString } from "./serialize.js";
+import { serializeSchema, serializeSchemaString } from "./serializeSchema.js";
+import { encode, decode } from "./binary.js";
+export { ns, APG, schemaSchema, parse, parseString, parseSchema, parseSchemaString, serialize, serializeString, serializeSchema, serializeSchemaString, encode, decode, };

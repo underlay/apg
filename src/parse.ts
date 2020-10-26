@@ -1,4 +1,13 @@
-import { NamedNode, BlankNode, Store, Literal, D, Object, rdf } from "n3.ts"
+import {
+	NamedNode,
+	BlankNode,
+	Store,
+	Literal,
+	D,
+	Object,
+	rdf,
+	Parse,
+} from "n3.ts"
 
 import { Option } from "fp-ts/Option"
 import { Either } from "fp-ts/Either"
@@ -47,6 +56,14 @@ type State = Readonly<{
 }>
 
 const rdfType = new NamedNode(rdf.type)
+
+export function parseString(
+	input: string,
+	schema: APG.Schema
+): Either<FailureResult, APG.Instance> {
+	const store = new Store(Parse(input))
+	return parse(store, schema)
+}
 
 export function parse(
 	store: Store,

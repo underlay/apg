@@ -8,7 +8,6 @@ import {
 	anyTypeResult,
 	isAnyTypeResult,
 	blankNodeConstraint,
-	getBlankNodeId,
 } from "./utils.js"
 import APG from "./apg.js"
 

@@ -11,33 +11,50 @@ import {
 import APG from "./apg.js"
 
 const xsdString = new NamedNode(xsd.string)
-const rdfType = rdf.type
+const rdfLangString = new NamedNode(rdf.langString)
 
 export function signalInvalidType(type: never): never {
 	console.error(type)
 	throw new Error("Invalid type")
 }
 
-export const sortKeys = (
-	[{}, { key: a }]: [string, { key: string }],
-	[{}, { key: b }]: [string, { key: string }]
-) => (a < b ? -1 : b < a ? 1 : 0)
-
-export function rotateTree(
-	trees: APG.Record[],
-	pivot: string
-): Map<number, APG.Record[]> {
-	const result: Map<number, APG.Record[]> = new Map()
-	for (const tree of trees) {
-		const { index } = tree.get(pivot) as APG.Pointer
-		const trees = result.get(index)
-		if (trees === undefined) {
-			result.set(index, [tree])
-		} else {
-			trees.push(tree)
-		}
+export function* forType(
+	type: APG.Type,
+	stack?: APG.Type[]
+): Generator<[APG.Type, APG.Type[]], void, undefined> {
+	if (stack === undefined) {
+		stack = []
+	} else if (stack.includes(type)) {
+		throw new Error("Recursive type")
 	}
-	return result
+
+	yield [type, stack]
+	if (type.type === "product") {
+		stack.push(type)
+		for (const { value } of type.components) {
+			yield* forType(value, stack)
+		}
+		stack.pop()
+	} else if (type.type === "coproduct") {
+		stack.push(type)
+		for (const { value } of type.options) {
+			yield* forType(value, stack)
+		}
+		stack.pop()
+	}
+}
+
+export function* forValue(
+	value: APG.Value
+): Generator<[APG.Value], void, undefined> {
+	yield [value]
+	if (value.termType === "Record") {
+		for (const leaf of value) {
+			yield* forValue(leaf)
+		}
+	} else if (value.termType === "Variant") {
+		yield* forValue(value.value)
+	}
 }
 
 export const getBlankNodeId = (
@@ -92,60 +109,29 @@ export function equal(a: APG.Type, b: APG.Type) {
 	}
 }
 
-export const zip = <A, B>(
-	a: Iterable<A>,
-	b: Iterable<B>
-): Iterable<[A, B, number]> => ({
+type Iterate<E> = E extends Iterable<any>[]
+	? { [k in keyof E]: E[k] extends Iterable<infer T> ? T : E[k] }
+	: never
+
+export const zip = <E extends Iterable<any>[]>(
+	...args: E
+): Iterable<[...Iterate<E>, number]> => ({
 	[Symbol.iterator]() {
-		const iterA = a[Symbol.iterator]()
-		const iterB = b[Symbol.iterator]()
+		const iterators = args.map((arg) => arg[Symbol.iterator]())
 		let i = 0
 		return {
 			next() {
-				const resultA = iterA.next()
-				const resultB = iterB.next()
-				if (resultA.done || resultB.done) {
+				const results = iterators.map((iter) => iter.next())
+				if (results.some(({ done }) => done)) {
 					return { done: true, value: undefined }
 				} else {
-					return {
-						done: false,
-						value: [resultA.value, resultB.value, i++],
-					}
+					const values = results.map(({ value }) => value) as Iterate<E>
+					return { done: false, value: [...values, i++] }
 				}
 			},
 		}
 	},
 })
-
-export const zip3 = <A, B, C>(
-	a: Iterable<A>,
-	b: Iterable<B>,
-	c: Iterable<C>
-): Iterable<[A, B, C, number]> => ({
-	[Symbol.iterator]() {
-		const iterA = a[Symbol.iterator]()
-		const iterB = b[Symbol.iterator]()
-		const iterC = c[Symbol.iterator]()
-		let i = 0
-		return {
-			next() {
-				const resultA = iterA.next()
-				const resultB = iterB.next()
-				const resultC = iterC.next()
-				if (resultA.done || resultB.done || resultC.done) {
-					return { done: true, value: undefined }
-				} else {
-					return {
-						done: false,
-						value: [resultA.value, resultB.value, resultC.value, i++],
-					}
-				}
-			},
-		}
-	},
-})
-
-const rdfLangString = new NamedNode(rdf.langString)
 
 export function parseObjectValue(object: ShExParser.objectValue) {
 	if (typeof object === "string") {
@@ -164,7 +150,7 @@ export function parseObjectValue(object: ShExParser.objectValue) {
 }
 
 export interface anyType
-	extends ShExParser.TripleConstraint<typeof rdfType, undefined> {
+	extends ShExParser.TripleConstraint<typeof rdf.type, undefined> {
 	min: 0
 	max: -1
 }
@@ -191,7 +177,7 @@ export function isAnyType(
 
 export type anyTypeResult = {
 	type: "TripleConstraintSolutions"
-	predicate: typeof rdfType
+	predicate: typeof rdf.type
 	solutions: anyTypeTripleResult[]
 }
 
@@ -208,7 +194,7 @@ export function isAnyTypeResult(
 type anyTypeTripleResult = {
 	type: "TestedTriple"
 	subject: string
-	predicate: typeof rdfType
+	predicate: typeof rdf.type
 	object: string
 }
 
@@ -254,14 +240,4 @@ export function isBlankNodeConstraintResult(
 		result.type === "NodeConstraintTest" &&
 		isBlankNodeConstraint(result.shapeExpr)
 	)
-}
-
-export function findCommonPrefixIndex(a: string, b: string): number {
-	for (const [A, B, i] of zip(a, b)) {
-		if (A !== B) {
-			return i
-		}
-	}
-
-	return Math.min(a.length, b.length)
 }

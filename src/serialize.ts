@@ -1,6 +1,21 @@
 import APG from "./apg.js"
 import * as N3 from "n3.ts"
+import { DataModel } from "n3.ts"
+
+import canonize from "rdf-canonize"
+
 import { zip } from "./utils.js"
+
+export function serializeString(
+	instance: APG.Instance,
+	schema: APG.Schema
+): string {
+	const quads: DataModel["Quad"][] = []
+	for (const quad of serialize(instance, schema)) {
+		quads.push(quad.toJSON())
+	}
+	return canonize.canonizeSync(quads, { algorithm: "URDNA2015" })
+}
 
 export function* serialize(
 	instance: APG.Instance,

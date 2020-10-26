@@ -6,8 +6,7 @@ import { FailureResult } from "@shexjs/validator"
 
 import APG from "./apg.js"
 
-import { parse } from "./shex.js"
-import { rotateTree } from "./utils.js"
+import { parse } from "./parse.js"
 import * as ns from "./namespace.js"
 import schemaSchema from "./bootstrap.js"
 
@@ -219,4 +218,24 @@ function parseCoproduct(
 	const coproduct: APG.Coproduct = Object.freeze({ type: "coproduct", options })
 	typeCache.get(ns.coproduct)!.set(index, coproduct)
 	return coproduct
+}
+
+function rotateTree(
+	trees: APG.Record[],
+	pivot: string
+): Map<number, APG.Record[]> {
+	const result: Map<number, APG.Record[]> = new Map()
+	for (const tree of trees) {
+		const value = tree.get(pivot)
+		if (value === undefined || value.termType !== "Pointer") {
+			throw new Error("Rotation failed because the value was not a pointer")
+		}
+		const trees = result.get(value.index)
+		if (trees === undefined) {
+			result.set(value.index, [tree])
+		} else {
+			trees.push(tree)
+		}
+	}
+	return result
 }

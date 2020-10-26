@@ -1,17 +1,18 @@
 import { Buffer } from "buffer"
 import varint from "varint"
 import signedVarint from "signed-varint"
+import cbor from "cbor"
 
 import * as N3 from "n3.ts"
 import APG from "./apg.js"
-import { findCommonPrefixIndex, signalInvalidType } from "./utils.js"
-import { xsd } from "n3.ts"
+import { forType, forValue, signalInvalidType, zip } from "./utils.js"
+import { rdf, xsd } from "n3.ts"
 
 export function encode(instance: APG.Instance): Buffer {
 	const namedNodes: Set<string> = new Set()
 	for (const values of instance) {
 		for (const value of values) {
-			for (const leaf of traverseValues(value)) {
+			for (const [leaf] of forValue(value)) {
 				if (leaf.termType === "NamedNode") {
 					namedNodes.add(leaf.value)
 				}
@@ -41,38 +42,22 @@ export function encode(instance: APG.Instance): Buffer {
 	for (const values of instance) {
 		data.push(new Uint8Array(varint.encode(values.length)))
 		for (const value of values) {
-			data.push(new Uint8Array(encodeValue(value, namedNodeIds)))
+			for (const buffer of encodeValue(value, namedNodeIds)) {
+				data.push(buffer)
+			}
 		}
 	}
 
 	return Buffer.concat(data)
 }
 
-function* traverseValues(
-	value: APG.Value
-): Generator<N3.BlankNode | N3.NamedNode | N3.Literal, void, undefined> {
-	if (value.termType === "Record") {
-		for (const leaf of value) {
-			yield* traverseValues(leaf)
-		}
-	} else if (value.termType === "Variant") {
-		yield* traverseValues(value.value)
-	} else if (
-		value.termType === "BlankNode" ||
-		value.termType === "NamedNode" ||
-		value.termType === "Literal"
-	) {
-		yield value
-	}
-}
-
 const integerPattern = /^(?:\+|\-)?[0-9]+$/
 function* encodeValue(
 	value: APG.Value,
 	namedNodeIds: Map<string, number>
-): Generator<number, void, undefined> {
+): Generator<Uint8Array, void, undefined> {
 	if (value.termType === "Pointer") {
-		yield* varint.encode(value.index)
+		yield new Uint8Array(varint.encode(value.index))
 	} else if (value.termType === "BlankNode") {
 		return
 	} else if (value.termType === "NamedNode") {
@@ -80,20 +65,20 @@ function* encodeValue(
 		if (id === undefined) {
 			throw new Error(`Could not find id for named node ${value.value}`)
 		}
-		yield* varint.encode(id)
+		yield new Uint8Array(varint.encode(id))
 	} else if (value.termType === "Literal") {
 		if (value.datatype.value === N3.xsd.boolean) {
 			if (value.value === "true") {
-				yield 1
+				yield new Uint8Array([1])
 			} else if (value.value === "false") {
-				yield 0
+				yield new Uint8Array([0])
 			} else {
 				throw new Error(`Invalid xsd:boolean value: ${value.value}`)
 			}
 		} else if (value.datatype.value === N3.xsd.integer) {
 			if (integerPattern.test(value.value)) {
 				const i = Number(value.value)
-				yield* signedVarint.encode(i)
+				yield new Uint8Array(signedVarint.encode(i))
 			} else {
 				throw new Error(`Invalid xsd:integer value: ${value.value}`)
 			}
@@ -105,17 +90,29 @@ function* encodeValue(
 			const buffer = new ArrayBuffer(8)
 			const view = new DataView(buffer)
 			view.setFloat64(0, f)
-			yield* new Uint8Array(buffer)
+			yield new Uint8Array(buffer)
+		} else if (value.datatype.value === N3.xsd.hexBinary) {
+			const data = Buffer.from(value.value, "hex")
+			yield new Uint8Array(varint.encode(data.length))
+			yield data
+		} else if (value.datatype.value === N3.xsd.base64Binary) {
+			const data = Buffer.from(value.value, "base64")
+			yield new Uint8Array(varint.encode(data.length))
+			yield data
+		} else if (value.datatype.value === N3.rdf.JSON) {
+			const data = cbor.encode(JSON.parse(value.value)) as Buffer
+			yield new Uint8Array(varint.encode(data.length))
+			yield data
 		} else {
-			yield* varint.encode(value.value.length)
-			yield* new TextEncoder().encode(value.value)
+			yield new Uint8Array(varint.encode(value.value.length))
+			yield new TextEncoder().encode(value.value)
 		}
 	} else if (value.termType === "Record") {
 		for (const field of value) {
 			yield* encodeValue(field, namedNodeIds)
 		}
 	} else if (value.termType === "Variant") {
-		yield* varint.encode(value.index)
+		yield new Uint8Array(varint.encode(value.index))
 		yield* encodeValue(value.value, namedNodeIds)
 	} else {
 		throw new Error("Invalid value")
@@ -148,7 +145,7 @@ export function decode(data: Buffer, schema: APG.Schema): APG.Instance {
 	const optionKeys: Map<APG.Coproduct, string[]> = new Map()
 	const datatypes: Map<APG.Literal, N3.NamedNode> = new Map()
 	for (const label of schema) {
-		for (const type of traverseTypes(label.value)) {
+		for (const [type] of forType(label.value)) {
 			if (type.type === "literal") {
 				if (datatypes.has(type)) {
 					continue
@@ -256,6 +253,25 @@ function decodeValue(
 				throw new Error("Invalid double value")
 			}
 			return [id, offset + 8, new N3.Literal(value.toString(), "", datatype)]
+		} else if (type.datatype === xsd.hexBinary) {
+			const length = varint.decode(data, offset)
+			offset += varint.encodingLength(length)
+			const value = Buffer.from(data, offset, length).toString("hex")
+			offset += length
+			return [id, offset, new N3.Literal(value, "", datatype)]
+		} else if (type.datatype === xsd.base64Binary) {
+			const length = varint.decode(data, offset)
+			offset += varint.encodingLength(length)
+			const value = Buffer.from(data, offset, length).toString("base64")
+			offset += length
+			return [id, offset, new N3.Literal(value, "", datatype)]
+		} else if (type.datatype === rdf.JSON) {
+			const length = varint.decode(data, offset)
+			offset += varint.encodingLength(length)
+			const view = new DataView(data, offset, length)
+			const value = JSON.stringify(cbor.decodeFirstSync(view))
+			offset += length
+			return [id, offset, new N3.Literal(value, "", datatype)]
 		} else {
 			const length = varint.decode(data, offset)
 			offset += varint.encodingLength(length)
@@ -315,15 +331,12 @@ function decodeValue(
 	}
 }
 
-function* traverseTypes(type: APG.Type): Generator<APG.Type, void, undefined> {
-	yield type
-	if (type.type === "product") {
-		for (const component of type.components) {
-			yield* traverseTypes(component.value)
-		}
-	} else if (type.type === "coproduct") {
-		for (const option of type.options) {
-			yield* traverseTypes(option.value)
+function findCommonPrefixIndex(a: string, b: string): number {
+	for (const [A, B, i] of zip(a, b)) {
+		if (A !== B) {
+			return i
 		}
 	}
+
+	return Math.min(a.length, b.length)
 }
