@@ -28,7 +28,6 @@
 		"@types/varint": "^5.0.0",
 		"buffer": "^5.6.1",
 		"cbor": "^5.1.0",
-		"n3.ts": "^0.1.5",
 		"signed-varint": "^2.0.1",
 		"typescript": "^4.0.3",
 		"uuid": "^8.3.1",
@@ -40,12 +39,14 @@
 		"@types/rdf-canonize": "gist:dc406f4c567dcab1da98cf19b2b8a6d8",
 		"fp-ts": "^2.8.4",
 		"io-ts": "^2.2.11",
+		"n3.ts": "^0.1.5",
 		"rdf-canonize": "^1.2.0"
 	},
 	"peerDependencies": {
 		"@shexjs/util": "1.0.0-alpha.6",
 		"@shexjs/validator": "1.0.0-alpha.6",
 		"fp-ts": "^2.8.4",
-		"io-ts": "^2.2.11"
+		"io-ts": "^2.2.11",
+		"n3.ts": "^0.1.5"
 	}
 }
