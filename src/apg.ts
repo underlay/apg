@@ -1,4 +1,4 @@
-import t from "io-ts"
+import * as t from "io-ts"
 import * as N3 from "n3.ts"
 
 import { equal, forType, signalInvalidType, zip } from "./utils.js"

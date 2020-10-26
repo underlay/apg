@@ -1,4 +1,4 @@
-import t from "io-ts";
+import * as t from "io-ts";
 import * as N3 from "n3.ts";
 declare namespace APG {
     type Schema = Label[];

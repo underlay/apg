@@ -1,5 +1,5 @@
 import APG from "../apg.js";
-import t from "io-ts";
+import * as t from "io-ts";
 declare const labels: t.ArrayC<t.TypeC<{
     type: t.LiteralC<"label">;
     key: t.StringC;

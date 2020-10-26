@@ -1,5 +1,5 @@
 import APG from "../apg.js"
-import t from "io-ts"
+import * as t from "io-ts"
 
 import { none, some } from "../namespace.js"
 
