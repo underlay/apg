@@ -1,14 +1,17 @@
 {
 	"name": "apg",
-	"version": "0.4.7",
+	"version": "0.5.0",
 	"description": "Underlay APG utilities",
-	"type": "module",
 	"main": "lib/index.js",
+	"types": "es6/index.d.ts",
+	"module": "es6/index.js",
 	"directories": {
-		"lib": "lib"
+		"lib": "lib",
+		"es6": "es6"
 	},
 	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1"
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"build": "tsc && npx babel es6 -d lib"
 	},
 	"repository": {
 		"type": "git",
@@ -34,12 +37,15 @@
 		"varint": "^6.0.0"
 	},
 	"devDependencies": {
+		"@babel/cli": "^7.12.1",
+		"@babel/core": "^7.12.3",
+		"@babel/plugin-transform-modules-commonjs": "^7.12.1",
 		"@shexjs/util": "file:shex.js/packages/shex-util",
 		"@shexjs/validator": "file:shex.js/packages/shex-validator",
 		"@types/rdf-canonize": "gist:dc406f4c567dcab1da98cf19b2b8a6d8",
 		"fp-ts": "^2.8.4",
 		"io-ts": "^2.2.11",
-		"n3.ts": "^0.1.5",
+		"n3.ts": "^0.2.0",
 		"rdf-canonize": "^1.2.0"
 	},
 	"peerDependencies": {
@@ -47,6 +53,6 @@
 		"@shexjs/validator": "1.0.0-alpha.6",
 		"fp-ts": "^2.8.4",
 		"io-ts": "^2.2.11",
-		"n3.ts": "^0.1.5"
+		"n3.ts": "^0.2.0"
 	}
 }
