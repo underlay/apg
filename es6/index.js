@@ -6,5 +6,6 @@ export * from "./mapping.js";
 export * from "./morphism.js";
 export * from "./path.js";
 export * from "./schema.js";
+export * from "./type.js";
 export * from "./value.js";
 //# sourceMappingURL=index.js.map
