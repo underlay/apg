@@ -1,4 +1,3 @@
-import * as t from "io-ts";
 import * as N3 from "n3.ts";
 declare namespace APG {
     type Schema = Label[];
@@ -40,33 +39,38 @@ declare namespace APG {
         key: string;
         value: Type;
     }>;
+    type Path = [number, typeof NaN, ...number[]];
     type Instance = Value[][];
     type Value = N3.BlankNode | N3.NamedNode | N3.Literal | Record | Variant | Pointer;
     class Pointer {
         readonly index: number;
-        constructor(index: number);
+        readonly label: number;
+        constructor(index: number, label: number);
         get termType(): "Pointer";
     }
     class Record extends Array<Value> {
         readonly node: N3.BlankNode;
-        readonly componentKeys: string[];
-        constructor(node: N3.BlankNode, componentKeys: string[], values: Iterable<Value>);
+        readonly componentKeys: readonly string[];
+        constructor(node: N3.BlankNode, componentKeys: readonly string[], values: Iterable<Value>);
+        map<T>(f: (value: Value, index: number, record: Record) => T): T[];
         get termType(): "Record";
         get(key: string): Value;
     }
     class Variant {
         readonly node: N3.BlankNode;
-        readonly optionKeys: string[];
+        readonly optionKeys: readonly string[];
         readonly index: number;
         readonly value: Value;
-        constructor(node: N3.BlankNode, optionKeys: string[], index: number, value: Value);
+        constructor(node: N3.BlankNode, optionKeys: readonly string[], index: number, value: Value);
         get termType(): "Variant";
         get key(): string;
     }
-    function validateValue(value: Value, type: Type, schema: Schema): boolean;
-    type Morphism = Identity | Composition | Projection | Injection | Tuple | Case | Constant;
+    type Morphism = Identity | Dereference | Composition | Projection | Injection | Tuple | Case | Constant | Terminal | Initial;
     type Identity = Readonly<{
         type: "identity";
+    }>;
+    type Dereference = Readonly<{
+        type: "dereference";
     }>;
     type Composition = Readonly<{
         type: "composition";
@@ -76,38 +80,32 @@ declare namespace APG {
     type Projection = Readonly<{
         type: "projection";
         index: number;
+        componentKeys: readonly string[];
     }>;
     type Injection = Readonly<{
         type: "injection";
         index: number;
+        optionKeys: readonly string[];
     }>;
     type Tuple = Readonly<{
         type: "tuple";
         morphisms: Morphism[];
+        componentKeys: readonly string[];
     }>;
     type Case = Readonly<{
         type: "case";
         morphisms: Morphism[];
+        optionKeys: readonly string[];
+    }>;
+    type Terminal = Readonly<{
+        type: "terminal";
+    }>;
+    type Initial = Readonly<{
+        type: "initial";
     }>;
     type Constant = Readonly<{
         type: "constant";
-        value: N3.BlankNode | N3.NamedNode | N3.Literal;
+        value: N3.NamedNode | N3.Literal;
     }>;
-    function validateMorphism(morphism: APG.Morphism, source: APG.Type, target: APG.Type, schema: APG.Schema): boolean;
-    const reference: t.Type<APG.Reference>;
-    const unit: t.Type<APG.Unit>;
-    const iri: t.Type<APG.Iri>;
-    const literal: t.Type<APG.Literal>;
-    const product: t.Type<APG.Product>;
-    const coproduct: t.Type<APG.Coproduct>;
-    const type: t.Type<Type>;
-    const component: t.Type<APG.Component>;
-    const option: t.Type<APG.Option>;
-    const label: t.TypeC<{
-        type: t.LiteralC<"label">;
-        key: t.StringC;
-        value: t.Type<Type, Type, unknown>;
-    }>;
-    const schema: t.Type<APG.Schema>;
 }
 export default APG;

@@ -1,0 +1,168 @@
+[
+	{
+		"id": "_:person",
+		"type": "label",
+		"key": "http://example.com/Person",
+		"value": { "unit": "_:person-value" }
+	},
+	{
+		"id": "_:person-value",
+		"type": "unit"
+	},
+	{
+		"id": "_:name",
+		"type": "label",
+		"key": "http://example.com/Person/name",
+		"value": { "product": "_:name-value" }
+	},
+	{
+		"id": "_:name-value",
+		"type": "product",
+		"components": [
+			{
+				"id": "_:name-component-subject",
+				"type": "component",
+				"key": "http://underlay.org/ns/rex#subject",
+				"value": { "reference": { "type": "reference", "value": "_:person" } }
+			},
+			{
+				"id": "_:name-component-object",
+				"type": "component",
+				"key": "http://underlay.org/ns/rex#object",
+				"value": { "literal": "_:name-object" }
+			}
+		]
+	},
+	{
+		"id": "_:name-object",
+		"type": "literal",
+		"datatype": "http://www.w3.org/2001/XMLSchema#string"
+	},
+	{
+		"id": "_:knows",
+		"type": "label",
+		"key": "http://example.com/Person/knows",
+		"value": { "product": "_:knows-value" }
+	},
+	{
+		"id": "_:knows-value",
+		"type": "product",
+		"components": [
+			{
+				"id": "_:knows-component-subject",
+				"type": "component",
+				"key": "http://underlay.org/ns/rex#subject",
+				"value": { "reference": { "type": "reference", "value": "_:person" } }
+			},
+			{
+				"id": "_:knows-component-object",
+				"type": "component",
+				"key": "http://underlay.org/ns/rex#object",
+				"value": { "reference": { "type": "reference", "value": "_:person" } }
+			}
+		]
+	},
+	{
+		"id": "_:geo",
+		"type": "label",
+		"key": "http://example.com/Person/geo",
+		"value": { "product": "_:geo-value" }
+	},
+	{
+		"id": "_:geo-value",
+		"type": "product",
+		"components": [
+			{
+				"id": "_:geo-component-subject",
+				"type": "component",
+				"key": "http://underlay.org/ns/rex#subject",
+				"value": { "reference": { "type": "reference", "value": "_:person" } }
+			},
+			{
+				"id": "_:geo-component-object",
+				"type": "component",
+				"key": "http://underlay.org/ns/rex#object",
+				"value": { "coproduct": "_:geo-object" }
+			},
+			{
+				"id": "_:geo-component-geo",
+				"type": "component",
+				"key": "http://underlay.org/ns/rex#self",
+				"value": { "reference": { "type": "reference", "value": "_:geo" } }
+			}
+		]
+	},
+	{
+		"id": "_:geo-object",
+		"type": "coproduct",
+		"options": [
+			{
+				"id": "_:geo-object-option-iri",
+				"type": "option",
+				"key": "http://underlay.org/ns/rex#geo-iri",
+				"value": { "iri": "_:geo-option-iri" }
+			},
+			{
+				"id": "_:geo-object-option-coproduct",
+				"type": "option",
+				"key": "http://underlay.org/ns/rex#geo-cop",
+				"value": { "coproduct": "_:geo-option-coproduct" }
+			}
+		]
+	},
+	{
+		"id": "_:geo-option-iri",
+		"type": "iri"
+	},
+	{
+		"id": "_:geo-option-coproduct",
+		"type": "coproduct",
+		"options": [
+			{
+				"id": "_:geo-option-option-literal",
+				"type": "option",
+				"key": "http://underlay.org/ns/rex#geo-lit",
+				"value": { "literal": "_:geo-option-literal" }
+			},
+			{
+				"id": "_:geo-option-option-product",
+				"type": "option",
+				"key": "http://underlay.org/ns/rex#geo-pro",
+				"value": { "product": "_:geo-option-product" }
+			}
+		]
+	},
+	{
+		"id": "_:geo-option-literal",
+		"type": "literal",
+		"datatype": "http://www.w3.org/2001/XMLSchema#string"
+	},
+	{
+		"id": "_:geo-option-product",
+		"type": "product",
+		"components": [
+			{
+				"id": "_:geo-option-product-component-lat",
+				"type": "component",
+				"key": "http://underlay.org/ns/rex#lat",
+				"value": { "literal": "_:geo-option-product-lat" }
+			},
+			{
+				"id": "_:geo-option-product-component-long",
+				"type": "component",
+				"key": "http://underlay.org/ns/rex#long",
+				"value": { "literal": "_:geo-option-product-long" }
+			}
+		]
+	},
+	{
+		"id": "_:geo-option-product-lat",
+		"type": "literal",
+		"datatype": "http://www.w3.org/2001/XMLSchema#decimal"
+	},
+	{
+		"id": "_:geo-option-product-long",
+		"type": "literal",
+		"datatype": "http://www.w3.org/2001/XMLSchema#decimal"
+	}
+]
