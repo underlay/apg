@@ -2,11 +2,7 @@ import zip from "ziterable"
 import APG from "./apg.js"
 import { signalInvalidType } from "./utils.js"
 
-export function validateValue(
-	value: APG.Value,
-	type: APG.Type,
-	schema: APG.Schema
-): boolean {
+export function validateValue(value: APG.Value, type: APG.Type): boolean {
 	if (type.type === "reference") {
 		return value.termType === "Pointer" && value.label === type.value
 	} else if (type.type === "unit") {
@@ -24,7 +20,7 @@ export function validateValue(
 		) {
 			const iter = zip(value.componentKeys, value, type.components)
 			for (const [k, v, { key, value }] of iter) {
-				if (k === key && validateValue(v, value, schema)) {
+				if (k === key && validateValue(v, value)) {
 					continue
 				} else {
 					return false
@@ -37,7 +33,7 @@ export function validateValue(
 	} else if (type.type === "coproduct") {
 		if (value.termType === "Variant" && value.index < type.options.length) {
 			const option = type.options[value.index]
-			return validateValue(value.value, option.value, schema)
+			return validateValue(value.value, option.value)
 		} else {
 			return false
 		}

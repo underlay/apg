@@ -1,6 +1,6 @@
 import zip from "ziterable";
 import { signalInvalidType } from "./utils.js";
-export function validateValue(value, type, schema) {
+export function validateValue(value, type) {
     if (type.type === "reference") {
         return value.termType === "Pointer" && value.label === type.value;
     }
@@ -18,7 +18,7 @@ export function validateValue(value, type, schema) {
             value.length === type.components.length) {
             const iter = zip(value.componentKeys, value, type.components);
             for (const [k, v, { key, value }] of iter) {
-                if (k === key && validateValue(v, value, schema)) {
+                if (k === key && validateValue(v, value)) {
                     continue;
                 }
                 else {
@@ -34,7 +34,7 @@ export function validateValue(value, type, schema) {
     else if (type.type === "coproduct") {
         if (value.termType === "Variant" && value.index < type.options.length) {
             const option = type.options[value.index];
-            return validateValue(value.value, option.value, schema);
+            return validateValue(value.value, option.value);
         }
         else {
             return false;

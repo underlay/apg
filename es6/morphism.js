@@ -3,7 +3,7 @@ import { equal, signalInvalidType } from "./utils.js";
 import { validateValue } from "./value.js";
 export function validateMorphism(morphism, source, target, schema) {
     if (morphism.type === "constant") {
-        return validateValue(morphism.value, target, schema);
+        return validateValue(morphism.value, target);
     }
     else if (morphism.type === "dereference") {
         return (source.type === "reference" && equal(schema[source.value].value, target));

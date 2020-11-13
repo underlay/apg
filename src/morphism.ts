@@ -10,7 +10,7 @@ export function validateMorphism(
 	schema: APG.Schema
 ): boolean {
 	if (morphism.type === "constant") {
-		return validateValue(morphism.value, target, schema)
+		return validateValue(morphism.value, target)
 	} else if (morphism.type === "dereference") {
 		return (
 			source.type === "reference" && equal(schema[source.value].value, target)
