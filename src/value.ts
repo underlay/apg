@@ -41,3 +41,16 @@ export function validateValue(value: APG.Value, type: APG.Type): boolean {
 		signalInvalidType(type)
 	}
 }
+
+export function* forValue(
+	value: APG.Value
+): Generator<[APG.Value], void, undefined> {
+	yield [value]
+	if (value.termType === "Record") {
+		for (const leaf of value) {
+			yield* forValue(leaf)
+		}
+	} else if (value.termType === "Variant") {
+		yield* forValue(value.value)
+	}
+}

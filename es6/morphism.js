@@ -1,15 +1,17 @@
 import zip from "ziterable";
-import { equal, signalInvalidType } from "./utils.js";
+import { typeEqual } from "./type.js";
+import { signalInvalidType } from "./utils.js";
 import { validateValue } from "./value.js";
 export function validateMorphism(morphism, source, target, schema) {
     if (morphism.type === "constant") {
         return validateValue(morphism.value, target);
     }
     else if (morphism.type === "dereference") {
-        return (source.type === "reference" && equal(schema[source.value].value, target));
+        return (source.type === "reference" &&
+            typeEqual(schema[source.value].value, target));
     }
     else if (morphism.type === "identity") {
-        return equal(source, target);
+        return typeEqual(source, target);
     }
     else if (morphism.type === "initial") {
         return false; // TODO
@@ -30,7 +32,7 @@ export function validateMorphism(morphism, source, target, schema) {
             return false;
         }
         const { value } = source.components[morphism.index];
-        return equal(value, target);
+        return typeEqual(value, target);
     }
     else if (morphism.type === "injection") {
         if (target.type !== "coproduct") {
@@ -40,7 +42,7 @@ export function validateMorphism(morphism, source, target, schema) {
             return false;
         }
         const { value } = target.options[morphism.index];
-        return equal(source, value);
+        return typeEqual(source, value);
     }
     else if (morphism.type === "tuple") {
         if (target.type !== "product") {

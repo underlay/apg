@@ -1,6 +1,6 @@
 {
 	"name": "@underlay/apg",
-	"version": "0.6.2",
+	"version": "0.6.3",
 	"description": "Underlay APG utilities",
 	"main": "lib/index.js",
 	"types": "es6/index.d.ts",
@@ -10,7 +10,7 @@
 		"es6": "es6"
 	},
 	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1",
+		"test": "npx jest",
 		"build": "tsc && npx babel es6 -d lib"
 	},
 	"repository": {
@@ -28,10 +28,9 @@
 		"@types/signed-varint": "gist:b46025b5175e06c1586d714dc0960443",
 		"@types/uuid": "^8.3.0",
 		"@types/varint": "^5.0.0",
-		"buffer": "^5.6.1",
 		"cbor": "^5.1.0",
 		"signed-varint": "^2.0.1",
-		"typescript": "^4.0.3",
+		"typescript": "^4.0.5",
 		"uuid": "^8.3.1",
 		"varint": "^6.0.0",
 		"ziterable": "^1.0.1"
@@ -40,15 +39,18 @@
 		"@babel/cli": "^7.12.1",
 		"@babel/core": "^7.12.3",
 		"@babel/plugin-transform-modules-commonjs": "^7.12.1",
+		"@babel/preset-typescript": "^7.12.1",
+		"@types/jest": "^26.0.15",
 		"@types/rdf-canonize": "gist:dc406f4c567dcab1da98cf19b2b8a6d8",
-		"fp-ts": "^2.8.4",
-		"io-ts": "^2.2.11",
+		"fp-ts": "2.8.5",
+		"io-ts": "2.2.12",
+		"jest": "^26.6.3",
 		"n3.ts": "^0.2.0",
 		"rdf-canonize": "^1.2.0"
 	},
 	"peerDependencies": {
-		"fp-ts": "^2.8.4",
-		"io-ts": "^2.2.11",
+		"fp-ts": "^2.8.5",
+		"io-ts": "^2.2.12",
 		"n3.ts": "^0.2.0"
 	}
 }

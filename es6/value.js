@@ -44,4 +44,15 @@ export function validateValue(value, type) {
         signalInvalidType(type);
     }
 }
+export function* forValue(value) {
+    yield [value];
+    if (value.termType === "Record") {
+        for (const leaf of value) {
+            yield* forValue(leaf);
+        }
+    }
+    else if (value.termType === "Variant") {
+        yield* forValue(value.value);
+    }
+}
 //# sourceMappingURL=value.js.map
