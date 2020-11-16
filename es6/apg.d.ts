@@ -107,5 +107,6 @@ declare namespace APG {
         type: "constant";
         value: N3.NamedNode | N3.Literal;
     }>;
+    type Mapping = Readonly<[APG.Path[], APG.Morphism[]]>;
 }
 export default APG;

@@ -6,10 +6,8 @@ import { validateMorphism } from "./morphism.js"
 import { getType, getValues } from "./path.js"
 import { rootId, getId, signalInvalidType } from "./utils.js"
 
-export type Mapping = Readonly<[APG.Path[], APG.Morphism[]]>
-
 export function validateMapping(
-	[m1, m2]: Mapping,
+	[m1, m2]: APG.Mapping,
 	source: APG.Schema,
 	target: APG.Schema
 ): boolean {
@@ -135,140 +133,125 @@ export function map(
 }
 
 export function delta(
-	mapping: Mapping,
-	source: APG.Schema,
-	target: APG.Schema,
-	instance: APG.Instance
+	M: APG.Mapping,
+	S: APG.Schema,
+	T: APG.Schema,
+	TI: APG.Instance
 ): APG.Instance {
-	const [m1, m2] = mapping
-	const result: APG.Instance = m1.map(() => [])
-	const indices = m1.map(() => new Map<APG.Value, number>())
-	for (const [{ value: type }, path, morphism, i] of zip(source, m1, m2)) {
-		for (const value of getValues(instance, path)) {
+	const [M1, M2] = M
+	const SI: APG.Instance = M1.map(() => [])
+	const indices = M1.map(() => new Map<APG.Value, number>())
+	for (const [{ value: type }, path, morphism, i] of zip(S, M1, M2)) {
+		for (const value of getValues(TI, path)) {
 			if (indices[i].has(value)) {
 				continue
 			} else {
-				const image = map(morphism, value, instance)
-				const index = result[i].push(placeholder) - 1
-				indices[i].set(image, index)
-				result[i][index] = pullback(
-					m1,
-					type,
-					source,
-					target,
-					image,
-					result,
-					indices
-				)
+				const imageValue = map(morphism, value, TI)
+				const index = SI[i].push(placeholder) - 1
+				indices[i].set(value, index)
+				SI[i][index] = pullback(M, S, T, SI, TI, indices, type, imageValue)
 			}
 		}
 	}
 
-	for (const values of result) {
+	for (const values of SI) {
 		Object.freeze(values)
 	}
 
-	Object.freeze(result)
+	Object.freeze(SI)
 
-	return result
+	return SI
 }
 
 const placeholder = new N3.NamedNode(rootId)
 
 function pullback(
-	m1: APG.Path[],
-	// sourceType: APG.Type,
-	sourceType: APG.Type, // imageType
-	source: APG.Schema,
-	target: APG.Schema,
-	image: APG.Value, // neither
-	instance: APG.Instance,
-	indices: Map<APG.Value, number>[]
+	M: APG.Mapping,
+	S: APG.Schema,
+	T: APG.Schema,
+	SI: APG.Instance,
+	TI: APG.Instance,
+	indices: Map<APG.Value, number>[],
+	type: APG.Type, // in source
+	value: APG.Value // of image
 ): APG.Value {
-	console.log("pulling it back", sourceType, image)
-	// if (sourceType.type === "reference") {
-	// } else if (sourceType.type === "unit") {
-	// } else if (sourceType.type === "iri") {
-	// } else if (sourceType.type === "literal") {
-	// } else if (sourceType.type === "product") {
-	// } else if (sourceType.type === "coproduct") {
-	// } else {
-	// 	signalInvalidType(sourceType)
-	// }
-
-	if (sourceType.type === "reference") {
-		// if (image.termType === "Pointer") {
-		// 	return image
-		// } else {
-		// 	throw new Error("Invalid image value: expected pointer")
-		// }
-
-		// image is actually an instance of targetType - *not* a Pointer
-		const t2 = getType(target, m1[sourceType.value])
-		console.log("I PROMISE YOU that", image, "is an instance of", t2)
-		const index = indices[sourceType.value].get(image)
-		if (index === undefined) {
-			const index = instance[sourceType.value].push(placeholder) - 1
-			indices[sourceType.value].set(image, index)
-			instance[sourceType.value][index] = pullback(
-				m1,
-				// t2,
-				source[sourceType.value].value,
-				source,
-				target,
-				image,
-				instance,
-				indices
-			)
-			return new APG.Pointer(index, sourceType.value)
+	const [{}, M2] = M
+	if (type.type === "reference") {
+		// Here we actually know that value is an instance of M1[type.value]
+		// So now what?
+		// First we check to see if the value is in the index cache.
+		// (We're ultimately going to return a Pointer for sure)
+		const index = indices[type.value].get(value)
+		if (index !== undefined) {
+			return new APG.Pointer(index, type.value)
 		} else {
-			return new APG.Pointer(index, sourceType.value)
+			// Otherwise, we map value along the morphism M2[type.value].
+			// This gives us a value that is an instance of the image of the referenced type
+			// - ie an instance of fold(M1, S[type.value].value, T)
+			const t = S[type.value].value
+			const v = map(M2[type.value], value, TI)
+			const index = SI[type.value].push(placeholder) - 1
+			indices[type.value].set(value, index)
+			const p = pullback(M, S, T, SI, TI, indices, t, v)
+			SI[type.value][index] = p
+			return new APG.Pointer(index, type.value)
 		}
-	} else if (sourceType.type === "unit") {
-		if (image.termType !== "BlankNode") {
+	} else if (type.type === "unit") {
+		if (value.termType !== "BlankNode") {
 			throw new Error("Invalid image value: expected blank node")
 		} else {
-			return image
+			return value
 		}
-	} else if (sourceType.type === "iri") {
-		if (image.termType !== "NamedNode") {
+	} else if (type.type === "iri") {
+		if (value.termType !== "NamedNode") {
 			throw new Error("Invalid image value: expected iri")
 		} else {
-			return image
+			return value
 		}
-	} else if (sourceType.type === "literal") {
-		if (image.termType !== "Literal") {
+	} else if (type.type === "literal") {
+		if (value.termType !== "Literal") {
 			throw new Error("Invalid image value: expected literal")
 		} else {
-			return image
+			return value
 		}
-	} else if (sourceType.type === "product") {
-		if (image.termType !== "Record") {
-			console.log(sourceType, image)
+	} else if (type.type === "product") {
+		if (value.termType !== "Record") {
 			throw new Error("Invalid image value: expected record")
 		} else {
 			return new APG.Record(
-				image.node,
-				image.componentKeys,
-				image.map((field, i) => {
-					const { value } = sourceType.components[i]
-					return pullback(m1, value, source, target, field, instance, indices)
-				})
+				value.node,
+				value.componentKeys,
+				pullbackComponents(M, S, T, SI, TI, indices, type, value)
 			)
 		}
-	} else if (sourceType.type === "coproduct") {
-		if (image.termType !== "Variant") {
+	} else if (type.type === "coproduct") {
+		if (value.termType !== "Variant") {
 			throw new Error("Invalid image value: expected variant")
 		} else {
-			const { value } = sourceType.options[image.index]
+			const { value: t } = type.options[value.index]
 			return new APG.Variant(
-				image.node,
-				image.optionKeys,
-				image.index,
-				pullback(m1, value, source, target, image.value, instance, indices)
+				value.node,
+				value.optionKeys,
+				value.index,
+				pullback(M, S, T, SI, TI, indices, t, value.value)
 			)
 		}
 	} else {
-		signalInvalidType(sourceType)
+		signalInvalidType(type)
+	}
+}
+
+function* pullbackComponents(
+	M: APG.Mapping,
+	S: APG.Schema,
+	T: APG.Schema,
+	SI: APG.Instance,
+	TI: APG.Instance,
+	indices: Map<APG.Value, number>[],
+	type: APG.Product,
+	value: APG.Record
+) {
+	for (const [t, field] of zip(type.components, value)) {
+		yield pullback(M, S, T, SI, TI, indices, t.value, field)
 	}
 }
