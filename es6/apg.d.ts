@@ -23,7 +23,7 @@ declare namespace APG {
     }>;
     type Product = Readonly<{
         type: "product";
-        components: Component[];
+        components: readonly Component[];
     }>;
     type Component = Readonly<{
         type: "component";
@@ -32,7 +32,7 @@ declare namespace APG {
     }>;
     type Coproduct = Readonly<{
         type: "coproduct";
-        options: Option[];
+        options: readonly Option[];
     }>;
     type Option = Readonly<{
         type: "option";
@@ -74,28 +74,26 @@ declare namespace APG {
     }>;
     type Composition = Readonly<{
         type: "composition";
-        object: APG.Type;
-        morphisms: [Morphism, Morphism];
+        morphisms: readonly Morphism[];
     }>;
     type Projection = Readonly<{
         type: "projection";
         index: number;
-        componentKeys: readonly string[];
     }>;
     type Injection = Readonly<{
         type: "injection";
         index: number;
-        optionKeys: readonly string[];
+        options: readonly APG.Option[];
     }>;
     type Tuple = Readonly<{
         type: "tuple";
-        morphisms: Morphism[];
-        componentKeys: readonly string[];
+        morphisms: readonly Morphism[];
+        keys: readonly string[];
     }>;
     type Case = Readonly<{
         type: "case";
-        morphisms: Morphism[];
-        optionKeys: readonly string[];
+        morphisms: readonly Morphism[];
+        keys: readonly string[];
     }>;
     type Terminal = Readonly<{
         type: "terminal";
@@ -107,6 +105,6 @@ declare namespace APG {
         type: "constant";
         value: N3.NamedNode | N3.Literal;
     }>;
-    type Mapping = Readonly<[APG.Path[], APG.Morphism[]]>;
+    type Mapping = readonly [readonly APG.Path[], readonly APG.Morphism[]];
 }
 export default APG;

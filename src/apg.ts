@@ -10,13 +10,19 @@ namespace APG {
 	export type Unit = Readonly<{ type: "unit" }>
 	export type Iri = Readonly<{ type: "iri" }>
 	export type Literal = Readonly<{ type: "literal"; datatype: string }>
-	export type Product = Readonly<{ type: "product"; components: Component[] }>
+	export type Product = Readonly<{
+		type: "product"
+		components: readonly Component[]
+	}>
 	export type Component = Readonly<{
 		type: "component"
 		key: string
 		value: Type
 	}>
-	export type Coproduct = Readonly<{ type: "coproduct"; options: Option[] }>
+	export type Coproduct = Readonly<{
+		type: "coproduct"
+		options: readonly Option[]
+	}>
 	export type Option = Readonly<{ type: "option"; key: string; value: Type }>
 
 	export type Path = [number, typeof NaN, ...number[]]
@@ -102,28 +108,23 @@ namespace APG {
 	export type Dereference = Readonly<{ type: "dereference" }>
 	export type Composition = Readonly<{
 		type: "composition"
-		object: APG.Type
-		morphisms: [Morphism, Morphism]
+		morphisms: readonly Morphism[]
 	}>
-	export type Projection = Readonly<{
-		type: "projection"
-		index: number
-		componentKeys: readonly string[]
-	}>
+	export type Projection = Readonly<{ type: "projection"; index: number }>
 	export type Injection = Readonly<{
 		type: "injection"
 		index: number
-		optionKeys: readonly string[]
+		options: readonly APG.Option[]
 	}>
 	export type Tuple = Readonly<{
 		type: "tuple"
-		morphisms: Morphism[]
-		componentKeys: readonly string[]
+		morphisms: readonly Morphism[]
+		keys: readonly string[]
 	}>
 	export type Case = Readonly<{
 		type: "case"
-		morphisms: Morphism[]
-		optionKeys: readonly string[]
+		morphisms: readonly Morphism[]
+		keys: readonly string[]
 	}>
 	export type Terminal = Readonly<{ type: "terminal" }>
 	export type Initial = Readonly<{ type: "initial" }>
@@ -132,7 +133,7 @@ namespace APG {
 		value: N3.NamedNode | N3.Literal
 	}>
 
-	export type Mapping = Readonly<[APG.Path[], APG.Morphism[]]>
+	export type Mapping = readonly [readonly APG.Path[], readonly APG.Morphism[]]
 }
 
 export default APG

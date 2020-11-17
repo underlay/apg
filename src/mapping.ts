@@ -4,7 +4,7 @@ import zip from "ziterable"
 import APG from "./apg.js"
 import { validateMorphism } from "./morphism.js"
 import { getType, getValues } from "./path.js"
-import { rootId, getId, signalInvalidType } from "./utils.js"
+import { ID, getID, rootId, signalInvalidType } from "./utils.js"
 
 export function validateMapping(
 	[m1, m2]: APG.Mapping,
@@ -24,7 +24,7 @@ export function validateMapping(
 }
 
 export function fold(
-	m1: APG.Path[],
+	m1: readonly APG.Path[],
 	type: APG.Type,
 	target: APG.Schema
 ): APG.Type {
@@ -71,7 +71,8 @@ export function fold(
 export function map(
 	morphism: APG.Morphism,
 	value: APG.Value,
-	instance: APG.Instance
+	instance: APG.Instance,
+	id: ID
 ): APG.Value {
 	if (morphism.type === "identity") {
 		return value
@@ -93,13 +94,9 @@ export function map(
 		return morphism.value
 	} else if (morphism.type === "composition") {
 		const [f, g] = morphism.morphisms
-		return map(g, map(f, value, instance), instance)
+		return map(g, map(f, value, instance, id), instance, id)
 	} else if (morphism.type === "projection") {
-		if (
-			value.termType === "Record" &&
-			value.componentKeys[morphism.index] ===
-				morphism.componentKeys[morphism.index]
-		) {
+		if (value.termType === "Record" && morphism.index in value) {
 			return value[morphism.index]
 		} else {
 			console.error(value, morphism)
@@ -108,25 +105,22 @@ export function map(
 	} else if (morphism.type === "case") {
 		if (
 			value.termType === "Variant" &&
-			value.optionKeys[value.index] === morphism.optionKeys[value.index]
+			value.optionKeys[value.index] === morphism.keys[value.index]
 		) {
-			return map(morphism.morphisms[value.index], value.value, instance)
+			return map(morphism.morphisms[value.index], value.value, instance, id)
 		} else {
 			throw new Error("Invalid case analysis")
 		}
 	} else if (morphism.type === "tuple") {
 		return new APG.Record(
-			new N3.BlankNode(getId()),
-			morphism.componentKeys,
-			morphism.morphisms.map((morphism) => map(morphism, value, instance))
+			id(),
+			morphism.keys,
+			morphism.morphisms.map((morphism) => map(morphism, value, instance, id))
 		)
 	} else if (morphism.type === "injection") {
-		return new APG.Variant(
-			new N3.BlankNode(getId()),
-			morphism.optionKeys,
-			morphism.index,
-			value
-		)
+		const optionKeys = morphism.options.map(({ key }) => key)
+		Object.freeze(optionKeys)
+		return new APG.Variant(id(), optionKeys, morphism.index, value)
 	} else {
 		signalInvalidType(morphism)
 	}
@@ -141,15 +135,16 @@ export function delta(
 	const [M1, M2] = M
 	const SI: APG.Instance = M1.map(() => [])
 	const indices = M1.map(() => new Map<APG.Value, number>())
+	const id = getID()
 	for (const [{ value: type }, path, morphism, i] of zip(S, M1, M2)) {
 		for (const value of getValues(TI, path)) {
 			if (indices[i].has(value)) {
 				continue
 			} else {
-				const imageValue = map(morphism, value, TI)
+				const imageValue = map(morphism, value, TI, id)
 				const index = SI[i].push(placeholder) - 1
 				indices[i].set(value, index)
-				SI[i][index] = pullback(M, S, T, SI, TI, indices, type, imageValue)
+				SI[i][index] = pullback(M, S, T, SI, TI, indices, id, type, imageValue)
 			}
 		}
 	}
@@ -172,6 +167,7 @@ function pullback(
 	SI: APG.Instance,
 	TI: APG.Instance,
 	indices: Map<APG.Value, number>[],
+	id: ID,
 	type: APG.Type, // in source
 	value: APG.Value // of image
 ): APG.Value {
@@ -189,10 +185,10 @@ function pullback(
 			// This gives us a value that is an instance of the image of the referenced type
 			// - ie an instance of fold(M1, S[type.value].value, T)
 			const t = S[type.value].value
-			const v = map(M2[type.value], value, TI)
+			const v = map(M2[type.value], value, TI, id)
 			const index = SI[type.value].push(placeholder) - 1
 			indices[type.value].set(value, index)
-			const p = pullback(M, S, T, SI, TI, indices, t, v)
+			const p = pullback(M, S, T, SI, TI, indices, id, t, v)
 			SI[type.value][index] = p
 			return new APG.Pointer(index, type.value)
 		}
@@ -221,7 +217,7 @@ function pullback(
 			return new APG.Record(
 				value.node,
 				value.componentKeys,
-				pullbackComponents(M, S, T, SI, TI, indices, type, value)
+				pullbackComponents(M, S, T, SI, TI, indices, id, type, value)
 			)
 		}
 	} else if (type.type === "coproduct") {
@@ -233,7 +229,7 @@ function pullback(
 				value.node,
 				value.optionKeys,
 				value.index,
-				pullback(M, S, T, SI, TI, indices, t, value.value)
+				pullback(M, S, T, SI, TI, indices, id, t, value.value)
 			)
 		}
 	} else {
@@ -248,10 +244,11 @@ function* pullbackComponents(
 	SI: APG.Instance,
 	TI: APG.Instance,
 	indices: Map<APG.Value, number>[],
+	id: ID,
 	type: APG.Product,
 	value: APG.Record
 ) {
 	for (const [t, field] of zip(type.components, value)) {
-		yield pullback(M, S, T, SI, TI, indices, t.value, field)
+		yield pullback(M, S, T, SI, TI, indices, id, t.value, field)
 	}
 }

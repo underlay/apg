@@ -1,4 +1,4 @@
-import APG from "./apg.js";
+import APG from "../apg.js";
 declare const componentLabel: APG.Label;
 declare const coproductLabel: APG.Label;
 declare const iriLabel: APG.Label;

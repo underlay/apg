@@ -3,7 +3,7 @@ import zip from "ziterable"
 
 import APG from "../es6/apg.js"
 import { delta, fold, map } from "../es6/mapping.js"
-import { getId } from "../es6/utils.js"
+import { getID } from "../es6/utils.js"
 import { validateValue } from "../es6/value.js"
 import { validateMorphism } from "../es6/morphism.js"
 import { getType, getValues } from "../es6/path.js"
@@ -135,87 +135,58 @@ const M: APG.Mapping = [
 	[
 		{
 			type: "tuple",
-			componentKeys: ["http://example.com/a/a", "http://example.com/a/b"],
+			keys: ["http://example.com/a/a", "http://example.com/a/b"],
 			morphisms: [
 				{
 					type: "tuple",
-					componentKeys: ["http://example.com/a/a/a"],
+					keys: ["http://example.com/a/a/a"],
 					morphisms: [
 						{
 							type: "composition",
-							object: {
-								type: "product",
-								components: [
-									{
-										type: "component",
-										key: "http://example.com/0.0.0",
-										value: { type: "iri" },
-									},
-									{
-										type: "component",
-										key: "http://example.com/0.0.1",
-										value: { type: "iri" },
-									},
-								],
-							},
 							morphisms: [
-								{
-									type: "projection",
-									componentKeys: [
-										"http://example.com/0.0",
-										"http://example.com/0.1",
-									],
-									index: 0,
-								},
-								{
-									type: "projection",
-									componentKeys: [
-										"http://example.com/0.0.0",
-										"http://example.com/0.0.1",
-									],
-									index: 0,
-								},
+								{ type: "projection", index: 0 },
+								{ type: "projection", index: 0 },
 							],
 						},
 					],
 				},
 				{
 					type: "composition",
-					object: { type: "reference", value: 1 },
 					morphisms: [
-						{
-							type: "projection",
-							componentKeys: [
-								"http://example.com/0.0",
-								"http://example.com/0.1",
-							],
-							index: 1,
-						},
+						{ type: "projection", index: 1 },
 						{
 							type: "composition",
-							object: {
-								type: "product",
-								components: [
-									{
-										type: "component",
-										key: "http://example.com/1.0",
-										value: { type: "reference", value: 0 },
-									},
-									{
-										type: "component",
-										key: "http://example.com/1.1",
-										value: { type: "iri" },
-									},
-								],
-							},
 							morphisms: [
 								{ type: "dereference" },
 								{
 									type: "injection",
-									optionKeys: [
-										"http://example.com/a/b/a",
-										"http://example.com/a/b/b",
+									options: [
+										{
+											type: "option",
+											key: "http://example.com/a/b/a",
+											value: { type: "unit" },
+										},
+										{
+											type: "option",
+											key: "http://example.com/a/b/b",
+											value: {
+												type: "product",
+												components: [
+													{
+														type: "component",
+														key: "http://example.com/1.0",
+														value: { type: "reference", value: 0 },
+													},
+													{
+														type: "component",
+														key: "http://example.com/1.1",
+														value: { type: "iri" },
+													},
+												],
+											},
+										},
 									],
+
 									index: 1,
 								},
 							],
@@ -226,41 +197,31 @@ const M: APG.Mapping = [
 		},
 		{
 			type: "tuple",
-			componentKeys: ["http://example.com/b/a", "http://example.com/b/b"],
+			keys: ["http://example.com/b/a", "http://example.com/b/b"],
 			morphisms: [
 				{
 					type: "composition",
-					object: { type: "reference", value: 0 },
 					morphisms: [
-						{
-							type: "projection",
-							componentKeys: [
-								"http://example.com/1.0",
-								"http://example.com/1.1",
-							],
-							index: 0,
-						},
+						{ type: "projection", index: 0 },
 						{ type: "dereference" },
 					],
 				},
-				{
-					type: "projection",
-					componentKeys: ["http://example.com/1.0", "http://example.com/1.1"],
-					index: 1,
-				},
+				{ type: "projection", index: 1 },
 			],
 		},
 	],
 ]
 
+const id = getID()
+
 const I: APG.Instance = [
 	[
 		new APG.Record(
-			new BlankNode(getId()),
+			id(),
 			["http://example.com/0.0", "http://example.com/0.1"],
 			[
 				new APG.Record(
-					new BlankNode(getId()),
+					id(),
 					["http://example.com/0.0.0", "http://example.com/0.0.1"],
 					[
 						new NamedNode("http://foo.com/neat"),
@@ -273,7 +234,7 @@ const I: APG.Instance = [
 	],
 	[
 		new APG.Record(
-			new BlankNode(getId()),
+			id(),
 			["http://example.com/1.0", "http://example.com/1.1"],
 			[new APG.Pointer(0, 0), new NamedNode("http://bar.org/fantastic")]
 		),
@@ -298,10 +259,11 @@ test("Validate instance type", () => {
 
 test("Validate instance image", () => {
 	const [m1, m2] = M
+	const id = getID()
 	for (const [path, morphism, { value: type }] of zip(m1, m2, S)) {
 		const image = fold(m1, type, T)
 		for (const value of getValues(I, path)) {
-			const result = map(morphism, value, I)
+			const result = map(morphism, value, I, id)
 			expect(validateValue(result, image)).toBe(true)
 		}
 	}

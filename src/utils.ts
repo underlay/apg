@@ -1,3 +1,4 @@
+import { BlankNode } from "n3.ts"
 import { v4 as uuid } from "uuid"
 
 export function signalInvalidType(type: never): never {
@@ -7,7 +8,8 @@ export function signalInvalidType(type: never): never {
 
 export const rootId = uuid()
 
-let id = 0
-export function getId() {
-	return `${rootId}-${id++}`
+export type ID = () => BlankNode
+export function getID(): ID {
+	let id = 0
+	return () => new BlankNode(`b${id++}`)
 }

@@ -1,8 +1,9 @@
 import APG from "./apg.js"
-import schemaSchema from "./bootstrap.js"
+import schemaSchema from "./schemas/schema.js"
+import expressionSchema from "./schemas/expression.js"
 import * as ns from "./namespace.js"
 
-export { ns, APG, schemaSchema }
+export { ns, APG, schemaSchema, expressionSchema }
 
 export * from "./mapping.js"
 export * from "./morphism.js"

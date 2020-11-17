@@ -1,6 +1,6 @@
 import * as N3 from "n3.ts";
 import APG from "./apg.js";
-import schemaSchema from "./bootstrap.js";
+import schemaSchema from "./schemas/schema.js";
 import * as ns from "./namespace.js";
 import { signalInvalidType } from "./utils.js";
 export function toSchema(instance) {

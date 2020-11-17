@@ -2,12 +2,95 @@ import zip from "ziterable";
 import { typeEqual } from "./type.js";
 import { signalInvalidType } from "./utils.js";
 import { validateValue } from "./value.js";
+export function apply(schema, source, morphism) {
+    if (morphism.type === "constant") {
+        if (morphism.value.termType === "NamedNode") {
+            return Object.freeze({ type: "iri" });
+        }
+        else if (morphism.value.termType === "Literal") {
+            return Object.freeze({
+                type: "literal",
+                datatype: morphism.value.datatype.value,
+            });
+        }
+        else {
+            signalInvalidType(morphism.value);
+        }
+    }
+    else if (morphism.type === "identity") {
+        return source;
+    }
+    else if (morphism.type === "dereference") {
+        if (source.type === "reference" && source.value in schema) {
+            return schema[source.value].value;
+        }
+        else {
+            throw new Error("Invalid dereference morphism");
+        }
+    }
+    else if (morphism.type === "initial") {
+        throw new Error("Not implemented");
+    }
+    else if (morphism.type === "terminal") {
+        return Object.freeze({ type: "unit" });
+    }
+    else if (morphism.type === "composition") {
+        const [a, b] = morphism.morphisms;
+        return apply(schema, apply(schema, source, a), b);
+    }
+    else if (morphism.type === "projection") {
+        if (source.type === "product" && morphism.index in source.components) {
+            const { value } = source.components[morphism.index];
+            return value;
+        }
+        else {
+            throw new Error("Invalid projection morphism");
+        }
+    }
+    else if (morphism.type === "injection") {
+        const { options, index } = morphism;
+        if (index in options && typeEqual(source, options[index].value)) {
+            return Object.freeze({ type: "coproduct", options });
+        }
+        else {
+            throw new Error("Invalid injection morphism");
+        }
+    }
+    else if (morphism.type === "tuple") {
+        return Object.freeze({
+            type: "product",
+            components: Object.freeze(Array.from(applyComponents(schema, source, morphism))),
+        });
+    }
+    else if (morphism.type === "case") {
+        return Object.freeze({
+            type: "coproduct",
+            options: Object.freeze(Array.from(applyOptions(schema, source, morphism))),
+        });
+    }
+    else {
+        signalInvalidType(morphism);
+    }
+}
+function* applyComponents(schema, source, { keys: keys, morphisms }) {
+    for (const [key, morphism] of zip(keys, morphisms)) {
+        const value = apply(schema, source, morphism);
+        yield Object.freeze({ type: "component", key, value });
+    }
+}
+function* applyOptions(schema, source, { keys: keys, morphisms }) {
+    for (const [key, morphism] of zip(keys, morphisms)) {
+        const value = apply(schema, source, morphism);
+        yield Object.freeze({ type: "option", key, value });
+    }
+}
 export function validateMorphism(morphism, source, target, schema) {
     if (morphism.type === "constant") {
         return validateValue(morphism.value, target);
     }
     else if (morphism.type === "dereference") {
         return (source.type === "reference" &&
+            source.value in schema &&
             typeEqual(schema[source.value].value, target));
     }
     else if (morphism.type === "identity") {
@@ -20,9 +103,8 @@ export function validateMorphism(morphism, source, target, schema) {
         return target.type === "unit";
     }
     else if (morphism.type === "composition") {
-        const [AB, BC] = morphism.morphisms;
-        return (validateMorphism(AB, source, morphism.object, schema) &&
-            validateMorphism(BC, morphism.object, target, schema));
+        const type = morphism.morphisms.reduce((type, morphism) => type === null ? null : apply(schema, type, morphism), source);
+        return type !== null && typeEqual(type, target);
     }
     else if (morphism.type === "projection") {
         if (source.type !== "product") {
@@ -48,7 +130,7 @@ export function validateMorphism(morphism, source, target, schema) {
         if (target.type !== "product") {
             return false;
         }
-        const { morphisms, componentKeys } = morphism;
+        const { morphisms, keys: componentKeys } = morphism;
         const { components } = target;
         if (morphisms.length !== components.length ||
             componentKeys.length !== components.length) {
@@ -68,7 +150,7 @@ export function validateMorphism(morphism, source, target, schema) {
         if (source.type !== "coproduct") {
             return false;
         }
-        const { morphisms, optionKeys } = morphism;
+        const { morphisms, keys: optionKeys } = morphism;
         const { options } = source;
         if (morphisms.length !== options.length ||
             optionKeys.length !== options.length) {

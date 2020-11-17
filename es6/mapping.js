@@ -3,7 +3,7 @@ import zip from "ziterable";
 import APG from "./apg.js";
 import { validateMorphism } from "./morphism.js";
 import { getType, getValues } from "./path.js";
-import { rootId, getId, signalInvalidType } from "./utils.js";
+import { getID, rootId, signalInvalidType } from "./utils.js";
 export function validateMapping([m1, m2], source, target) {
     for (const [{ value }, path, morphism] of zip(source, m1, m2)) {
         const type = getType(target, path);
@@ -59,7 +59,7 @@ export function fold(m1, type, target) {
         signalInvalidType(type);
     }
 }
-export function map(morphism, value, instance) {
+export function map(morphism, value, instance, id) {
     if (morphism.type === "identity") {
         return value;
     }
@@ -87,12 +87,10 @@ export function map(morphism, value, instance) {
     }
     else if (morphism.type === "composition") {
         const [f, g] = morphism.morphisms;
-        return map(g, map(f, value, instance), instance);
+        return map(g, map(f, value, instance, id), instance, id);
     }
     else if (morphism.type === "projection") {
-        if (value.termType === "Record" &&
-            value.componentKeys[morphism.index] ===
-                morphism.componentKeys[morphism.index]) {
+        if (value.termType === "Record" && morphism.index in value) {
             return value[morphism.index];
         }
         else {
@@ -102,18 +100,20 @@ export function map(morphism, value, instance) {
     }
     else if (morphism.type === "case") {
         if (value.termType === "Variant" &&
-            value.optionKeys[value.index] === morphism.optionKeys[value.index]) {
-            return map(morphism.morphisms[value.index], value.value, instance);
+            value.optionKeys[value.index] === morphism.keys[value.index]) {
+            return map(morphism.morphisms[value.index], value.value, instance, id);
         }
         else {
             throw new Error("Invalid case analysis");
         }
     }
     else if (morphism.type === "tuple") {
-        return new APG.Record(new N3.BlankNode(getId()), morphism.componentKeys, morphism.morphisms.map((morphism) => map(morphism, value, instance)));
+        return new APG.Record(id(), morphism.keys, morphism.morphisms.map((morphism) => map(morphism, value, instance, id)));
     }
     else if (morphism.type === "injection") {
-        return new APG.Variant(new N3.BlankNode(getId()), morphism.optionKeys, morphism.index, value);
+        const optionKeys = morphism.options.map(({ key }) => key);
+        Object.freeze(optionKeys);
+        return new APG.Variant(id(), optionKeys, morphism.index, value);
     }
     else {
         signalInvalidType(morphism);
@@ -123,16 +123,17 @@ export function delta(M, S, T, TI) {
     const [M1, M2] = M;
     const SI = M1.map(() => []);
     const indices = M1.map(() => new Map());
+    const id = getID();
     for (const [{ value: type }, path, morphism, i] of zip(S, M1, M2)) {
         for (const value of getValues(TI, path)) {
             if (indices[i].has(value)) {
                 continue;
             }
             else {
-                const imageValue = map(morphism, value, TI);
+                const imageValue = map(morphism, value, TI, id);
                 const index = SI[i].push(placeholder) - 1;
                 indices[i].set(value, index);
-                SI[i][index] = pullback(M, S, T, SI, TI, indices, type, imageValue);
+                SI[i][index] = pullback(M, S, T, SI, TI, indices, id, type, imageValue);
             }
         }
     }
@@ -143,7 +144,7 @@ export function delta(M, S, T, TI) {
     return SI;
 }
 const placeholder = new N3.NamedNode(rootId);
-function pullback(M, S, T, SI, TI, indices, type, // in source
+function pullback(M, S, T, SI, TI, indices, id, type, // in source
 value // of image
 ) {
     const [{}, M2] = M;
@@ -161,10 +162,10 @@ value // of image
             // This gives us a value that is an instance of the image of the referenced type
             // - ie an instance of fold(M1, S[type.value].value, T)
             const t = S[type.value].value;
-            const v = map(M2[type.value], value, TI);
+            const v = map(M2[type.value], value, TI, id);
             const index = SI[type.value].push(placeholder) - 1;
             indices[type.value].set(value, index);
-            const p = pullback(M, S, T, SI, TI, indices, t, v);
+            const p = pullback(M, S, T, SI, TI, indices, id, t, v);
             SI[type.value][index] = p;
             return new APG.Pointer(index, type.value);
         }
@@ -198,7 +199,7 @@ value // of image
             throw new Error("Invalid image value: expected record");
         }
         else {
-            return new APG.Record(value.node, value.componentKeys, pullbackComponents(M, S, T, SI, TI, indices, type, value));
+            return new APG.Record(value.node, value.componentKeys, pullbackComponents(M, S, T, SI, TI, indices, id, type, value));
         }
     }
     else if (type.type === "coproduct") {
@@ -207,16 +208,16 @@ value // of image
         }
         else {
             const { value: t } = type.options[value.index];
-            return new APG.Variant(value.node, value.optionKeys, value.index, pullback(M, S, T, SI, TI, indices, t, value.value));
+            return new APG.Variant(value.node, value.optionKeys, value.index, pullback(M, S, T, SI, TI, indices, id, t, value.value));
         }
     }
     else {
         signalInvalidType(type);
     }
 }
-function* pullbackComponents(M, S, T, SI, TI, indices, type, value) {
+function* pullbackComponents(M, S, T, SI, TI, indices, id, type, value) {
     for (const [t, field] of zip(type.components, value)) {
-        yield pullback(M, S, T, SI, TI, indices, t.value, field);
+        yield pullback(M, S, T, SI, TI, indices, id, t.value, field);
     }
 }
 //# sourceMappingURL=mapping.js.map
