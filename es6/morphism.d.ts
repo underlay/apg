@@ -1,3 +1,4 @@
 import APG from "./apg.js";
-export declare function apply(schema: APG.Schema, source: APG.Type, morphism: APG.Morphism): APG.Type;
-export declare function validateMorphism(morphism: APG.Morphism, source: APG.Type, target: APG.Type, schema: APG.Schema): boolean;
+export declare const applyExpressions: (S: APG.Schema, expressions: readonly APG.Expression[], source: APG.Type) => APG.Type;
+export declare function apply(S: APG.Schema, expression: APG.Expression, source: APG.Type): APG.Type;
+export declare function validateExpressions(S: APG.Schema, expressions: readonly APG.Expression[], source: APG.Type, target: APG.Type): boolean;

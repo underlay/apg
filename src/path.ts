@@ -13,17 +13,9 @@ export function getType(
 	const { value } = schema[label]
 
 	return path.reduce((type: APG.Type, index: number): APG.Type => {
-		if (
-			type.type === "product" &&
-			index >= 0 &&
-			index < type.components.length
-		) {
+		if (type.type === "product" && index in type.components) {
 			return type.components[index].value
-		} else if (
-			type.type === "coproduct" &&
-			index < 0 &&
-			index >= -type.options.length
-		) {
+		} else if (type.type === "coproduct" && -1 - index in type.options) {
 			return type.options[-1 - index].value
 		} else if (type.type === "reference" && isNaN(index)) {
 			return schema[type.value].value
@@ -34,6 +26,7 @@ export function getType(
 }
 
 export function* getValues(
+	schema: APG.Schema,
 	instance: APG.Instance,
 	[label, nil, ...path]: APG.Path
 ): Generator<APG.Value, void, undefined> {
@@ -43,37 +36,53 @@ export function* getValues(
 		throw new Error("Invalid path")
 	}
 
+	const { value: type } = schema[label]
 	for (const element of instance[label]) {
-		const value = path.reduce(
-			(value: APG.Value | null, index: number): APG.Value | null => {
-				if (value === null) {
+		const token = path.reduce(
+			(
+				token: [APG.Type, APG.Value] | null,
+				index: number
+			): [APG.Type, APG.Value] | null => {
+				if (token === null) {
 					return null
-				} else if (
+				}
+
+				const [type, value] = token
+				if (
+					type.type === "product" &&
+					index in type.components &&
 					value.termType === "Record" &&
-					index >= 0 &&
-					index < value.length
+					index in value
 				) {
-					return value[index]
+					return [type.components[index].value, value[index]]
 				} else if (
-					value.termType === "Variant" &&
-					index < 0 &&
-					index >= -value.optionKeys.length
+					type.type === "coproduct" &&
+					-1 - index in type.options &&
+					value.termType === "Variant"
 				) {
-					if (value.index === index) {
-						return value.value
+					if (value.key === type.options[-1 - index].key) {
+						return [type.options[-1 - index].value, value.value]
 					} else {
 						return null
 					}
-				} else if (value.termType === "Pointer" && isNaN(index)) {
-					return instance[value.label][value.index]
+				} else if (
+					type.type === "reference" &&
+					type.value in schema &&
+					type.value in instance &&
+					value.termType === "Pointer" &&
+					value.index in instance[type.value] &&
+					isNaN(index)
+				) {
+					return [schema[type.value].value, instance[type.value][value.index]]
 				} else {
 					throw new Error("Invalid value index")
 				}
 			},
-			element
+			[type, element]
 		)
 
-		if (value !== null) {
+		if (token !== null) {
+			const [{}, value] = token
 			yield value
 		}
 	}

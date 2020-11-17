@@ -1,7 +1,7 @@
 import zip from "ziterable"
 import schemaSchema from "../es6/bootstrap.js"
 import { fromSchema, toSchema } from "../es6/schema.js"
-import { typeEqual } from "../es6/type.js"
+import { isTypeEqual } from "../es6/type.js"
 import { validateValue } from "../es6/value.js"
 import * as ns from "../es6/namespace.js"
 
@@ -10,7 +10,7 @@ test("Round-trip schema schema to instance and back", () => {
 
 	for (const [{ value: type }, values] of zip(schemaSchema, instance)) {
 		for (const value of values) {
-			expect(validateValue(value, type)).toBe(true)
+			expect(validateValue(type, value)).toBe(true)
 		}
 	}
 
@@ -23,6 +23,6 @@ test("Round-trip schema schema to instance and back", () => {
 	const schema = toSchema(instance)
 	for (const [a, b] of zip(schema, schemaSchema)) {
 		expect(a.key).toBe(b.key)
-		expect(typeEqual(a.value, b.value)).toBe(true)
+		expect(isTypeEqual(a.value, b.value)).toBe(true)
 	}
 })

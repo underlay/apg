@@ -1,9 +1,9 @@
 import * as N3 from "n3.ts"
 
-import APG from "./apg.js"
-import schemaSchema from "./schemas/schema.js"
-import * as ns from "./namespace.js"
-import { signalInvalidType } from "./utils.js"
+import APG from "../../apg.js"
+import schemaSchema from "./index.js"
+import * as ns from "../../namespace.js"
+import { getID, ID, signalInvalidType } from "../../utils.js"
 
 export function toSchema(instance: APG.Instance): APG.Schema {
 	if (instance.length !== schemaSchema.length) {
@@ -59,7 +59,6 @@ function toValue(
 	permutation: number[]
 ): APG.Type {
 	const { index } = value.value as APG.Pointer
-	// const { index } = record.get(ns.value) as APG.Pointer
 	const key = value.key
 	const cache = typeCache.get(key)!
 	if (cache.has(index)) {
@@ -241,25 +240,6 @@ const ul = {
 	source: new N3.NamedNode(ns.source),
 }
 
-const schemaIndices = new Map(schemaSchema.map(({ key }, i) => [key, i]))
-
-const labelIndex = schemaIndices.get(ns.label)!
-const unitIndex = schemaIndices.get(ns.unit)!
-const referenceIndex = schemaIndices.get(ns.reference)!
-const iriIndex = schemaIndices.get(ns.iri)!
-const literalIndex = schemaIndices.get(ns.literal)!
-const productIndex = schemaIndices.get(ns.product)!
-const coproductIndex = schemaIndices.get(ns.coproduct)!
-
-const valueKeys = Object.freeze([
-	ns.coproduct,
-	ns.iri,
-	ns.literal,
-	ns.product,
-	ns.reference,
-	ns.unit,
-])
-
 const labelKeys = Object.freeze([ns.key, ns.value])
 const referenceKeys = Object.freeze([ns.value])
 const literalKeys = Object.freeze([ns.datatype])
@@ -267,31 +247,23 @@ const productKeys = Object.freeze([ns.key, ns.source, ns.value])
 const coproductKeys = Object.freeze([ns.key, ns.source, ns.value])
 
 export function fromSchema(schema: APG.Schema): APG.Instance {
-	let id = 0
+	const id = getID()
+
 	const database = new Map<string, APG.Value[]>(
 		schemaSchema.map(({ key }) => [key, []])
 	)
 
-	const cache = new Map<APG.Type, [number, number]>()
+	const cache = new Map<APG.Type, number>()
 
 	const labels = database.get(ns.label)!
 	for (const label of schema) {
-		const [value, delta] = fromType(database, cache, label.value, id)
-		id += delta
+		const value = fromType(id, database, cache, label.value)
 
-		const key = valueKeys.indexOf(ul[label.value.type].value)
-		const variant = new APG.Variant(
-			new N3.BlankNode(`b${id++}`),
-			valueKeys,
-			key,
-			value
-		)
+		const key = ul[label.value.type].value
+		const variant = new APG.Variant(id(), key, value)
 
 		labels.push(
-			new APG.Record(new N3.BlankNode(`b${id++}`), labelKeys, [
-				new N3.NamedNode(label.key),
-				variant,
-			])
+			new APG.Record(id(), labelKeys, [new N3.NamedNode(label.key), variant])
 		)
 	}
 
@@ -306,83 +278,74 @@ export function fromSchema(schema: APG.Schema): APG.Instance {
 }
 
 function fromType(
+	id: ID,
 	database: Map<string, APG.Value[]>,
-	cache: Map<APG.Type, [number, number]>,
-	type: APG.Type,
-	id: number
-): [APG.Pointer, number] {
+	cache: Map<APG.Type, number>,
+	type: APG.Type
+): APG.Pointer {
 	const pointer = cache.get(type)
 	if (pointer !== undefined) {
-		const [index, label] = pointer
-		return [new APG.Pointer(index, label), id]
+		return new APG.Pointer(pointer)
 	} else if (type.type === "reference") {
-		const reference = new APG.Record(
-			new N3.BlankNode(`b${id++}`),
-			referenceKeys,
-			[new APG.Pointer(type.value, labelIndex)]
-		)
+		const reference = new APG.Record(id(), referenceKeys, [
+			new APG.Pointer(type.value),
+		])
 
 		const index = database.get(ns.reference)!.push(reference) - 1
-		cache.set(type, [index, referenceIndex])
-		return [new APG.Pointer(index, referenceIndex), id]
+		cache.set(type, index)
+		return new APG.Pointer(index)
 	} else if (type.type === "unit") {
-		const unit = new N3.BlankNode(`b${id++}`)
-		const index = database.get(ns.unit)!.push(unit) - 1
-		cache.set(type, [index, unitIndex])
-		return [new APG.Pointer(index, unitIndex), id]
+		const index = database.get(ns.unit)!.push(id()) - 1
+		cache.set(type, index)
+		return new APG.Pointer(index)
 	} else if (type.type === "iri") {
-		const iri = new N3.BlankNode(`b${id++}`)
-		const index = database.get(ns.iri)!.push(iri) - 1
-		cache.set(type, [index, iriIndex])
-		return [new APG.Pointer(index, iriIndex), id]
+		const index = database.get(ns.iri)!.push(id()) - 1
+		cache.set(type, index)
+		return new APG.Pointer(index)
 	} else if (type.type === "literal") {
-		const literal = new APG.Record(new N3.BlankNode(`b${id++}`), literalKeys, [
+		const literal = new APG.Record(id(), literalKeys, [
 			new N3.NamedNode(type.datatype),
 		])
 
 		const index = database.get(ns.literal)!.push(literal) - 1
-		cache.set(type, [index, literalIndex])
-		return [new APG.Pointer(index, literalIndex), id]
+		cache.set(type, index)
+		return new APG.Pointer(index)
 	} else if (type.type === "product") {
-		const product = new N3.BlankNode(`b${id++}`)
-		const index = database.get(ns.product)!.push(product) - 1
-		cache.set(type, [index, productIndex])
+		const index = database.get(ns.product)!.push(id()) - 1
+		cache.set(type, index)
 
 		const components = database.get(ns.component)!
 		for (const component of type.components) {
-			const key = valueKeys.indexOf(ul[component.value.type].value)
-			const [value, delta] = fromType(database, cache, component.value, id)
-			id += delta
+			const key = ul[component.value.type].value
+			const value = fromType(id, database, cache, component.value)
 			components.push(
-				new APG.Record(new N3.BlankNode(`b${id++}`), productKeys, [
+				new APG.Record(id(), productKeys, [
 					new N3.NamedNode(component.key),
-					new APG.Pointer(index, productIndex),
-					new APG.Variant(new N3.BlankNode(`b${id++}`), valueKeys, key, value),
+					new APG.Pointer(index),
+					new APG.Variant(id(), key, value),
 				])
 			)
 		}
 
-		return [new APG.Pointer(index, productIndex), id]
+		return new APG.Pointer(index)
 	} else if (type.type === "coproduct") {
-		const coproduct = new N3.BlankNode(`b${id++}`)
-		const index = database.get(ns.coproduct)!.push(coproduct) - 1
-		cache.set(type, [index, coproductIndex])
+		const index = database.get(ns.coproduct)!.push(id()) - 1
+		cache.set(type, index)
 
 		const options = database.get(ns.option)!
 		for (const option of type.options) {
-			const key = valueKeys.indexOf(ul[option.value.type].value)
-			const [value, delta] = fromType(database, cache, option.value, id)
-			id += delta
+			const key = ul[option.value.type].value
+			const value = fromType(id, database, cache, option.value)
 			options.push(
-				new APG.Record(new N3.BlankNode(`b${id++}`), coproductKeys, [
+				new APG.Record(id(), coproductKeys, [
 					new N3.NamedNode(option.key),
-					new APG.Pointer(index, coproductIndex),
-					new APG.Variant(new N3.BlankNode(`b${id++}`), valueKeys, key, value),
+					new APG.Pointer(index),
+					new APG.Variant(id(), key, value),
 				])
 			)
 		}
 
-		return [new APG.Pointer(index, coproductIndex), id]
+		return new APG.Pointer(index)
 	} else {
 		signalInvalidType(type)
 	}

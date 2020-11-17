@@ -44,8 +44,7 @@ declare namespace APG {
     type Value = N3.BlankNode | N3.NamedNode | N3.Literal | Record | Variant | Pointer;
     class Pointer {
         readonly index: number;
-        readonly label: number;
-        constructor(index: number, label: number);
+        constructor(index: number);
         get termType(): "Pointer";
     }
     class Record extends Array<Value> {
@@ -58,53 +57,63 @@ declare namespace APG {
     }
     class Variant {
         readonly node: N3.BlankNode;
-        readonly optionKeys: readonly string[];
-        readonly index: number;
+        readonly key: string;
         readonly value: Value;
-        constructor(node: N3.BlankNode, optionKeys: readonly string[], index: number, value: Value);
+        constructor(node: N3.BlankNode, key: string, value: Value);
         get termType(): "Variant";
-        get key(): string;
     }
-    type Morphism = Identity | Dereference | Composition | Projection | Injection | Tuple | Case | Constant | Terminal | Initial;
+    type Expression = Identity | Initial | Terminal | Identifier | Constant | Dereference | Projection | Injection | Tuple | Match;
     type Identity = Readonly<{
         type: "identity";
-    }>;
-    type Dereference = Readonly<{
-        type: "dereference";
-    }>;
-    type Composition = Readonly<{
-        type: "composition";
-        morphisms: readonly Morphism[];
-    }>;
-    type Projection = Readonly<{
-        type: "projection";
-        index: number;
-    }>;
-    type Injection = Readonly<{
-        type: "injection";
-        index: number;
-        options: readonly APG.Option[];
-    }>;
-    type Tuple = Readonly<{
-        type: "tuple";
-        morphisms: readonly Morphism[];
-        keys: readonly string[];
-    }>;
-    type Case = Readonly<{
-        type: "case";
-        morphisms: readonly Morphism[];
-        keys: readonly string[];
-    }>;
-    type Terminal = Readonly<{
-        type: "terminal";
     }>;
     type Initial = Readonly<{
         type: "initial";
     }>;
+    type Terminal = Readonly<{
+        type: "terminal";
+    }>;
+    type Identifier = Readonly<{
+        type: "identifier";
+        value: N3.NamedNode;
+    }>;
     type Constant = Readonly<{
         type: "constant";
-        value: N3.NamedNode | N3.Literal;
+        value: N3.Literal;
     }>;
-    type Mapping = readonly [readonly APG.Path[], readonly APG.Morphism[]];
+    type Dereference = Readonly<{
+        type: "dereference";
+        key: string;
+    }>;
+    type Projection = Readonly<{
+        type: "projection";
+        key: string;
+    }>;
+    type Injection = Readonly<{
+        type: "injection";
+        key: string;
+        value: Expression[];
+    }>;
+    type Tuple = Readonly<{
+        type: "tuple";
+        slots: readonly Slot[];
+    }>;
+    type Slot = Readonly<{
+        type: "slot";
+        key: string;
+        value: Expression[];
+    }>;
+    type Match = Readonly<{
+        type: "match";
+        cases: readonly Case[];
+    }>;
+    type Case = Readonly<{
+        type: "case";
+        key: string;
+        value: Expression[];
+    }>;
+    type Mapping = readonly [
+        readonly APG.Path[],
+        readonly (readonly APG.Expression[])[]
+    ];
 }
 export default APG;

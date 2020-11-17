@@ -1,13 +1,14 @@
 import * as N3 from "n3.ts";
 import zip from "ziterable";
 import APG from "./apg.js";
-import { validateMorphism } from "./morphism.js";
+import { validateExpressions } from "./morphism.js";
 import { getType, getValues } from "./path.js";
 import { getID, rootId, signalInvalidType } from "./utils.js";
-export function validateMapping([m1, m2], source, target) {
-    for (const [{ value }, path, morphism] of zip(source, m1, m2)) {
-        const type = getType(target, path);
-        if (validateMorphism(morphism, type, fold(m1, value, target), target)) {
+export function validateMapping([M1, M2], S, T) {
+    for (const [{ value }, path, expressions] of zip(S, M1, M2)) {
+        const source = getType(T, path);
+        const target = fold(M1, T, value);
+        if (validateExpressions(S, expressions, source, target)) {
             continue;
         }
         else {
@@ -16,9 +17,9 @@ export function validateMapping([m1, m2], source, target) {
     }
     return true;
 }
-export function fold(m1, type, target) {
+export function fold(M1, T, type) {
     if (type.type === "reference") {
-        const value = getType(target, m1[type.value]);
+        const value = getType(T, M1[type.value]);
         if (value === undefined) {
             throw new Error("Invalid reference index");
         }
@@ -41,7 +42,7 @@ export function fold(m1, type, target) {
             components.push(Object.freeze({
                 type: "component",
                 key,
-                value: fold(m1, value, target),
+                value: fold(M1, T, value),
             }));
         }
         Object.freeze(components);
@@ -50,7 +51,7 @@ export function fold(m1, type, target) {
     else if (type.type === "coproduct") {
         const options = [];
         for (const { key, value } of type.options) {
-            options.push(Object.freeze({ type: "option", key, value: fold(m1, value, target) }));
+            options.push(Object.freeze({ type: "option", key, value: fold(M1, T, value) }));
         }
         Object.freeze(options);
         return Object.freeze({ type: "coproduct", options });
@@ -59,64 +60,80 @@ export function fold(m1, type, target) {
         signalInvalidType(type);
     }
 }
-export function map(morphism, value, instance, id) {
-    if (morphism.type === "identity") {
+export const mapExpressions = (expressions, value, instance, schema, id) => expressions.reduce((value, expression) => map(expression, value, instance, schema, id), value);
+export function map(expression, value, instance, schema, id) {
+    if (expression.type === "identity") {
         return value;
     }
-    else if (morphism.type === "initial") {
-        throw new Error("Invalid initial morphism");
+    else if (expression.type === "initial") {
+        throw new Error("Not implemented");
     }
-    else if (morphism.type === "terminal") {
+    else if (expression.type === "terminal") {
         if (value.termType === "BlankNode") {
             return value;
         }
         else {
-            throw new Error("Invalid terminal morphism");
+            throw new Error("Invalid terminal expression");
         }
     }
-    else if (morphism.type === "dereference") {
+    else if (expression.type === "identifier") {
+        return expression.value;
+    }
+    else if (expression.type === "constant") {
+        return expression.value;
+    }
+    else if (expression.type === "dereference") {
         if (value.termType === "Pointer") {
-            return instance[value.label][value.index];
+            const index = schema.findIndex(({ key }) => key === expression.key);
+            if (index in instance && value.index in instance[index]) {
+                return instance[index][value.index];
+            }
+            else {
+                throw new Error("Invalid pointer dereference");
+            }
         }
         else {
             throw new Error("Invalid pointer dereference");
         }
     }
-    else if (morphism.type === "constant") {
-        return morphism.value;
-    }
-    else if (morphism.type === "composition") {
-        const [f, g] = morphism.morphisms;
-        return map(g, map(f, value, instance, id), instance, id);
-    }
-    else if (morphism.type === "projection") {
-        if (value.termType === "Record" && morphism.index in value) {
-            return value[morphism.index];
+    else if (expression.type === "projection") {
+        if (value.termType === "Record") {
+            const index = value.componentKeys.indexOf(expression.key);
+            if (index in value) {
+                return value[index];
+            }
+            else {
+                throw new Error("Invalid projection");
+            }
         }
         else {
-            console.error(value, morphism);
             throw new Error("Invalid projection");
         }
     }
-    else if (morphism.type === "case") {
-        if (value.termType === "Variant" &&
-            value.optionKeys[value.index] === morphism.keys[value.index]) {
-            return map(morphism.morphisms[value.index], value.value, instance, id);
+    else if (expression.type === "match") {
+        if (value.termType === "Variant") {
+            const c = expression.cases.find(({ key }) => key === value.key);
+            if (c !== undefined) {
+                return mapExpressions(c.value, value.value, instance, schema, id);
+            }
+            else {
+                throw new Error("Invalid case analysis");
+            }
         }
         else {
-            throw new Error("Invalid case analysis");
+            throw new Error("Invalid match morphism");
         }
     }
-    else if (morphism.type === "tuple") {
-        return new APG.Record(id(), morphism.keys, morphism.morphisms.map((morphism) => map(morphism, value, instance, id)));
+    else if (expression.type === "tuple") {
+        const keys = expression.slots.map(({ key }) => key);
+        Object.freeze(keys);
+        return new APG.Record(id(), keys, expression.slots.map((slot) => mapExpressions(slot.value, value, instance, schema, id)));
     }
-    else if (morphism.type === "injection") {
-        const optionKeys = morphism.options.map(({ key }) => key);
-        Object.freeze(optionKeys);
-        return new APG.Variant(id(), optionKeys, morphism.index, value);
+    else if (expression.type === "injection") {
+        return new APG.Variant(id(), expression.key, mapExpressions(expression.value, value, instance, schema, id));
     }
     else {
-        signalInvalidType(morphism);
+        signalInvalidType(expression);
     }
 }
 export function delta(M, S, T, TI) {
@@ -124,13 +141,13 @@ export function delta(M, S, T, TI) {
     const SI = M1.map(() => []);
     const indices = M1.map(() => new Map());
     const id = getID();
-    for (const [{ value: type }, path, morphism, i] of zip(S, M1, M2)) {
-        for (const value of getValues(TI, path)) {
+    for (const [{ value: type }, path, expressions, i] of zip(S, M1, M2)) {
+        for (const value of getValues(T, TI, path)) {
             if (indices[i].has(value)) {
                 continue;
             }
             else {
-                const imageValue = map(morphism, value, TI, id);
+                const imageValue = mapExpressions(expressions, value, TI, T, id);
                 const index = SI[i].push(placeholder) - 1;
                 indices[i].set(value, index);
                 SI[i][index] = pullback(M, S, T, SI, TI, indices, id, type, imageValue);
@@ -155,19 +172,19 @@ value // of image
         // (We're ultimately going to return a Pointer for sure)
         const index = indices[type.value].get(value);
         if (index !== undefined) {
-            return new APG.Pointer(index, type.value);
+            return new APG.Pointer(index);
         }
         else {
             // Otherwise, we map value along the morphism M2[type.value].
             // This gives us a value that is an instance of the image of the referenced type
-            // - ie an instance of fold(M1, S[type.value].value, T)
+            // - ie an instance of fold(M1, T, S[type.value].value)
             const t = S[type.value].value;
-            const v = map(M2[type.value], value, TI, id);
+            const v = mapExpressions(M2[type.value], value, TI, T, id);
             const index = SI[type.value].push(placeholder) - 1;
             indices[type.value].set(value, index);
             const p = pullback(M, S, T, SI, TI, indices, id, t, v);
             SI[type.value][index] = p;
-            return new APG.Pointer(index, type.value);
+            return new APG.Pointer(index);
         }
     }
     else if (type.type === "unit") {
@@ -207,8 +224,13 @@ value // of image
             throw new Error("Invalid image value: expected variant");
         }
         else {
-            const { value: t } = type.options[value.index];
-            return new APG.Variant(value.node, value.optionKeys, value.index, pullback(M, S, T, SI, TI, indices, id, t, value.value));
+            const option = type.options.find(({ key }) => key === value.key);
+            if (option === undefined) {
+                throw new Error("Invalid image variant");
+            }
+            else {
+                return new APG.Variant(value.node, value.key, pullback(M, S, T, SI, TI, indices, id, option.value, value.value));
+            }
         }
     }
     else {

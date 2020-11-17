@@ -38,7 +38,7 @@ namespace APG {
 		| Pointer
 
 	export class Pointer {
-		constructor(readonly index: number, readonly label: number) {
+		constructor(readonly index: number) {
 			Object.freeze(this)
 		}
 		public get termType(): "Pointer" {
@@ -78,8 +78,7 @@ namespace APG {
 	export class Variant {
 		constructor(
 			readonly node: N3.BlankNode,
-			readonly optionKeys: readonly string[],
-			readonly index: number,
+			readonly key: string,
 			readonly value: Value
 		) {
 			Object.freeze(this)
@@ -87,53 +86,55 @@ namespace APG {
 		public get termType(): "Variant" {
 			return "Variant"
 		}
-		public get key(): string {
-			return this.optionKeys[this.index]
-		}
 	}
 
-	export type Morphism =
+	export type Expression =
 		| Identity
+		| Initial
+		| Terminal
+		| Identifier
+		| Constant
 		| Dereference
-		| Composition
 		| Projection
 		| Injection
 		| Tuple
-		| Case
-		| Constant
-		| Terminal
-		| Initial
+		| Match
 
 	export type Identity = Readonly<{ type: "identity" }>
-	export type Dereference = Readonly<{ type: "dereference" }>
-	export type Composition = Readonly<{
-		type: "composition"
-		morphisms: readonly Morphism[]
-	}>
-	export type Projection = Readonly<{ type: "projection"; index: number }>
+	export type Initial = Readonly<{ type: "initial" }>
+	export type Terminal = Readonly<{ type: "terminal" }>
+	export type Identifier = Readonly<{ type: "identifier"; value: N3.NamedNode }>
+	export type Constant = Readonly<{ type: "constant"; value: N3.Literal }>
+	export type Dereference = Readonly<{ type: "dereference"; key: string }>
+	export type Projection = Readonly<{ type: "projection"; key: string }>
 	export type Injection = Readonly<{
 		type: "injection"
-		index: number
-		options: readonly APG.Option[]
+		key: string
+		value: Expression[]
 	}>
 	export type Tuple = Readonly<{
 		type: "tuple"
-		morphisms: readonly Morphism[]
-		keys: readonly string[]
+		slots: readonly Slot[]
+	}>
+	export type Slot = Readonly<{
+		type: "slot"
+		key: string
+		value: Expression[]
+	}>
+	export type Match = Readonly<{
+		type: "match"
+		cases: readonly Case[]
 	}>
 	export type Case = Readonly<{
 		type: "case"
-		morphisms: readonly Morphism[]
-		keys: readonly string[]
-	}>
-	export type Terminal = Readonly<{ type: "terminal" }>
-	export type Initial = Readonly<{ type: "initial" }>
-	export type Constant = Readonly<{
-		type: "constant"
-		value: N3.NamedNode | N3.Literal
+		key: string
+		value: Expression[]
 	}>
 
-	export type Mapping = readonly [readonly APG.Path[], readonly APG.Morphism[]]
+	export type Mapping = readonly [
+		readonly APG.Path[],
+		readonly (readonly APG.Expression[])[]
+	]
 }
 
 export default APG

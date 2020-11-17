@@ -1,187 +1,253 @@
 import zip from "ziterable"
 import APG from "./apg.js"
 
-import { typeEqual } from "./type.js"
+import { isTypeAssignable, unify } from "./type.js"
 import { signalInvalidType } from "./utils.js"
-import { validateValue } from "./value.js"
+
+export const applyExpressions = (
+	S: APG.Schema,
+	expressions: readonly APG.Expression[],
+	source: APG.Type
+) =>
+	expressions.reduce(
+		(type: APG.Type, expression: APG.Expression) => apply(S, expression, type),
+		source
+	)
 
 export function apply(
-	schema: APG.Schema,
-	source: APG.Type,
-	morphism: APG.Morphism
+	S: APG.Schema,
+	expression: APG.Expression,
+	source: APG.Type
 ): APG.Type {
-	if (morphism.type === "constant") {
-		if (morphism.value.termType === "NamedNode") {
-			return Object.freeze({ type: "iri" })
-		} else if (morphism.value.termType === "Literal") {
-			return Object.freeze({
-				type: "literal",
-				datatype: morphism.value.datatype.value,
-			})
-		} else {
-			signalInvalidType(morphism.value)
-		}
-	} else if (morphism.type === "identity") {
+	if (expression.type === "identity") {
 		return source
-	} else if (morphism.type === "dereference") {
-		if (source.type === "reference" && source.value in schema) {
-			return schema[source.value].value
+	} else if (expression.type === "initial") {
+		throw new Error("Not implemented")
+	} else if (expression.type === "terminal") {
+		return Object.freeze({ type: "unit" })
+	} else if (expression.type === "identifier") {
+		return Object.freeze({ type: "iri" })
+	} else if (expression.type === "constant") {
+		const { value } = expression.value.datatype
+		return Object.freeze({ type: "literal", datatype: value })
+	} else if (expression.type === "dereference") {
+		if (
+			source.type === "reference" &&
+			source.value in S &&
+			S[source.value].key === expression.key
+		) {
+			return S[source.value].value
 		} else {
 			throw new Error("Invalid dereference morphism")
 		}
-	} else if (morphism.type === "initial") {
-		throw new Error("Not implemented")
-	} else if (morphism.type === "terminal") {
-		return Object.freeze({ type: "unit" })
-	} else if (morphism.type === "composition") {
-		const [a, b] = morphism.morphisms
-		return apply(schema, apply(schema, source, a), b)
-	} else if (morphism.type === "projection") {
-		if (source.type === "product" && morphism.index in source.components) {
-			const { value } = source.components[morphism.index]
-			return value
+	} else if (expression.type === "projection") {
+		if (source.type === "product") {
+			const component = source.components.find(
+				({ key }) => key === expression.key
+			)
+			if (component === undefined) {
+				throw new Error("Invalid projection morphism")
+			} else {
+				return component.value
+			}
 		} else {
 			throw new Error("Invalid projection morphism")
 		}
-	} else if (morphism.type === "injection") {
-		const { options, index } = morphism
-		if (index in options && typeEqual(source, options[index].value)) {
-			return Object.freeze({ type: "coproduct", options })
-		} else {
-			throw new Error("Invalid injection morphism")
-		}
-	} else if (morphism.type === "tuple") {
+	} else if (expression.type === "injection") {
+		return Object.freeze({
+			type: "coproduct",
+			options: Object.freeze([applyOption(S, source, expression)]),
+		})
+	} else if (expression.type === "tuple") {
 		return Object.freeze({
 			type: "product",
 			components: Object.freeze(
-				Array.from(applyComponents(schema, source, morphism))
+				Array.from(applyComponents(S, source, expression))
 			),
 		})
-	} else if (morphism.type === "case") {
-		return Object.freeze({
-			type: "coproduct",
-			options: Object.freeze(
-				Array.from(applyOptions(schema, source, morphism))
-			),
-		})
+	} else if (expression.type === "match") {
+		if (source.type === "coproduct") {
+			const cases = Array.from(applyCases(S, source, expression))
+			if (cases.length === 0) {
+				throw new Error("Empty case analysis")
+			} else {
+				return cases.reduce(unify)
+			}
+		} else {
+			throw new Error("Invalid match morphism")
+		}
+		// } else if (expression.type === "composition") {
+		// 	const [a, b] = expression.morphisms
+		// 	return apply(S, b, apply(S, a, source))
 	} else {
-		signalInvalidType(morphism)
+		signalInvalidType(expression)
 	}
+}
+
+function applyOption(
+	S: APG.Schema,
+	source: APG.Type,
+	{ value, key }: APG.Injection
+): APG.Option {
+	return Object.freeze({
+		type: "option",
+		key,
+		value: value.reduce(
+			(type, expression) => apply(S, expression, type),
+			source
+		),
+	})
 }
 
 function* applyComponents(
-	schema: APG.Schema,
+	S: APG.Schema,
 	source: APG.Type,
-	{ keys: keys, morphisms }: APG.Tuple
+	{ slots }: APG.Tuple
 ): Generator<APG.Component, void, undefined> {
-	for (const [key, morphism] of zip(keys, morphisms)) {
-		const value = apply(schema, source, morphism)
-		yield Object.freeze({ type: "component", key, value })
+	for (const { key, value } of slots) {
+		yield Object.freeze({
+			type: "component",
+			key,
+			value: applyExpressions(S, value, source),
+		})
 	}
 }
 
-function* applyOptions(
-	schema: APG.Schema,
-	source: APG.Type,
-	{ keys: keys, morphisms }: APG.Case
-): Generator<APG.Option, void, undefined> {
-	for (const [key, morphism] of zip(keys, morphisms)) {
-		const value = apply(schema, source, morphism)
-		yield Object.freeze({ type: "option", key, value })
+function* applyCases(
+	S: APG.Schema,
+	source: APG.Coproduct,
+	{ cases }: APG.Match
+): Generator<APG.Type, void, undefined> {
+	for (const [option, { key, value }] of zip(source.options, cases)) {
+		if (option.key !== key) {
+			throw new Error("Invalid case analysis")
+		}
+		yield applyExpressions(S, value, source)
 	}
 }
 
-export function validateMorphism(
-	morphism: APG.Morphism,
+export function validateExpressions(
+	S: APG.Schema,
+	expressions: readonly APG.Expression[],
 	source: APG.Type,
-	target: APG.Type,
-	schema: APG.Schema
+	target: APG.Type
 ): boolean {
-	if (morphism.type === "constant") {
-		return validateValue(morphism.value, target)
-	} else if (morphism.type === "dereference") {
-		return (
-			source.type === "reference" &&
-			source.value in schema &&
-			typeEqual(schema[source.value].value, target)
-		)
-	} else if (morphism.type === "identity") {
-		return typeEqual(source, target)
-	} else if (morphism.type === "initial") {
-		return false // TODO
-	} else if (morphism.type === "terminal") {
-		return target.type === "unit"
-	} else if (morphism.type === "composition") {
-		const type = morphism.morphisms.reduce(
-			(type: APG.Type | null, morphism) =>
-				type === null ? null : apply(schema, type, morphism),
-			source
-		)
-		return type !== null && typeEqual(type, target)
-	} else if (morphism.type === "projection") {
-		if (source.type !== "product") {
-			return false
-		} else if (morphism.index >= source.components.length) {
-			return false
-		}
-		const { value } = source.components[morphism.index]
-		return typeEqual(value, target)
-	} else if (morphism.type === "injection") {
-		if (target.type !== "coproduct") {
-			return false
-		} else if (morphism.index >= target.options.length) {
-			return false
-		}
-		const { value } = target.options[morphism.index]
-		return typeEqual(source, value)
-	} else if (morphism.type === "tuple") {
-		if (target.type !== "product") {
-			return false
-		}
-
-		const { morphisms, keys: componentKeys } = morphism
-		const { components } = target
-
-		if (
-			morphisms.length !== components.length ||
-			componentKeys.length !== components.length
-		) {
-			return false
-		}
-
-		for (const [k, m, c] of zip(componentKeys, morphisms, components)) {
-			if (k === c.key && validateMorphism(m, source, c.value, schema)) {
-				continue
-			} else {
-				return false
-			}
-		}
-
-		return true
-	} else if (morphism.type === "case") {
-		if (source.type !== "coproduct") {
-			return false
-		}
-
-		const { morphisms, keys: optionKeys } = morphism
-		const { options } = source
-
-		if (
-			morphisms.length !== options.length ||
-			optionKeys.length !== options.length
-		) {
-			return false
-		}
-
-		for (const [k, m, o] of zip(optionKeys, morphisms, options)) {
-			if (k === o.key && validateMorphism(m, o.value, target, schema)) {
-				continue
-			} else {
-				return false
-			}
-		}
-		return true
-	} else {
-		signalInvalidType(morphism)
+	let type: APG.Type
+	try {
+		type = applyExpressions(S, expressions, source)
+	} catch (e) {
+		return false
 	}
+
+	return isTypeAssignable(type, target)
 }
+
+// export function validateMorphism(
+// 	S: APG.Schema,
+// 	expression: APG.Expression,
+// 	source: APG.Type,
+// 	target: APG.Type
+// ): boolean {
+// 	if (expression.type === "identity") {
+// 		return isTypeAssignable(source, target)
+// 	} else if (expression.type === "initial") {
+// 		throw new Error("Not implemented")
+// 	} else if (expression.type === "terminal") {
+// 		return target.type === "unit"
+// 	} else if (expression.type === "identifier") {
+// 		return target.type === "iri"
+// 	} else if (expression.type === "constant") {
+// 		return (
+// 			target.type === "literal" &&
+// 			target.datatype === expression.value.datatype.value
+// 		)
+// 	} else if (expression.type === "dereference") {
+// 		return (
+// 			source.type === "reference" &&
+// 			source.value in S &&
+// 			S[source.value].key === expression.key &&
+// 			isTypeAssignable(S[source.value].value, target)
+// 		)
+// 	} else if (expression.type === "projection") {
+// 		if (source.type !== "product") {
+// 			return false
+// 		}
+// 		const component = source.components.find(
+// 			({ key }) => key === expression.key
+// 		)
+// 		return component !== undefined && isTypeAssignable(component.value, target)
+// 	} else if (expression.type === "injection") {
+// 		if (target.type !== "coproduct") {
+// 			return false
+// 		}
+
+// 		const option = target.options.find(({ key }) => key === expression.key)
+// 		return (
+// 			option !== undefined &&
+// 			isTypeAssignable(
+// 				applyExpressions(S, expression.value, source),
+// 				option.value
+// 			)
+// 		)
+// 	} else if (expression.type === "tuple") {
+// 		if (target.type !== "product") {
+// 			return false
+// 		}
+
+// 		for (const { key, value } of target.components) {
+// 			const s = expression.slots.find((s) => s.key === key)
+// 			if (s !== undefined) {
+// 				let type: APG.Type
+// 				try {
+// 					type = s.value.reduce(
+// 						(type: APG.Type, expression: APG.Expression) =>
+// 							apply(S, expression, type),
+// 						source
+// 					)
+// 				} catch (e) {
+// 					return false
+// 				}
+// 				if (isTypeAssignable(type, value)) {
+// 					continue
+// 				} else {
+// 					return false
+// 				}
+// 			} else {
+// 				return false
+// 			}
+// 		}
+
+// 		return true
+// 	} else if (expression.type === "match") {
+// 		if (source.type !== "coproduct") {
+// 			return false
+// 		}
+
+// 		for (const { key, value } of source.options) {
+// 			const c = expression.cases.find((c) => c.key === key)
+// 			if (c !== undefined) {
+// 				let type: APG.Type
+// 				try {
+// 					type = c.value.reduce(
+// 						(type: APG.Type, expression: APG.Expression) =>
+// 							apply(S, expression, type),
+// 						target
+// 					)
+// 				} catch (e) {
+// 					return false
+// 				}
+// 				if (isTypeAssignable(source, type)) {
+// 					continue
+// 				} else {
+// 					return false
+// 				}
+// 			} else {
+// 				return false
+// 			}
+// 		}
+
+// 		return true
+// 	} else {
+// 		signalInvalidType(expression)
+// 	}
+// }

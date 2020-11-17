@@ -1,8 +1,8 @@
 import * as N3 from "n3.ts";
-import APG from "./apg.js";
-import schemaSchema from "./schemas/schema.js";
-import * as ns from "./namespace.js";
-import { getID, signalInvalidType } from "./utils.js";
+import APG from "../../apg.js";
+import schemaSchema from "./index.js";
+import * as ns from "../../namespace.js";
+import { getID, signalInvalidType } from "../../utils.js";
 export function toSchema(instance) {
     if (instance.length !== schemaSchema.length) {
         throw new Error("Invalid schema schema instance");
@@ -230,4 +230,4 @@ function fromType(id, database, cache, type) {
         signalInvalidType(type);
     }
 }
-//# sourceMappingURL=schema.js.map
+//# sourceMappingURL=parse.js.map
