@@ -39,7 +39,6 @@ declare namespace APG {
         key: string;
         value: Type;
     }>;
-    type Path = [number, typeof NaN, ...number[]];
     type Instance = Value[][];
     type Value = N3.BlankNode | N3.NamedNode | N3.Literal | Record | Variant | Pointer;
     class Pointer {
@@ -111,9 +110,17 @@ declare namespace APG {
         key: string;
         value: Expression[];
     }>;
-    type Mapping = readonly [
-        readonly APG.Path[],
-        readonly (readonly APG.Expression[])[]
-    ];
+    type Map = Readonly<{
+        type: "map";
+        key: string;
+        source: string;
+        target: Path;
+        value: readonly APG.Expression[];
+    }>;
+    type Path = readonly {
+        readonly type: "component" | "option";
+        readonly value: string;
+    }[];
+    type Mapping = Map[];
 }
 export default APG;

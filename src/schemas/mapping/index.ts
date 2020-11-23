@@ -17,6 +17,27 @@ import * as ns from "../../namespace.js"
 
 // We have to define them in alphabetical order.
 
+/// But first, let's define some re-used values
+const pathTailOptions: APG.Option[] = [
+	{ type: "option", key: ns.none, value: Object.freeze({ type: "unit" }) },
+	{
+		type: "option",
+		key: ns.some,
+		value: Object.freeze({ type: "reference", value: 4 }),
+	},
+]
+
+Object.freeze(pathTailOptions)
+for (const option of pathTailOptions) {
+	Object.freeze(option)
+}
+
+const pathTailValue: APG.Coproduct = Object.freeze({
+	type: "coproduct",
+	options: pathTailOptions,
+})
+
+// Okay, now let's do it
 // 0. case
 
 const caseComponentKeyValue: APG.Iri = Object.freeze({ type: "iri" })
@@ -197,10 +218,11 @@ const expressionLabel: APG.Label = Object.freeze({
 
 const mapComponents: APG.Component[] = [
 	{ type: "component", key: ns.key, value: Object.freeze({ type: "iri" }) },
+	{ type: "component", key: ns.source, value: Object.freeze({ type: "iri" }) },
 	{
 		type: "component",
 		key: ns.target,
-		value: Object.freeze({ type: "reference", value: 4 }),
+		value: pathTailValue,
 	},
 	{
 		type: "component",
@@ -237,22 +259,23 @@ const matchLabel: APG.Label = Object.freeze({
 
 // 4. path
 
-const pathTailOptions: APG.Option[] = [
-	{ type: "option", key: ns.none, value: Object.freeze({ type: "unit" }) },
-	{
-		type: "option",
-		key: ns.some,
-		value: Object.freeze({ type: "reference", value: 4 }),
-	},
+const pathHeadOptions: APG.Option[] = [
+	{ type: "option", key: ns.component, value: Object.freeze({ type: "iri" }) },
+	{ type: "option", key: ns.option, value: Object.freeze({ type: "iri" }) },
 ]
 
+Object.freeze(pathHeadOptions)
+for (const option of pathHeadOptions) {
+	Object.freeze(option)
+}
+
 const pathComponents: APG.Component[] = [
-	{ type: "component", key: ns.head, value: Object.freeze({ type: "iri" }) },
 	{
 		type: "component",
-		key: ns.tail,
-		value: Object.freeze({ type: "coproduct", options: pathTailOptions }),
+		key: ns.head,
+		value: Object.freeze({ type: "coproduct", options: pathHeadOptions }),
 	},
+	{ type: "component", key: ns.tail, value: pathTailValue },
 ]
 
 Object.freeze(pathComponents)

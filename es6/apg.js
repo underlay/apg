@@ -30,7 +30,7 @@ var APG;
         get(key) {
             const index = this.componentKeys.indexOf(key);
             if (index === -1) {
-                throw new Error("Key not found");
+                throw new Error(`Key not found: ${key}`);
             }
             else {
                 return this[index];
@@ -50,6 +50,10 @@ var APG;
         }
     }
     APG.Variant = Variant;
+    // export type Mapping = readonly [
+    // 	readonly APG.Path[],
+    // 	readonly (readonly APG.Expression[])[]
+    // ]
 })(APG || (APG = {}));
 export default APG;
 //# sourceMappingURL=apg.js.map

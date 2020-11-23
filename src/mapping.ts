@@ -7,16 +7,25 @@ import { getType, getValues } from "./path.js"
 
 import { ID, getID, rootId, signalInvalidType } from "./utils.js"
 
+type Expressions = readonly APG.Expression[]
+type M = [APG.Path[], Expressions[]]
+
 export function validateMapping(
-	[M1, M2]: APG.Mapping,
+	M: APG.Mapping,
 	S: APG.Schema,
 	T: APG.Schema
 ): boolean {
-	for (const [{ value }, path, expressions] of zip(S, M1, M2)) {
-		const source = getType(T, path)
-		const target = fold(M1, T, value)
+	const maps = new Map<string, APG.Map>(M.map((m) => [m.key, m]))
+	for (const { key, value } of S) {
+		const m = maps.get(key)
+		if (m === undefined) {
+			return false
+		}
 
-		if (validateExpressions(S, expressions, source, target)) {
+		const source = getType(T, m.source, m.target)
+		const target = fold(M, S, T, value)
+
+		if (validateExpressions(S, m.value, source, target)) {
 			continue
 		} else {
 			return false
@@ -27,12 +36,14 @@ export function validateMapping(
 }
 
 export function fold(
-	M1: readonly APG.Path[],
+	M: APG.Mapping,
+	S: APG.Schema,
 	T: APG.Schema,
 	type: APG.Type
 ): APG.Type {
 	if (type.type === "reference") {
-		const value = getType(T, M1[type.value])
+		const { source, target } = M.find(({ key }) => key === S[type.value].key)!
+		const value = getType(T, source, target)
 		if (value === undefined) {
 			throw new Error("Invalid reference index")
 		} else {
@@ -51,7 +62,7 @@ export function fold(
 				Object.freeze({
 					type: "component",
 					key,
-					value: fold(M1, T, value),
+					value: fold(M, S, T, value),
 				})
 			)
 		}
@@ -61,7 +72,7 @@ export function fold(
 		const options: APG.Option[] = []
 		for (const { key, value } of type.options) {
 			options.push(
-				Object.freeze({ type: "option", key, value: fold(M1, T, value) })
+				Object.freeze({ type: "option", key, value: fold(M, S, T, value) })
 			)
 		}
 		Object.freeze(options)
@@ -165,16 +176,16 @@ export function delta(
 	T: APG.Schema,
 	TI: APG.Instance
 ): APG.Instance {
-	const [M1, M2] = M
-	const SI: APG.Instance = M1.map(() => [])
-	const indices = M1.map(() => new Map<APG.Value, number>())
+	const SI: APG.Instance = S.map(() => [])
+	const indices = S.map(() => new Map<APG.Value, number>())
 	const id = getID()
-	for (const [{ value: type }, path, expressions, i] of zip(S, M1, M2)) {
-		for (const value of getValues(T, TI, path)) {
+	for (const [i, { value: type, key }] of S.entries()) {
+		const m = M.find((m) => m.key === key)!
+		for (const value of getValues(T, TI, m.source, m.target)) {
 			if (indices[i].has(value)) {
 				continue
 			} else {
-				const imageValue = mapExpressions(expressions, value, TI, T, id)
+				const imageValue = mapExpressions(m.value, value, TI, T, id)
 				const index = SI[i].push(placeholder) - 1
 				indices[i].set(value, index)
 				SI[i][index] = pullback(M, S, T, SI, TI, indices, id, type, imageValue)
@@ -218,7 +229,8 @@ function pullback(
 			// This gives us a value that is an instance of the image of the referenced type
 			// - ie an instance of fold(M1, T, S[type.value].value)
 			const t = S[type.value].value
-			const v = mapExpressions(M2[type.value], value, TI, T, id)
+			const m = M.find(({ key }) => key === S[type.value].key)!
+			const v = mapExpressions(m.value, value, TI, T, id)
 			const index = SI[type.value].push(placeholder) - 1
 			indices[type.value].set(value, index)
 			const p = pullback(M, S, T, SI, TI, indices, id, t, v)

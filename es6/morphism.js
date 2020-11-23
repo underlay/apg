@@ -16,8 +16,10 @@ export function apply(S, expression, source) {
         return Object.freeze({ type: "iri" });
     }
     else if (expression.type === "constant") {
-        const { value } = expression.value.datatype;
-        return Object.freeze({ type: "literal", datatype: value });
+        return Object.freeze({
+            type: "literal",
+            datatype: expression.value.datatype.value,
+        });
     }
     else if (expression.type === "dereference") {
         if (source.type === "reference" &&
@@ -110,108 +112,4 @@ export function validateExpressions(S, expressions, source, target) {
     }
     return isTypeAssignable(type, target);
 }
-// export function validateMorphism(
-// 	S: APG.Schema,
-// 	expression: APG.Expression,
-// 	source: APG.Type,
-// 	target: APG.Type
-// ): boolean {
-// 	if (expression.type === "identity") {
-// 		return isTypeAssignable(source, target)
-// 	} else if (expression.type === "initial") {
-// 		throw new Error("Not implemented")
-// 	} else if (expression.type === "terminal") {
-// 		return target.type === "unit"
-// 	} else if (expression.type === "identifier") {
-// 		return target.type === "iri"
-// 	} else if (expression.type === "constant") {
-// 		return (
-// 			target.type === "literal" &&
-// 			target.datatype === expression.value.datatype.value
-// 		)
-// 	} else if (expression.type === "dereference") {
-// 		return (
-// 			source.type === "reference" &&
-// 			source.value in S &&
-// 			S[source.value].key === expression.key &&
-// 			isTypeAssignable(S[source.value].value, target)
-// 		)
-// 	} else if (expression.type === "projection") {
-// 		if (source.type !== "product") {
-// 			return false
-// 		}
-// 		const component = source.components.find(
-// 			({ key }) => key === expression.key
-// 		)
-// 		return component !== undefined && isTypeAssignable(component.value, target)
-// 	} else if (expression.type === "injection") {
-// 		if (target.type !== "coproduct") {
-// 			return false
-// 		}
-// 		const option = target.options.find(({ key }) => key === expression.key)
-// 		return (
-// 			option !== undefined &&
-// 			isTypeAssignable(
-// 				applyExpressions(S, expression.value, source),
-// 				option.value
-// 			)
-// 		)
-// 	} else if (expression.type === "tuple") {
-// 		if (target.type !== "product") {
-// 			return false
-// 		}
-// 		for (const { key, value } of target.components) {
-// 			const s = expression.slots.find((s) => s.key === key)
-// 			if (s !== undefined) {
-// 				let type: APG.Type
-// 				try {
-// 					type = s.value.reduce(
-// 						(type: APG.Type, expression: APG.Expression) =>
-// 							apply(S, expression, type),
-// 						source
-// 					)
-// 				} catch (e) {
-// 					return false
-// 				}
-// 				if (isTypeAssignable(type, value)) {
-// 					continue
-// 				} else {
-// 					return false
-// 				}
-// 			} else {
-// 				return false
-// 			}
-// 		}
-// 		return true
-// 	} else if (expression.type === "match") {
-// 		if (source.type !== "coproduct") {
-// 			return false
-// 		}
-// 		for (const { key, value } of source.options) {
-// 			const c = expression.cases.find((c) => c.key === key)
-// 			if (c !== undefined) {
-// 				let type: APG.Type
-// 				try {
-// 					type = c.value.reduce(
-// 						(type: APG.Type, expression: APG.Expression) =>
-// 							apply(S, expression, type),
-// 						target
-// 					)
-// 				} catch (e) {
-// 					return false
-// 				}
-// 				if (isTypeAssignable(source, type)) {
-// 					continue
-// 				} else {
-// 					return false
-// 				}
-// 			} else {
-// 				return false
-// 			}
-// 		}
-// 		return true
-// 	} else {
-// 		signalInvalidType(expression)
-// 	}
-// }
 //# sourceMappingURL=morphism.js.map

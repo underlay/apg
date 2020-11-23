@@ -53,7 +53,7 @@ const S: APG.Schema = [
 	},
 	{
 		type: "label",
-		key: "http://example.com/b/",
+		key: "http://example.com/b",
 		value: {
 			type: "product",
 			components: [
@@ -128,12 +128,12 @@ const T: APG.Schema = [
 ]
 
 const M: APG.Mapping = [
-	[
-		[0, NaN],
-		[1, NaN],
-	],
-	[
-		[
+	{
+		type: "map",
+		key: "http://example.com/a",
+		source: "http://example.com/0",
+		target: [],
+		value: [
 			{
 				type: "tuple",
 				slots: [
@@ -173,7 +173,13 @@ const M: APG.Mapping = [
 				],
 			},
 		],
-		[
+	},
+	{
+		type: "map",
+		key: "http://example.com/b",
+		source: "http://example.com/1",
+		target: [],
+		value: [
 			{
 				type: "tuple",
 				slots: [
@@ -193,7 +199,7 @@ const M: APG.Mapping = [
 				],
 			},
 		],
-	],
+	},
 ]
 
 const id = getID()
@@ -226,11 +232,11 @@ const I: APG.Instance = [
 ]
 
 test("Validate morphisms", () => {
-	const [M1, M2] = M
-	for (const [{ value: type }, path, expressions] of zip(S, M1, M2)) {
-		const image = fold(M1, T, type)
-		const source = getType(T, path)
-		expect(validateExpressions(T, expressions, source, image)).toBe(true)
+	for (const { key, value: type } of S) {
+		const m = M.find((m) => m.key === key)!
+		const image = fold(M, S, T, type)
+		const source = getType(T, m.source, m.target)
+		expect(validateExpressions(T, m.value, source, image)).toBe(true)
 	}
 })
 
@@ -245,10 +251,11 @@ test("Validate instance type", () => {
 test("Validate instance image", () => {
 	const [m1, m2] = M
 	const id = getID()
-	for (const [path, expressions, { value: type }] of zip(m1, m2, S)) {
-		const image = fold(m1, T, type)
-		for (const value of getValues(T, I, path)) {
-			const result = mapExpressions(expressions, value, I, T, id)
+	for (const { key, value: type } of S) {
+		const m = M.find((m) => m.key === key)!
+		const image = fold(M, S, T, type)
+		for (const value of getValues(T, I, m.source, m.target)) {
+			const result = mapExpressions(m.value, value, I, T, id)
 			expect(validateValue(image, result)).toBe(true)
 		}
 	}

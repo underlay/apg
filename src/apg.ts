@@ -25,7 +25,7 @@ namespace APG {
 	}>
 	export type Option = Readonly<{ type: "option"; key: string; value: Type }>
 
-	export type Path = [number, typeof NaN, ...number[]]
+	// export type Path = [number, typeof NaN, ...number[]]
 
 	export type Instance = Value[][]
 
@@ -68,7 +68,7 @@ namespace APG {
 		public get(key: string): Value {
 			const index = this.componentKeys.indexOf(key)
 			if (index === -1) {
-				throw new Error("Key not found")
+				throw new Error(`Key not found: ${key}`)
 			} else {
 				return this[index]
 			}
@@ -99,6 +99,13 @@ namespace APG {
 		| Injection
 		| Tuple
 		| Match
+
+	// Prefix fdjks = jfaksljfdklsa
+	// Prefix
+	// Expr foo = jkdflsa
+	// Expr bar = fjkdsal
+	// return
+	// unit | <uri> | "": ds:fkjdsl | * | . <jfksld> | / <jkls> (...) | { jfsl -> jals } [fdksla <- fjdksla ; ncmx <- cmn; urieow <- qiopwr]
 
 	export type Identity = Readonly<{ type: "identity" }>
 	export type Initial = Readonly<{ type: "initial" }>
@@ -131,10 +138,25 @@ namespace APG {
 		value: Expression[]
 	}>
 
-	export type Mapping = readonly [
-		readonly APG.Path[],
-		readonly (readonly APG.Expression[])[]
-	]
+	export type Map = Readonly<{
+		type: "map"
+		key: string
+		source: string
+		target: Path
+		value: readonly APG.Expression[]
+	}>
+
+	export type Path = readonly {
+		readonly type: "component" | "option"
+		readonly value: string
+	}[]
+
+	export type Mapping = Map[]
+
+	// export type Mapping = readonly [
+	// 	readonly APG.Path[],
+	// 	readonly (readonly APG.Expression[])[]
+	// ]
 }
 
 export default APG

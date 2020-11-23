@@ -2,83 +2,72 @@ import APG from "./apg.js"
 
 export function getType(
 	schema: APG.Schema,
-	[label, nil, ...path]: APG.Path
+	source: string,
+	target: APG.Path
 ): APG.Type {
-	if (isNaN(label) || label < 0 || label >= schema.length) {
-		throw new Error("Invalid label index")
-	} else if (!isNaN(nil)) {
-		throw new Error("Invalid path")
+	const label = schema.find(({ key }) => key === source)
+	if (label === undefined) {
+		throw new Error(`Label not found in schema: ${source}`)
 	}
 
-	const { value } = schema[label]
-
-	return path.reduce((type: APG.Type, index: number): APG.Type => {
-		if (type.type === "product" && index in type.components) {
-			return type.components[index].value
-		} else if (type.type === "coproduct" && -1 - index in type.options) {
-			return type.options[-1 - index].value
-		} else if (type.type === "reference" && isNaN(index)) {
-			return schema[type.value].value
-		} else {
-			throw new Error("Invalid type index")
+	return target.reduce((t: APG.Type, { type, value }): APG.Type => {
+		if (t.type === "product") {
+			const component = t.components.find(({ key }) => key === value)
+			if (component !== undefined) {
+				return component.value
+			}
+		} else if (t.type === "coproduct") {
+			const option = t.options.find(({ key }) => key === value)
+			if (option !== undefined) {
+				return option.value
+			}
 		}
-	}, value)
+		throw new Error("Invalid type index")
+	}, label.value)
 }
 
 export function* getValues(
 	schema: APG.Schema,
 	instance: APG.Instance,
-	[label, nil, ...path]: APG.Path
+	source: string,
+	target: APG.Path
 ): Generator<APG.Value, void, undefined> {
-	if (isNaN(label) || label < 0 || label >= instance.length) {
-		throw new Error("Invalid label index")
-	} else if (!isNaN(nil)) {
-		throw new Error("Invalid path")
+	const label = schema.findIndex(({ key }) => key === source)
+	if (label === -1) {
+		throw new Error(`Label not found in schema: ${source}`)
 	}
 
-	const { value: type } = schema[label]
 	for (const element of instance[label]) {
-		const token = path.reduce(
+		const token = target.reduce(
 			(
 				token: [APG.Type, APG.Value] | null,
-				index: number
+				p
 			): [APG.Type, APG.Value] | null => {
 				if (token === null) {
 					return null
 				}
 
 				const [type, value] = token
-				if (
-					type.type === "product" &&
-					index in type.components &&
-					value.termType === "Record" &&
-					index in value
-				) {
-					return [type.components[index].value, value[index]]
-				} else if (
-					type.type === "coproduct" &&
-					-1 - index in type.options &&
-					value.termType === "Variant"
-				) {
-					if (value.key === type.options[-1 - index].key) {
-						return [type.options[-1 - index].value, value.value]
-					} else {
+				if (type.type === "product" && value.termType === "Record") {
+					const component = type.components.find(({ key }) => p.value)
+					if (component === undefined) {
+						throw new Error(`Component not found in product type: ${p.value}`)
+					}
+					return [component.value, value.get(p.value)]
+				} else if (type.type === "coproduct" && value.termType === "Variant") {
+					if (value.key !== p.value) {
 						return null
 					}
-				} else if (
-					type.type === "reference" &&
-					type.value in schema &&
-					type.value in instance &&
-					value.termType === "Pointer" &&
-					value.index in instance[type.value] &&
-					isNaN(index)
-				) {
-					return [schema[type.value].value, instance[type.value][value.index]]
+					const option = type.options.find(({ key }) => key === p.value)
+					if (option === undefined) {
+						throw new Error(`Option not found in coproduct type: ${p.value}`)
+					}
+					return [option.value, value.value]
 				} else {
-					throw new Error("Invalid value index")
+					throw new Error("Invalid target path")
 				}
 			},
-			[type, element]
+			[schema[label].value, element]
 		)
 
 		if (token !== null) {
