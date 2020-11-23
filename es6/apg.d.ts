@@ -119,7 +119,7 @@ declare namespace APG {
     }>;
     type Path = readonly {
         readonly type: "component" | "option";
-        readonly value: string;
+        readonly key: string;
     }[];
     type Mapping = Map[];
 }

@@ -10,7 +10,7 @@ export function getType(
 		throw new Error(`Label not found in schema: ${source}`)
 	}
 
-	return target.reduce((t: APG.Type, { type, value }): APG.Type => {
+	return target.reduce((t: APG.Type, { type, key: value }): APG.Type => {
 		if (t.type === "product") {
 			const component = t.components.find(({ key }) => key === value)
 			if (component !== undefined) {
@@ -49,18 +49,18 @@ export function* getValues(
 
 				const [type, value] = token
 				if (type.type === "product" && value.termType === "Record") {
-					const component = type.components.find(({ key }) => p.value)
+					const component = type.components.find(({ key }) => p.key)
 					if (component === undefined) {
-						throw new Error(`Component not found in product type: ${p.value}`)
+						throw new Error(`Component not found in product type: ${p.key}`)
 					}
-					return [component.value, value.get(p.value)]
+					return [component.value, value.get(p.key)]
 				} else if (type.type === "coproduct" && value.termType === "Variant") {
-					if (value.key !== p.value) {
+					if (value.key !== p.key) {
 						return null
 					}
-					const option = type.options.find(({ key }) => key === p.value)
+					const option = type.options.find(({ key }) => key === p.key)
 					if (option === undefined) {
-						throw new Error(`Option not found in coproduct type: ${p.value}`)
+						throw new Error(`Option not found in coproduct type: ${p.key}`)
 					}
 					return [option.value, value.value]
 				} else {

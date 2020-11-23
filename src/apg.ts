@@ -148,7 +148,7 @@ namespace APG {
 
 	export type Path = readonly {
 		readonly type: "component" | "option"
-		readonly value: string
+		readonly key: string
 	}[]
 
 	export type Mapping = Map[]
