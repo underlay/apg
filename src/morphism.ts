@@ -2,7 +2,7 @@ import zip from "ziterable"
 import APG from "./apg.js"
 
 import { isTypeAssignable, unify } from "./type.js"
-import { signalInvalidType } from "./utils.js"
+import { getEntries, getKeys, mapKeys, signalInvalidType } from "./utils.js"
 
 export const applyExpressions = (
 	S: APG.Schema,
@@ -26,45 +26,41 @@ export function apply(
 	} else if (expression.type === "terminal") {
 		return Object.freeze({ type: "unit" })
 	} else if (expression.type === "identifier") {
-		return Object.freeze({ type: "iri" })
+		return Object.freeze({ type: "uri" })
 	} else if (expression.type === "constant") {
-		return Object.freeze({
-			type: "literal",
-			datatype: expression.value.datatype.value,
-		})
+		return Object.freeze({ type: "literal", datatype: expression.datatype })
 	} else if (expression.type === "dereference") {
 		if (
 			source.type === "reference" &&
 			source.value in S &&
-			S[source.value].key === expression.key
+			source.value === expression.key
 		) {
-			return S[source.value].value
+			return S[source.value]
 		} else {
 			throw new Error("Invalid dereference morphism")
 		}
 	} else if (expression.type === "projection") {
-		if (source.type === "product") {
-			const component = source.components.find(
-				({ key }) => key === expression.key
-			)
-			if (component === undefined) {
-				throw new Error("Invalid projection morphism")
-			} else {
-				return component.value
-			}
+		if (source.type === "product" && expression.key in source.components) {
+			return source.components[expression.key]
 		} else {
 			throw new Error("Invalid projection morphism")
 		}
 	} else if (expression.type === "injection") {
+		const { key, value } = expression
 		return Object.freeze({
 			type: "coproduct",
-			options: Object.freeze([applyOption(S, source, expression)]),
+			options: Object.freeze({
+				[key]: value.reduce(
+					(type, expression) => apply(S, expression, type),
+					source
+				),
+			}),
 		})
 	} else if (expression.type === "tuple") {
 		return Object.freeze({
 			type: "product",
-			components: Object.freeze(
-				Array.from(applyComponents(S, source, expression))
+			components: mapKeys(expression.slots, (value) =>
+				applyExpressions(S, value, source)
 			),
 		})
 	} else if (expression.type === "match") {
@@ -78,40 +74,8 @@ export function apply(
 		} else {
 			throw new Error("Invalid match morphism")
 		}
-		// } else if (expression.type === "composition") {
-		// 	const [a, b] = expression.morphisms
-		// 	return apply(S, b, apply(S, a, source))
 	} else {
 		signalInvalidType(expression)
-	}
-}
-
-function applyOption(
-	S: APG.Schema,
-	source: APG.Type,
-	{ value, key }: APG.Injection
-): APG.Option {
-	return Object.freeze({
-		type: "option",
-		key,
-		value: value.reduce(
-			(type, expression) => apply(S, expression, type),
-			source
-		),
-	})
-}
-
-function* applyComponents(
-	S: APG.Schema,
-	source: APG.Type,
-	{ slots }: APG.Tuple
-): Generator<APG.Component, void, undefined> {
-	for (const { key, value } of slots) {
-		yield Object.freeze({
-			type: "component",
-			key,
-			value: applyExpressions(S, value, source),
-		})
 	}
 }
 
@@ -120,11 +84,12 @@ function* applyCases(
 	source: APG.Coproduct,
 	{ cases }: APG.Match
 ): Generator<APG.Type, void, undefined> {
-	for (const [option, { key, value }] of zip(source.options, cases)) {
-		if (option.key !== key) {
+	for (const key of getKeys(source.options)) {
+		if (key in cases) {
+			yield applyExpressions(S, cases[key], source.options[key])
+		} else {
 			throw new Error("Invalid case analysis")
 		}
-		yield applyExpressions(S, value, source)
 	}
 }
 

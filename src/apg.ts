@@ -1,33 +1,23 @@
 import * as N3 from "n3.ts"
 
 namespace APG {
-	export type Schema = Label[]
+	export type Schema = Readonly<{ [key: string]: Type }>
 
-	export type Label = Readonly<{ type: "label"; key: string; value: Type }>
-
-	export type Type = Unit | Iri | Literal | Product | Coproduct | Reference
-	export type Reference = Readonly<{ type: "reference"; value: number }>
+	export type Type = Unit | Uri | Literal | Product | Coproduct | Reference
+	export type Reference = Readonly<{ type: "reference"; value: string }>
 	export type Unit = Readonly<{ type: "unit" }>
-	export type Iri = Readonly<{ type: "iri" }>
+	export type Uri = Readonly<{ type: "uri" }>
 	export type Literal = Readonly<{ type: "literal"; datatype: string }>
 	export type Product = Readonly<{
 		type: "product"
-		components: readonly Component[]
-	}>
-	export type Component = Readonly<{
-		type: "component"
-		key: string
-		value: Type
+		components: Readonly<{ [key: string]: Type }>
 	}>
 	export type Coproduct = Readonly<{
 		type: "coproduct"
-		options: readonly Option[]
+		options: Readonly<{ [key: string]: Type }>
 	}>
-	export type Option = Readonly<{ type: "option"; key: string; value: Type }>
 
-	// export type Path = [number, typeof NaN, ...number[]]
-
-	export type Instance = Value[][]
+	export type Instance = Readonly<{ [key: string]: Value[] }>
 
 	export type Value =
 		| N3.BlankNode
@@ -47,14 +37,27 @@ namespace APG {
 	}
 
 	export class Record extends Array<Value> {
+		public get termType(): "Record" {
+			return "Record"
+		}
+
 		constructor(
-			readonly node: N3.BlankNode,
-			readonly componentKeys: readonly string[],
+			readonly components: readonly string[],
 			values: Iterable<Value>
 		) {
 			super(...values)
 			Object.freeze(this)
 		}
+
+		get(key: string): Value {
+			const index = this.components.indexOf(key)
+			if (index in this) {
+				return this[index]
+			} else {
+				throw new Error(`Index out of range: ${index}`)
+			}
+		}
+
 		map<T>(f: (value: Value, index: number, record: Record) => T): T[] {
 			const result = new Array<T>(this.length)
 			for (const [i, value] of this.entries()) {
@@ -62,25 +65,10 @@ namespace APG {
 			}
 			return result
 		}
-		public get termType(): "Record" {
-			return "Record"
-		}
-		public get(key: string): Value {
-			const index = this.componentKeys.indexOf(key)
-			if (index === -1) {
-				throw new Error(`Key not found: ${key}`)
-			} else {
-				return this[index]
-			}
-		}
 	}
 
 	export class Variant {
-		constructor(
-			readonly node: N3.BlankNode,
-			readonly key: string,
-			readonly value: Value
-		) {
+		constructor(readonly option: string, readonly value: Value) {
 			Object.freeze(this)
 		}
 		public get termType(): "Variant" {
@@ -100,18 +88,15 @@ namespace APG {
 		| Tuple
 		| Match
 
-	// Prefix fdjks = jfaksljfdklsa
-	// Prefix
-	// Expr foo = jkdflsa
-	// Expr bar = fjkdsal
-	// return
-	// unit | <uri> | "": ds:fkjdsl | * | . <jfksld> | / <jkls> (...) | { jfsl -> jals } [fdksla <- fjdksla ; ncmx <- cmn; urieow <- qiopwr]
-
 	export type Identity = Readonly<{ type: "identity" }>
 	export type Initial = Readonly<{ type: "initial" }>
 	export type Terminal = Readonly<{ type: "terminal" }>
-	export type Identifier = Readonly<{ type: "identifier"; value: N3.NamedNode }>
-	export type Constant = Readonly<{ type: "constant"; value: N3.Literal }>
+	export type Identifier = Readonly<{ type: "identifier"; value: string }>
+	export type Constant = Readonly<{
+		type: "constant"
+		value: string
+		datatype: string
+	}>
 	export type Dereference = Readonly<{ type: "dereference"; key: string }>
 	export type Projection = Readonly<{ type: "projection"; key: string }>
 	export type Injection = Readonly<{
@@ -121,26 +106,15 @@ namespace APG {
 	}>
 	export type Tuple = Readonly<{
 		type: "tuple"
-		slots: readonly Slot[]
-	}>
-	export type Slot = Readonly<{
-		type: "slot"
-		key: string
-		value: Expression[]
+		slots: Readonly<{ [key: string]: Expression[] }>
 	}>
 	export type Match = Readonly<{
 		type: "match"
-		cases: readonly Case[]
-	}>
-	export type Case = Readonly<{
-		type: "case"
-		key: string
-		value: Expression[]
+		cases: Readonly<{ [key: string]: Expression[] }>
 	}>
 
 	export type Map = Readonly<{
 		type: "map"
-		key: string
 		source: string
 		target: Path
 		value: readonly APG.Expression[]
@@ -151,12 +125,7 @@ namespace APG {
 		readonly key: string
 	}[]
 
-	export type Mapping = Map[]
-
-	// export type Mapping = readonly [
-	// 	readonly APG.Path[],
-	// 	readonly (readonly APG.Expression[])[]
-	// ]
+	export type Mapping = Readonly<{ [key: string]: Map }>
 }
 
 export default APG

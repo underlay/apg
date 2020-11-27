@@ -1,7 +1,7 @@
 export const label = "http://underlay.org/ns/label",
 	reference = "http://underlay.org/ns/reference",
 	unit = "http://underlay.org/ns/unit",
-	iri = "http://underlay.org/ns/iri",
+	uri = "http://underlay.org/ns/uri",
 	literal = "http://underlay.org/ns/literal",
 	datatype = "http://underlay.org/ns/datatype",
 	product = "http://underlay.org/ns/product",

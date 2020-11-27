@@ -1,5 +1,6 @@
 import zip from "ziterable"
 import APG from "./apg.js"
+import { getKeys } from "./utils.js"
 
 export function* forType(
 	type: APG.Type,
@@ -14,14 +15,14 @@ export function* forType(
 	yield [type, stack]
 	if (type.type === "product") {
 		stack.push(type)
-		for (const { value } of type.components) {
-			yield* forType(value, stack)
+		for (const key of getKeys(type.components)) {
+			yield* forType(type.components[key], stack)
 		}
 		stack.pop()
 	} else if (type.type === "coproduct") {
 		stack.push(type)
-		for (const { value } of type.options) {
-			yield* forType(value, stack)
+		for (const key of getKeys(type.options)) {
+			yield* forType(type.options[key], stack)
 		}
 		stack.pop()
 	}
@@ -36,18 +37,20 @@ export function isTypeEqual(a: APG.Type, b: APG.Type) {
 		return a.value === b.value
 	} else if (a.type === "unit" && b.type === "unit") {
 		return true
-	} else if (a.type === "iri" && b.type === "iri") {
+	} else if (a.type === "uri" && b.type === "uri") {
 		return true
 	} else if (a.type === "literal" && b.type === "literal") {
 		return a.datatype === b.datatype
 	} else if (a.type === "product" && b.type === "product") {
-		if (a.components.length !== b.components.length) {
+		const A = getKeys(a.components)
+		const B = getKeys(b.components)
+		if (A.length !== B.length) {
 			return false
 		}
-		for (const [A, B] of zip(a.components, b.components)) {
-			if (A.key !== B.key) {
+		for (const [keyA, keyB] of zip(A, B)) {
+			if (keyA !== keyB) {
 				return false
-			} else if (isTypeEqual(A.value, B.value)) {
+			} else if (isTypeEqual(a.components[keyA], a.components[keyB])) {
 				continue
 			} else {
 				return false
@@ -55,13 +58,15 @@ export function isTypeEqual(a: APG.Type, b: APG.Type) {
 		}
 		return true
 	} else if (a.type === "coproduct" && b.type === "coproduct") {
-		if (a.options.length !== b.options.length) {
+		const A = getKeys(a.options)
+		const B = getKeys(b.options)
+		if (A.length !== B.length) {
 			return false
 		}
-		for (const [A, B] of zip(a.options, b.options)) {
-			if (A.key !== B.key) {
+		for (const [keyA, keyB] of zip(A, B)) {
+			if (keyA !== keyB) {
 				return false
-			} else if (isTypeEqual(A.value, B.value)) {
+			} else if (isTypeEqual(a.options[keyA], b.options[keyB])) {
 				continue
 			} else {
 				return false
@@ -82,16 +87,16 @@ export function isTypeAssignable(a: APG.Type, b: APG.Type): boolean {
 		return a.value === b.value
 	} else if (a.type === "unit" && b.type === "unit") {
 		return true
-	} else if (a.type === "iri" && b.type === "iri") {
+	} else if (a.type === "uri" && b.type === "uri") {
 		return true
 	} else if (a.type === "literal" && b.type === "literal") {
 		return a.datatype === b.datatype
 	} else if (a.type === "product" && b.type === "product") {
-		for (const { key, value } of b.components) {
-			const source = a.components.find((component) => key === component.key)
-			if (source === undefined) {
-				return false
-			} else if (isTypeAssignable(source.value, value)) {
+		for (const key of getKeys(b.components)) {
+			if (
+				key in a.components &&
+				isTypeAssignable(a.components[key], b.components[key])
+			) {
 				continue
 			} else {
 				return false
@@ -99,11 +104,11 @@ export function isTypeAssignable(a: APG.Type, b: APG.Type): boolean {
 		}
 		return true
 	} else if (a.type === "coproduct" && b.type === "coproduct") {
-		for (const { key, value } of a.options) {
-			const target = b.options.find((option) => key === option.key)
-			if (target === undefined) {
-				return false
-			} else if (isTypeAssignable(value, target.value)) {
+		for (const key of getKeys(a.options)) {
+			if (
+				key in b.options &&
+				isTypeAssignable(a.options[key], b.options[key])
+			) {
 				continue
 			} else {
 				return false
@@ -124,19 +129,19 @@ export function unify(a: APG.Type, b: APG.Type): APG.Type {
 		}
 	} else if (a.type === "unit" && b.type === "unit") {
 		return b
-	} else if (a.type === "iri" && b.type === "iri") {
+	} else if (a.type === "uri" && b.type === "uri") {
 		return b
 	} else if (a.type === "literal" && b.type === "literal") {
 		if (a.datatype === b.datatype) {
 			return b
 		}
 	} else if (a.type === "product" && b.type === "product") {
-		const components = Array.from(unifyComponents(a, b))
+		const components = Object.fromEntries(unifyComponents(a, b))
 		Object.freeze(components)
 		return Object.freeze({ type: "product", components })
 	}
 	if (a.type === "coproduct" && b.type === "coproduct") {
-		const options = Array.from(unifyOptions(a, b))
+		const options = Object.fromEntries(unifyOptions(a, b))
 		Object.freeze(options)
 		return Object.freeze({ type: "coproduct", options })
 	} else {
@@ -147,20 +152,18 @@ export function unify(a: APG.Type, b: APG.Type): APG.Type {
 function* unifyComponents(
 	a: APG.Product,
 	b: APG.Product
-): Generator<APG.Component, void, undefined> {
-	if (a.components.length !== b.components.length) {
-		throw new Error("Cannot unify unequal types")
+): Generator<[string, APG.Type], void, undefined> {
+	const A = getKeys(a.components)
+	const B = getKeys(b.components)
+	if (A.length !== B.length) {
+		throw new Error("Cannot unify unequal products")
 	}
 
-	for (const [A, B] of zip(a.components, b.components)) {
-		if (A.key !== B.key) {
+	for (const [keyA, keyB] of zip(A, B)) {
+		if (keyA !== keyB) {
 			throw new Error("Cannot unify unequal types")
 		} else {
-			yield Object.freeze({
-				type: "component",
-				key: B.key,
-				value: unify(A.value, B.value),
-			})
+			yield [keyA, unify(a.components[keyA], b.components[keyB])]
 		}
 	}
 }
@@ -168,19 +171,19 @@ function* unifyComponents(
 function* unifyOptions(
 	a: APG.Coproduct,
 	b: APG.Coproduct
-): Generator<APG.Option, void, undefined> {
-	const aKeys = new Map(a.options.map(({ key, value }) => [key, value]))
-	const bKeys = new Map(b.options.map(({ key, value }) => [key, value]))
-	const keys = Array.from(new Set([...aKeys.keys(), ...bKeys.keys()])).sort()
+): Generator<[string, APG.Type], void, undefined> {
+	const keys = Array.from(
+		new Set([...getKeys(a.options), ...getKeys(b.options)])
+	).sort()
 	for (const key of keys) {
-		const A = aKeys.get(key)
-		const B = bKeys.get(key)
+		const A = a.options[key]
+		const B = b.options[key]
 		if (A !== undefined && B === undefined) {
-			yield Object.freeze({ type: "option", key, value: A })
+			yield [key, A]
 		} else if (A === undefined && B !== undefined) {
-			yield Object.freeze({ type: "option", key, value: B })
+			yield [key, B]
 		} else if (A !== undefined && B !== undefined) {
-			yield Object.freeze({ type: "option", key, value: unify(A, B) })
+			yield [key, unify(A, B)]
 		} else {
 			throw new Error("Error unifying options")
 		}

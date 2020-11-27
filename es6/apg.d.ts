@@ -1,21 +1,18 @@
 import * as N3 from "n3.ts";
 declare namespace APG {
-    type Schema = Label[];
-    type Label = Readonly<{
-        type: "label";
-        key: string;
-        value: Type;
+    type Schema = Readonly<{
+        [key: string]: Type;
     }>;
-    type Type = Unit | Iri | Literal | Product | Coproduct | Reference;
+    type Type = Unit | Uri | Literal | Product | Coproduct | Reference;
     type Reference = Readonly<{
         type: "reference";
-        value: number;
+        value: string;
     }>;
     type Unit = Readonly<{
         type: "unit";
     }>;
-    type Iri = Readonly<{
-        type: "iri";
+    type Uri = Readonly<{
+        type: "uri";
     }>;
     type Literal = Readonly<{
         type: "literal";
@@ -23,23 +20,19 @@ declare namespace APG {
     }>;
     type Product = Readonly<{
         type: "product";
-        components: readonly Component[];
-    }>;
-    type Component = Readonly<{
-        type: "component";
-        key: string;
-        value: Type;
+        components: Readonly<{
+            [key: string]: Type;
+        }>;
     }>;
     type Coproduct = Readonly<{
         type: "coproduct";
-        options: readonly Option[];
+        options: Readonly<{
+            [key: string]: Type;
+        }>;
     }>;
-    type Option = Readonly<{
-        type: "option";
-        key: string;
-        value: Type;
+    type Instance = Readonly<{
+        [key: string]: Value[];
     }>;
-    type Instance = Value[][];
     type Value = N3.BlankNode | N3.NamedNode | N3.Literal | Record | Variant | Pointer;
     class Pointer {
         readonly index: number;
@@ -47,18 +40,16 @@ declare namespace APG {
         get termType(): "Pointer";
     }
     class Record extends Array<Value> {
-        readonly node: N3.BlankNode;
-        readonly componentKeys: readonly string[];
-        constructor(node: N3.BlankNode, componentKeys: readonly string[], values: Iterable<Value>);
-        map<T>(f: (value: Value, index: number, record: Record) => T): T[];
+        readonly components: readonly string[];
         get termType(): "Record";
+        constructor(components: readonly string[], values: Iterable<Value>);
         get(key: string): Value;
+        map<T>(f: (value: Value, index: number, record: Record) => T): T[];
     }
     class Variant {
-        readonly node: N3.BlankNode;
-        readonly key: string;
+        readonly option: string;
         readonly value: Value;
-        constructor(node: N3.BlankNode, key: string, value: Value);
+        constructor(option: string, value: Value);
         get termType(): "Variant";
     }
     type Expression = Identity | Initial | Terminal | Identifier | Constant | Dereference | Projection | Injection | Tuple | Match;
@@ -73,11 +64,12 @@ declare namespace APG {
     }>;
     type Identifier = Readonly<{
         type: "identifier";
-        value: N3.NamedNode;
+        value: string;
     }>;
     type Constant = Readonly<{
         type: "constant";
-        value: N3.Literal;
+        value: string;
+        datatype: string;
     }>;
     type Dereference = Readonly<{
         type: "dereference";
@@ -94,25 +86,18 @@ declare namespace APG {
     }>;
     type Tuple = Readonly<{
         type: "tuple";
-        slots: readonly Slot[];
-    }>;
-    type Slot = Readonly<{
-        type: "slot";
-        key: string;
-        value: Expression[];
+        slots: Readonly<{
+            [key: string]: Expression[];
+        }>;
     }>;
     type Match = Readonly<{
         type: "match";
-        cases: readonly Case[];
-    }>;
-    type Case = Readonly<{
-        type: "case";
-        key: string;
-        value: Expression[];
+        cases: Readonly<{
+            [key: string]: Expression[];
+        }>;
     }>;
     type Map = Readonly<{
         type: "map";
-        key: string;
         source: string;
         target: Path;
         value: readonly APG.Expression[];
@@ -121,6 +106,8 @@ declare namespace APG {
         readonly type: "component" | "option";
         readonly key: string;
     }[];
-    type Mapping = Map[];
+    type Mapping = Readonly<{
+        [key: string]: Map;
+    }>;
 }
 export default APG;

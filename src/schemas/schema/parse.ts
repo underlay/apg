@@ -3,89 +3,99 @@ import * as N3 from "n3.ts"
 import APG from "../../apg.js"
 import schemaSchema from "./index.js"
 import * as ns from "../../namespace.js"
-import { getID, ID, signalInvalidType } from "../../utils.js"
+import {
+	getKeys,
+	getID,
+	ID,
+	signalInvalidType,
+	getKeyIndex,
+	getEntries,
+	freezeType,
+	mapKeys,
+} from "../../utils.js"
+import { TypeC } from "io-ts"
+
+type TypeCache = {
+	product: Map<number, APG.Product>
+	coproduct: Map<number, APG.Coproduct>
+}
 
 export function toSchema(instance: APG.Instance): APG.Schema {
-	if (instance.length !== schemaSchema.length) {
-		throw new Error("Invalid schema schema instance")
-	}
-
-	const database = new Map(
-		schemaSchema.map((label, index) => [label.key, instance[index]])
-	)
-
-	const labels = database.get(ns.label) as APG.Record[]
-	const components = database.get(ns.component) as APG.Record[]
-	const options = database.get(ns.option) as APG.Record[]
+	const labels = instance[ns.label] as APG.Record[]
+	const components = instance[ns.component] as APG.Record[]
+	const options = instance[ns.option] as APG.Record[]
 
 	const componentSources = rotateTree(components, ns.source)
 	const optionSources = rotateTree(options, ns.source)
 
-	const typeCache = new Map(schemaSchema.map(({ key }) => [key, new Map()]))
+	const typeCache: TypeCache = { product: new Map(), coproduct: new Map() }
+	//  = new Map(
+	// 	getKeys(schemaSchema).map((key) => [key, new Map()])
+	// )
 
-	const sortedLabels = labels.slice().sort((a, b) => {
-		const { value: A } = a.get(ns.key) as N3.NamedNode
-		const { value: B } = b.get(ns.key) as N3.NamedNode
-		return A < B ? -1 : B < A ? 1 : 0
-	})
+	const permutation = new Map(
+		labels.map((label, i) => {
+			const { value: key } = label.get(ns.key) as N3.NamedNode
+			return [i, key]
+		})
+	)
 
-	const permutation = labels.map((label) => sortedLabels.indexOf(label))
-
-	const schema: APG.Schema = sortedLabels.map((label) => {
-		const { value: key } = label.get(ns.key) as N3.NamedNode<string>
-		const target = label.get(ns.value) as APG.Variant
-		const value = toValue(
-			target,
-			database,
-			typeCache,
-			componentSources,
-			optionSources,
-			permutation
-		)
-		return Object.freeze({ type: "label", key, value })
-	})
+	const schema: APG.Schema = Object.fromEntries(
+		labels.map((label) => {
+			const { value: key } = label.get(ns.key) as N3.NamedNode<string>
+			const target = label.get(ns.value) as APG.Variant
+			const type = toType(
+				target,
+				instance,
+				typeCache,
+				componentSources,
+				optionSources,
+				permutation
+			)
+			freezeType(type)
+			return [key, type]
+		})
+	)
 
 	Object.freeze(schema)
 
 	return schema
 }
 
-function toValue(
+function toType(
 	value: APG.Variant,
-	database: Map<string, APG.Value[]>,
-	typeCache: Map<string, Map<number, APG.Type>>,
+	instance: APG.Instance,
+	typeCache: TypeCache,
 	componentSources: Map<number, APG.Record[]>,
 	optionSources: Map<number, APG.Record[]>,
-	permutation: number[]
+	permutation: Map<number, string>
 ): APG.Type {
-	const { index } = value.value as APG.Pointer
-	const key = value.key
-	const cache = typeCache.get(key)!
-	if (cache.has(index)) {
-		return cache.get(index)!
-	} else if (key === ns.reference) {
-		const reference = database.get(ns.reference)![index] as APG.Record
-		return toReference(index, reference, typeCache, permutation)
+	const key = value.option
+	if (key === ns.reference) {
+		const { index } = value.value as APG.Pointer
+		return { type: "reference", value: permutation.get(index)! }
 	} else if (key === ns.unit) {
-		return toUnit(index, typeCache)
-	} else if (key === ns.iri) {
-		return toIri(index, typeCache)
+		return { type: "unit" }
+	} else if (key === ns.uri) {
+		return { type: "uri" }
 	} else if (key === ns.literal) {
-		const literal = database.get(ns.literal)![index] as APG.Record
-		return toLiteral(index, literal, typeCache)
+		const { value: datatype } = value.value as N3.NamedNode
+		return { type: "literal", datatype }
 	} else if (key === ns.product) {
+		const { index } = value.value as APG.Pointer
 		return toProduct(
 			index,
-			database,
+			instance,
 			typeCache,
 			componentSources,
 			optionSources,
 			permutation
 		)
 	} else if (key === ns.coproduct) {
+		const { index } = value.value as APG.Pointer
 		return toCoproduct(
 			index,
-			database,
+			instance,
 			typeCache,
 			componentSources,
 			optionSources,
@@ -96,111 +106,67 @@ function toValue(
 	}
 }
 
-function toReference(
-	index: number,
-	value: APG.Record,
-	typeCache: Map<string, Map<number, APG.Type>>,
-	permutation: number[]
-): APG.Reference {
-	const target = value.get(ns.value)! as APG.Pointer
-	const reference: APG.Reference = Object.freeze({
-		type: "reference",
-		value: permutation[target.index],
-	})
-	typeCache.get(ns.reference)!.set(index, reference)
-	return reference
-}
-
-function toUnit(
-	index: number,
-	typeCache: Map<string, Map<number, APG.Type>>
-): APG.Unit {
-	const unit: APG.Unit = Object.freeze({ type: "unit" })
-	typeCache.get(ns.unit)!.set(index, unit)
-	return unit
-}
-
-function toIri(
-	index: number,
-	typeCache: Map<string, Map<number, APG.Type>>
-): APG.Iri {
-	const iri: APG.Iri = Object.freeze({ type: "iri" })
-	typeCache.get(ns.iri)!.set(index, iri)
-	return iri
-}
-
-function toLiteral(
-	index: number,
-	value: APG.Record,
-	typeCache: Map<string, Map<number, APG.Type>>
-): APG.Literal {
-	const { value: datatype } = value.get(ns.datatype) as N3.NamedNode
-	const literal: APG.Literal = Object.freeze({ type: "literal", datatype })
-	typeCache.get(ns.literal)!.set(index, literal)
-	return literal
-}
-
 function toProduct(
 	index: number,
-	database: Map<string, APG.Value[]>,
-	typeCache: Map<string, Map<number, APG.Type>>,
+	instance: APG.Instance,
+	typeCache: TypeCache,
 	componentSources: Map<number, APG.Record[]>,
 	optionSources: Map<number, APG.Record[]>,
-	permutation: number[]
+	permutation: Map<number, string>
 ): APG.Product {
-	const components: APG.Component[] = []
-
-	for (const component of componentSources.get(index) || []) {
-		const { value: key } = component.get(ns.key) as N3.NamedNode
-		const value = toValue(
-			component.get(ns.value) as APG.Variant,
-			database,
-			typeCache,
-			componentSources,
-			optionSources,
-			permutation
-		)
-		components.push({ type: "component", key, value })
+	if (typeCache.product.has(index)) {
+		return typeCache.product.get(index)!
 	}
 
-	Object.freeze(
-		components.sort(({ key: a }, { key: b }) => (a < b ? -1 : b < a ? 1 : 0))
+	const components = Object.fromEntries(
+		componentSources.get(index)!.map((component) => {
+			const { value: key } = component.get(ns.key) as N3.NamedNode
+			const value = toType(
+				component.get(ns.value) as APG.Variant,
+				instance,
+				typeCache,
+				componentSources,
+				optionSources,
+				permutation
+			)
+			return [key, value]
+		})
 	)
 
-	const product: APG.Product = Object.freeze({ type: "product", components })
-	typeCache.get(ns.product)!.set(index, product)
+	const product: APG.Product = { type: "product", components }
+	typeCache.product.set(index, product)
 	return product
 }
 
 function toCoproduct(
 	index: number,
-	database: Map<string, APG.Value[]>,
-	typeCache: Map<string, Map<number, APG.Type>>,
+	instance: APG.Instance,
+	typeCache: TypeCache,
 	componentSources: Map<number, APG.Record[]>,
 	optionSources: Map<number, APG.Record[]>,
-	permutation: number[]
+	permutation: Map<number, string>
 ): APG.Coproduct {
-	const options: APG.Option[] = []
-
-	for (const option of optionSources.get(index) || []) {
-		const { value: key } = option.get(ns.key) as N3.NamedNode
-		const value = toValue(
-			option.get(ns.value) as APG.Variant,
-			database,
-			typeCache,
-			componentSources,
-			optionSources,
-			permutation
-		)
-		options.push({ type: "option", key, value })
+	if (typeCache.coproduct.has(index)) {
+		return typeCache.coproduct.get(index)!
 	}
 
-	Object.freeze(
-		options.sort(({ key: a }, { key: b }) => (a < b ? -1 : b < a ? 1 : 0))
+	const options = Object.fromEntries(
+		optionSources.get(index)!.map((option) => {
+			const { value: key } = option.get(ns.key) as N3.NamedNode
+			const value = toType(
+				option.get(ns.value) as APG.Variant,
+				instance,
+				typeCache,
+				componentSources,
+				optionSources,
+				permutation
+			)
+			return [key, value]
+		})
 	)
 
-	const coproduct: APG.Coproduct = Object.freeze({ type: "coproduct", options })
-	typeCache.get(ns.coproduct)!.set(index, coproduct)
+	const coproduct: APG.Coproduct = { type: "coproduct", options }
+	typeCache.coproduct.set(index, coproduct)
 	return coproduct
 }
 
@@ -230,7 +196,7 @@ const ul = {
 	value: new N3.NamedNode(ns.value),
 	reference: new N3.NamedNode(ns.reference),
 	unit: new N3.NamedNode(ns.unit),
-	iri: new N3.NamedNode(ns.iri),
+	uri: new N3.NamedNode(ns.uri),
 	literal: new N3.NamedNode(ns.literal),
 	datatype: new N3.NamedNode(ns.datatype),
 	product: new N3.NamedNode(ns.product),
@@ -249,98 +215,86 @@ const coproductKeys = Object.freeze([ns.key, ns.source, ns.value])
 export function fromSchema(schema: APG.Schema): APG.Instance {
 	const id = getID()
 
-	const database = new Map<string, APG.Value[]>(
-		schemaSchema.map(({ key }) => [key, []])
-	)
+	const instance: APG.Instance = mapKeys(schemaSchema, () => [])
 
-	const cache = new Map<APG.Type, number>()
+	const cache = new Map<APG.Product | APG.Coproduct, number>()
 
-	const labels = database.get(ns.label)!
-	for (const label of schema) {
-		const value = fromType(id, database, cache, label.value)
-
-		const key = ul[label.value.type].value
-		const variant = new APG.Variant(id(), key, value)
-
-		labels.push(
-			new APG.Record(id(), labelKeys, [new N3.NamedNode(label.key), variant])
+	for (const key of getKeys(schema)) {
+		const type = schema[key]
+		const variant = new APG.Variant(
+			ul[type.type].value,
+			fromType(schema, instance, cache, id, type)
+		)
+		instance[ns.label].push(
+			new APG.Record(labelKeys, [new N3.NamedNode(key), variant])
 		)
 	}
 
-	const instance: APG.Instance = schemaSchema.map(({ key }) => {
-		const values = database.get(key)!
-		Object.freeze(values)
-		return values
-	})
+	for (const key of getKeys(schemaSchema)) {
+		Object.freeze(instance[key])
+	}
 
 	Object.freeze(instance)
+
 	return instance
 }
 
 function fromType(
+	schema: APG.Schema,
+	instance: APG.Instance,
+	cache: Map<APG.Product | APG.Coproduct, number>,
 	id: ID,
-	database: Map<string, APG.Value[]>,
-	cache: Map<APG.Type, number>,
 	type: APG.Type
-): APG.Pointer {
-	const pointer = cache.get(type)
-	if (pointer !== undefined) {
-		return new APG.Pointer(pointer)
-	} else if (type.type === "reference") {
-		const reference = new APG.Record(id(), referenceKeys, [
-			new APG.Pointer(type.value),
-		])
-
-		const index = database.get(ns.reference)!.push(reference) - 1
-		cache.set(type, index)
-		return new APG.Pointer(index)
+): APG.Value {
+	if (type.type === "reference") {
+		return new APG.Pointer(getKeyIndex(schema, type.value))
 	} else if (type.type === "unit") {
-		const index = database.get(ns.unit)!.push(id()) - 1
-		cache.set(type, index)
-		return new APG.Pointer(index)
-	} else if (type.type === "iri") {
-		const index = database.get(ns.iri)!.push(id()) - 1
-		cache.set(type, index)
-		return new APG.Pointer(index)
+		return id()
+	} else if (type.type === "uri") {
+		return id()
 	} else if (type.type === "literal") {
-		const literal = new APG.Record(id(), literalKeys, [
-			new N3.NamedNode(type.datatype),
-		])
-
-		const index = database.get(ns.literal)!.push(literal) - 1
-		cache.set(type, index)
-		return new APG.Pointer(index)
+		return new N3.NamedNode(type.datatype)
 	} else if (type.type === "product") {
-		const index = database.get(ns.product)!.push(id()) - 1
+		const pointer = cache.get(type)
+		if (pointer !== undefined) {
+			return new APG.Pointer(pointer)
+		}
+
+		const index = instance[ns.product].push(id()) - 1
 		cache.set(type, index)
 
-		const components = database.get(ns.component)!
-		for (const component of type.components) {
-			const key = ul[component.value.type].value
-			const value = fromType(id, database, cache, component.value)
-			components.push(
-				new APG.Record(id(), productKeys, [
-					new N3.NamedNode(component.key),
+		for (const [key, value] of getEntries(type.components)) {
+			instance[ns.component].push(
+				new APG.Record(productKeys, [
+					new N3.NamedNode(key),
 					new APG.Pointer(index),
-					new APG.Variant(id(), key, value),
+					new APG.Variant(
+						ul[value.type].value,
+						fromType(schema, instance, cache, id, value)
+					),
 				])
 			)
 		}
 
 		return new APG.Pointer(index)
 	} else if (type.type === "coproduct") {
-		const index = database.get(ns.coproduct)!.push(id()) - 1
+		const pointer = cache.get(type)
+		if (pointer !== undefined) {
+			return new APG.Pointer(pointer)
+		}
+
+		const index = instance[ns.coproduct].push(id()) - 1
 		cache.set(type, index)
 
-		const options = database.get(ns.option)!
-		for (const option of type.options) {
-			const key = ul[option.value.type].value
-			const value = fromType(id, database, cache, option.value)
-			options.push(
-				new APG.Record(id(), coproductKeys, [
-					new N3.NamedNode(option.key),
+		for (const [key, value] of getEntries(type.options)) {
+			instance[ns.option].push(
+				new APG.Record(coproductKeys, [
+					new N3.NamedNode(key),
 					new APG.Pointer(index),
-					new APG.Variant(id(), key, value),
+					new APG.Variant(
+						ul[value.type].value,
+						fromType(schema, instance, cache, id, value)
+					),
 				])
 			)
 		}

@@ -1,26 +1,26 @@
 import zip from "ziterable"
 import APG from "./apg.js"
-import { signalInvalidType } from "./utils.js"
+import { getKeys, signalInvalidType } from "./utils.js"
 
 export function validateValue(type: APG.Type, value: APG.Value): boolean {
 	if (type.type === "reference") {
 		return value.termType === "Pointer"
 	} else if (type.type === "unit") {
 		return value.termType === "BlankNode"
-	} else if (type.type === "iri") {
+	} else if (type.type === "uri") {
 		return value.termType === "NamedNode"
 	} else if (type.type === "literal") {
 		return (
 			value.termType === "Literal" && value.datatype.value === type.datatype
 		)
 	} else if (type.type === "product") {
-		if (
-			value.termType === "Record" &&
-			value.length === type.components.length
-		) {
-			const iter = zip(value.componentKeys, value, type.components)
-			for (const [k, v, { key, value: t }] of iter) {
-				if (k === key && validateValue(t, v)) {
+		if (value.termType === "Record") {
+			const keys = getKeys(type.components)
+			if (keys.length !== value.length) {
+				return false
+			}
+			for (const [k, v] of zip(keys, value)) {
+				if (validateValue(type.components[k], v)) {
 					continue
 				} else {
 					return false
@@ -31,9 +31,8 @@ export function validateValue(type: APG.Type, value: APG.Value): boolean {
 			return false
 		}
 	} else if (type.type === "coproduct") {
-		if (value.termType === "Variant") {
-			const option = type.options.find(({ key }) => key === value.key)
-			return option !== undefined && validateValue(option.value, value.value)
+		if (value.termType === "Variant" && value.option in type.options) {
+			return validateValue(type.options[value.option], value.value)
 		} else {
 			return false
 		}

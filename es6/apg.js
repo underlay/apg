@@ -11,11 +11,22 @@ var APG;
     }
     APG.Pointer = Pointer;
     class Record extends Array {
-        constructor(node, componentKeys, values) {
+        constructor(components, values) {
             super(...values);
-            this.node = node;
-            this.componentKeys = componentKeys;
+            this.components = components;
             Object.freeze(this);
+        }
+        get termType() {
+            return "Record";
+        }
+        get(key) {
+            const index = this.components.indexOf(key);
+            if (index in this) {
+                return this[index];
+            }
+            else {
+                throw new Error(`Index out of range: ${index}`);
+            }
         }
         map(f) {
             const result = new Array(this.length);
@@ -24,24 +35,11 @@ var APG;
             }
             return result;
         }
-        get termType() {
-            return "Record";
-        }
-        get(key) {
-            const index = this.componentKeys.indexOf(key);
-            if (index === -1) {
-                throw new Error(`Key not found: ${key}`);
-            }
-            else {
-                return this[index];
-            }
-        }
     }
     APG.Record = Record;
     class Variant {
-        constructor(node, key, value) {
-            this.node = node;
-            this.key = key;
+        constructor(option, value) {
+            this.option = option;
             this.value = value;
             Object.freeze(this);
         }
@@ -50,10 +48,6 @@ var APG;
         }
     }
     APG.Variant = Variant;
-    // export type Mapping = readonly [
-    // 	readonly APG.Path[],
-    // 	readonly (readonly APG.Expression[])[]
-    // ]
 })(APG || (APG = {}));
 export default APG;
 //# sourceMappingURL=apg.js.map

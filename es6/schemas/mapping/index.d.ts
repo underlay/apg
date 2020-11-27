@@ -1,18 +1,41 @@
-import APG from "../apg.js";
-declare const caseLabel: APG.Label;
-declare const expressionLabel: APG.Label;
-declare const mapLabel: APG.Label;
-declare const matchLabel: APG.Label;
-declare const pathLabel: APG.Label;
-declare const slotLabel: APG.Label;
-declare const tupleLabel: APG.Label;
-declare const mappingSchema: readonly [
-    typeof caseLabel,
-    typeof expressionLabel,
-    typeof mapLabel,
-    typeof matchLabel,
-    typeof pathLabel,
-    typeof slotLabel,
-    typeof tupleLabel
-];
+import APG from "../../apg.js";
+import * as ns from "../../namespace.js";
+declare const mappingSchema: {
+    "http://underlay.org/ns/case": Readonly<{
+        type: "product";
+        components: Readonly<{
+            [key: string]: APG.Type;
+        }>;
+    }>;
+    "http://underlay.org/ns/expression": Readonly<{
+        type: "coproduct";
+        options: Readonly<{
+            [key: string]: APG.Type;
+        }>;
+    }>;
+    "http://underlay.org/ns/map": Readonly<{
+        type: "product";
+        components: Readonly<{
+            [key: string]: APG.Type;
+        }>;
+    }>;
+    "http://underlay.org/ns/match": Readonly<{
+        type: "unit";
+    }>;
+    "http://underlay.org/ns/path": Readonly<{
+        type: "coproduct";
+        options: Readonly<{
+            [key: string]: APG.Type;
+        }>;
+    }>;
+    "http://underlay.org/ns/slot": Readonly<{
+        type: "product";
+        components: Readonly<{
+            [key: string]: APG.Type;
+        }>;
+    }>;
+    "http://underlay.org/ns/tuple": Readonly<{
+        type: "unit";
+    }>;
+};
 export default mappingSchema;

@@ -3,17 +3,16 @@ import zip from "ziterable";
 import APG from "./apg.js";
 import { validateExpressions } from "./morphism.js";
 import { getType, getValues } from "./path.js";
-import { getID, rootId, signalInvalidType } from "./utils.js";
+import { rootId, signalInvalidType, getKeys, getEntries, mapKeys, } from "./utils.js";
 export function validateMapping(M, S, T) {
-    const maps = new Map(M.map((m) => [m.key, m]));
-    for (const { key, value } of S) {
-        const m = maps.get(key);
-        if (m === undefined) {
+    for (const key of getKeys(S)) {
+        const value = S[key];
+        if (!(key in M)) {
             return false;
         }
-        const source = getType(T, m.source, m.target);
+        const source = getType(T, M[key].source, M[key].target);
         const target = fold(M, S, T, value);
-        if (validateExpressions(S, m.value, source, target)) {
+        if (validateExpressions(S, M[key].value, source, target)) {
             continue;
         }
         else {
@@ -24,7 +23,7 @@ export function validateMapping(M, S, T) {
 }
 export function fold(M, S, T, type) {
     if (type.type === "reference") {
-        const { source, target } = M.find(({ key }) => key === S[type.value].key);
+        const { source, target } = M[type.value];
         const value = getType(T, source, target);
         if (value === undefined) {
             throw new Error("Invalid reference index");
@@ -36,38 +35,30 @@ export function fold(M, S, T, type) {
     else if (type.type === "unit") {
         return type;
     }
-    else if (type.type === "iri") {
+    else if (type.type === "uri") {
         return type;
     }
     else if (type.type === "literal") {
         return type;
     }
     else if (type.type === "product") {
-        const components = [];
-        for (const { key, value } of type.components) {
-            components.push(Object.freeze({
-                type: "component",
-                key,
-                value: fold(M, S, T, value),
-            }));
-        }
-        Object.freeze(components);
-        return Object.freeze({ type: "product", components });
+        return Object.freeze({
+            type: "product",
+            components: mapKeys(type.components, (value) => fold(M, S, T, value)),
+        });
     }
     else if (type.type === "coproduct") {
-        const options = [];
-        for (const { key, value } of type.options) {
-            options.push(Object.freeze({ type: "option", key, value: fold(M, S, T, value) }));
-        }
-        Object.freeze(options);
-        return Object.freeze({ type: "coproduct", options });
+        return Object.freeze({
+            type: "coproduct",
+            options: mapKeys(type.options, (value) => fold(M, S, T, value)),
+        });
     }
     else {
         signalInvalidType(type);
     }
 }
-export const mapExpressions = (expressions, value, instance, schema, id) => expressions.reduce((value, expression) => map(expression, value, instance, schema, id), value);
-export function map(expression, value, instance, schema, id) {
+export const mapExpressions = (expressions, value, instance, schema) => expressions.reduce((value, expression) => map(expression, value, instance, schema), value);
+export function map(expression, value, instance, schema) {
     if (expression.type === "identity") {
         return value;
     }
@@ -83,16 +74,16 @@ export function map(expression, value, instance, schema, id) {
         }
     }
     else if (expression.type === "identifier") {
-        return expression.value;
+        return new N3.NamedNode(expression.value);
     }
     else if (expression.type === "constant") {
-        return expression.value;
+        return new N3.Literal(expression.value, "", new N3.NamedNode(expression.datatype));
     }
     else if (expression.type === "dereference") {
         if (value.termType === "Pointer") {
-            const index = schema.findIndex(({ key }) => key === expression.key);
-            if (index in instance && value.index in instance[index]) {
-                return instance[index][value.index];
+            const { key } = expression;
+            if (key in instance && value.index in instance[key]) {
+                return instance[key][value.index];
             }
             else {
                 throw new Error("Invalid pointer dereference");
@@ -104,13 +95,7 @@ export function map(expression, value, instance, schema, id) {
     }
     else if (expression.type === "projection") {
         if (value.termType === "Record") {
-            const index = value.componentKeys.indexOf(expression.key);
-            if (index in value) {
-                return value[index];
-            }
-            else {
-                throw new Error("Invalid projection");
-            }
+            return value.get(expression.key);
         }
         else {
             throw new Error("Invalid projection");
@@ -118,9 +103,9 @@ export function map(expression, value, instance, schema, id) {
     }
     else if (expression.type === "match") {
         if (value.termType === "Variant") {
-            const c = expression.cases.find(({ key }) => key === value.key);
-            if (c !== undefined) {
-                return mapExpressions(c.value, value.value, instance, schema, id);
+            if (value.option in expression.cases) {
+                const c = expression.cases[value.option];
+                return mapExpressions(c, value.value, instance, schema);
             }
             else {
                 throw new Error("Invalid case analysis");
@@ -131,52 +116,51 @@ export function map(expression, value, instance, schema, id) {
         }
     }
     else if (expression.type === "tuple") {
-        const keys = expression.slots.map(({ key }) => key);
-        Object.freeze(keys);
-        return new APG.Record(id(), keys, expression.slots.map((slot) => mapExpressions(slot.value, value, instance, schema, id)));
+        const keys = getKeys(expression.slots);
+        return new APG.Record(keys, keys.map((key) => mapExpressions(expression.slots[key], value, instance, schema)));
     }
     else if (expression.type === "injection") {
-        return new APG.Variant(id(), expression.key, mapExpressions(expression.value, value, instance, schema, id));
+        return new APG.Variant(expression.key, mapExpressions(expression.value, value, instance, schema));
     }
     else {
         signalInvalidType(expression);
     }
 }
 export function delta(M, S, T, TI) {
-    const SI = S.map(() => []);
-    const indices = S.map(() => new Map());
-    const id = getID();
-    for (const [i, { value: type, key }] of S.entries()) {
-        const m = M.find((m) => m.key === key);
-        for (const value of getValues(T, TI, m.source, m.target)) {
-            if (indices[i].has(value)) {
+    const SI = mapKeys(S, () => []);
+    const indices = mapKeys(S, () => new Map());
+    for (const [key, type] of getEntries(S)) {
+        if (!(key in M) || !(key in indices)) {
+            throw new Error("Invalid mapping");
+        }
+        for (const value of getValues(T, TI, M[key].source, M[key].target)) {
+            if (indices[key].has(value)) {
                 continue;
             }
             else {
-                const imageValue = mapExpressions(m.value, value, TI, T, id);
-                const index = SI[i].push(placeholder) - 1;
-                indices[i].set(value, index);
-                SI[i][index] = pullback(M, S, T, SI, TI, indices, id, type, imageValue);
+                const imageValue = mapExpressions(M[key].value, value, TI, T);
+                const i = SI[key].push(placeholder) - 1;
+                indices[key].set(value, i);
+                SI[key][i] = pullback({ M, S, T, SI, TI, indices }, type, imageValue);
             }
         }
     }
-    for (const values of SI) {
-        Object.freeze(values);
+    for (const key of getKeys(S)) {
+        Object.freeze(SI[key]);
     }
     Object.freeze(SI);
     return SI;
 }
 const placeholder = new N3.NamedNode(rootId);
-function pullback(M, S, T, SI, TI, indices, id, type, // in source
+function pullback(state, type, // in source
 value // of image
 ) {
-    const [{}, M2] = M;
     if (type.type === "reference") {
         // Here we actually know that value is an instance of M1[type.value]
         // So now what?
         // First we check to see if the value is in the index cache.
         // (We're ultimately going to return a Pointer for sure)
-        const index = indices[type.value].get(value);
+        const index = state.indices[type.value].get(value);
         if (index !== undefined) {
             return new APG.Pointer(index);
         }
@@ -184,13 +168,13 @@ value // of image
             // Otherwise, we map value along the morphism M2[type.value].
             // This gives us a value that is an instance of the image of the referenced type
             // - ie an instance of fold(M1, T, S[type.value].value)
-            const t = S[type.value].value;
-            const m = M.find(({ key }) => key === S[type.value].key);
-            const v = mapExpressions(m.value, value, TI, T, id);
-            const index = SI[type.value].push(placeholder) - 1;
-            indices[type.value].set(value, index);
-            const p = pullback(M, S, T, SI, TI, indices, id, t, v);
-            SI[type.value][index] = p;
+            const t = state.S[type.value];
+            const m = state.M[type.value];
+            const v = mapExpressions(m.value, value, state.TI, state.T);
+            const index = state.SI[type.value].push(placeholder) - 1;
+            state.indices[type.value].set(value, index);
+            const p = pullback(state, t, v);
+            state.SI[type.value][index] = p;
             return new APG.Pointer(index);
         }
     }
@@ -202,7 +186,7 @@ value // of image
             return value;
         }
     }
-    else if (type.type === "iri") {
+    else if (type.type === "uri") {
         if (value.termType !== "NamedNode") {
             throw new Error("Invalid image value: expected iri");
         }
@@ -223,30 +207,32 @@ value // of image
             throw new Error("Invalid image value: expected record");
         }
         else {
-            return new APG.Record(value.node, value.componentKeys, pullbackComponents(M, S, T, SI, TI, indices, id, type, value));
+            return new APG.Record(value.components, pullbackComponents(state, type, value));
         }
     }
     else if (type.type === "coproduct") {
         if (value.termType !== "Variant") {
             throw new Error("Invalid image value: expected variant");
         }
+        else if (value.option in type.options) {
+            return new APG.Variant(value.option, pullback(state, type.options[value.option], value.value));
+        }
         else {
-            const option = type.options.find(({ key }) => key === value.key);
-            if (option === undefined) {
-                throw new Error("Invalid image variant");
-            }
-            else {
-                return new APG.Variant(value.node, value.key, pullback(M, S, T, SI, TI, indices, id, option.value, value.value));
-            }
+            throw new Error("Invalid image variant");
         }
     }
     else {
         signalInvalidType(type);
     }
 }
-function* pullbackComponents(M, S, T, SI, TI, indices, id, type, value) {
-    for (const [t, field] of zip(type.components, value)) {
-        yield pullback(M, S, T, SI, TI, indices, id, t.value, field);
+function* pullbackComponents(state, type, value) {
+    for (const [k1, k2, field] of zip(getKeys(type.components), value.components, value)) {
+        if (k1 === k2) {
+            yield pullback(state, type.components[k1], field);
+        }
+        else {
+            throw new Error("Invalid image record");
+        }
     }
 }
 //# sourceMappingURL=mapping.js.map

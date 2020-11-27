@@ -1,132 +1,104 @@
 import * as t from "io-ts";
 import APG from "../apg.js";
-declare const labels: t.ArrayC<t.TypeC<{
-    type: t.LiteralC<"label">;
-    key: t.StringC;
-    value: t.UnionC<[t.TypeC<{
-        type: t.LiteralC<"unit">;
+import { ns } from "../index.js";
+declare const labels: t.RecordC<t.StringC, t.UnionC<[t.TypeC<{
+    type: t.LiteralC<"unit">;
+}>, t.TypeC<{
+    type: t.LiteralC<"product">;
+    components: t.RecordC<t.StringC, t.UnionC<[t.UnionC<[t.TypeC<{
+        type: t.LiteralC<"reference">;
+        value: t.StringC;
     }>, t.TypeC<{
-        type: t.LiteralC<"product">;
-        components: t.ArrayC<t.TypeC<{
-            type: t.LiteralC<"component">;
-            key: t.StringC;
-            value: t.UnionC<[t.UnionC<[t.TypeC<{
+        type: t.LiteralC<"literal">;
+        datatype: t.StringC;
+    }>, t.TypeC<{
+        type: t.LiteralC<"uri">;
+    }>]>, t.TypeC<{
+        type: t.LiteralC<"coproduct">;
+        options: t.TypeC<{
+            "http://underlay.org/ns/none": t.TypeC<{
+                type: t.LiteralC<"unit">;
+            }>;
+            "http://underlay.org/ns/some": t.UnionC<[t.TypeC<{
                 type: t.LiteralC<"reference">;
-                value: t.NumberC;
+                value: t.StringC;
             }>, t.TypeC<{
                 type: t.LiteralC<"literal">;
                 datatype: t.StringC;
             }>, t.TypeC<{
-                type: t.LiteralC<"iri">;
-            }>]>, t.TypeC<{
-                type: t.LiteralC<"coproduct">;
-                options: t.TupleC<[t.TypeC<{
-                    type: t.LiteralC<"option">;
-                    key: t.LiteralC<"http://underlay.org/ns/none">;
-                    value: t.TypeC<{
-                        type: t.LiteralC<"unit">;
-                    }>;
-                }>, t.TypeC<{
-                    type: t.LiteralC<"option">;
-                    key: t.LiteralC<"http://underlay.org/ns/some">;
-                    value: t.UnionC<[t.TypeC<{
-                        type: t.LiteralC<"reference">;
-                        value: t.NumberC;
-                    }>, t.TypeC<{
-                        type: t.LiteralC<"literal">;
-                        datatype: t.StringC;
-                    }>, t.TypeC<{
-                        type: t.LiteralC<"iri">;
-                    }>]>;
-                }>]>;
+                type: t.LiteralC<"uri">;
             }>]>;
-        }>>;
-    }>]>;
-}>>;
+        }>;
+    }>]>>;
+}>]>>;
 export declare function isRelationalSchema(input: APG.Schema): input is t.TypeOf<typeof labels>;
 export declare const relationalSchema: t.Type<{
-    type: "label";
-    key: string;
-    value: {
+    [x: string]: {
         type: "unit";
     } | {
         type: "product";
         components: {
-            type: "component";
-            key: string;
-            value: {
+            [x: string]: {
                 type: "reference";
-                value: number;
+                value: string;
             } | {
                 type: "literal";
                 datatype: string;
             } | {
-                type: "iri";
+                type: "uri";
             } | {
                 type: "coproduct";
-                options: [{
-                    type: "option";
-                    key: "http://underlay.org/ns/none";
-                    value: {
+                options: {
+                    "http://underlay.org/ns/none": {
                         type: "unit";
                     };
-                }, {
-                    type: "option";
-                    key: "http://underlay.org/ns/some";
-                    value: {
+                    "http://underlay.org/ns/some": {
                         type: "reference";
-                        value: number;
+                        value: string;
                     } | {
                         type: "literal";
                         datatype: string;
                     } | {
-                        type: "iri";
+                        type: "uri";
                     };
-                }];
+                };
             };
-        }[];
+        };
     };
-}[], {
-    type: "label";
-    key: string;
-    value: {
+}, {
+    [x: string]: {
         type: "unit";
     } | {
         type: "product";
         components: {
-            type: "component";
-            key: string;
-            value: {
+            [x: string]: {
                 type: "reference";
-                value: number;
+                value: string;
             } | {
                 type: "literal";
                 datatype: string;
             } | {
-                type: "iri";
+                type: "uri";
             } | {
                 type: "coproduct";
-                options: [{
-                    type: "option";
-                    key: "http://underlay.org/ns/none";
-                    value: {
+                options: {
+                    "http://underlay.org/ns/none": {
                         type: "unit";
                     };
-                }, {
-                    type: "option";
-                    key: "http://underlay.org/ns/some";
-                    value: {
+                    "http://underlay.org/ns/some": {
                         type: "reference";
-                        value: number;
+                        value: string;
                     } | {
                         type: "literal";
                         datatype: string;
                     } | {
-                        type: "iri";
+                        type: "uri";
                     };
-                }];
+                };
             };
-        }[];
+        };
     };
-}[], APG.Schema>;
+}, Readonly<{
+    [key: string]: APG.Type;
+}>>;
 export {};
