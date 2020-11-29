@@ -2,7 +2,7 @@ import zip from "ziterable"
 import APG from "./apg.js"
 
 import { isTypeAssignable, unify } from "./type.js"
-import { getEntries, getKeys, mapKeys, signalInvalidType } from "./utils.js"
+import { forEntries, getKeys, mapKeys, signalInvalidType } from "./utils.js"
 
 export const applyExpressions = (
 	S: APG.Schema,

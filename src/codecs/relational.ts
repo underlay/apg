@@ -4,7 +4,7 @@ import APG from "../apg.js"
 import { ns } from "../index.js"
 
 import { none, some } from "../namespace.js"
-import { getEntries } from "../utils.js"
+import { forEntries } from "../utils.js"
 
 const property = t.union([
 	t.type({ type: t.literal("reference"), value: t.string }),
@@ -49,11 +49,11 @@ const isOptionalProperty = (
 export function isRelationalSchema(
 	input: APG.Schema
 ): input is t.TypeOf<typeof labels> {
-	for (const [key, type] of getEntries(input)) {
+	for (const [key, type] of forEntries(input)) {
 		if (type.type === "unit") {
 			continue
 		} else if (type.type === "product") {
-			for (const [_, value] of getEntries(type.components)) {
+			for (const [_, value] of forEntries(type.components)) {
 				if (isOptionalProperty(value)) {
 					continue
 				} else {

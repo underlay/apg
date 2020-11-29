@@ -1,6 +1,6 @@
 import { BlankNode } from "n3.ts";
 import APG from "./apg";
-export declare function getEntries<T>(object: Readonly<{
+export declare function forEntries<T>(object: Readonly<{
     [key: string]: T;
 }>): Generator<[string, T], void, undefined>;
 export declare function getKeys(object: Readonly<{

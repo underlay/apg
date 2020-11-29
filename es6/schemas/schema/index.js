@@ -1,6 +1,6 @@
 import * as ns from "../../namespace.js";
-import { freezeType, getEntries } from "../../utils.js";
-const anyValue = {
+import { freezeType, forEntries } from "../../utils.js";
+export const value = {
     type: "coproduct",
     options: {
         [ns.reference]: { type: "reference", value: ns.label },
@@ -12,40 +12,40 @@ const anyValue = {
     },
 };
 // Label
-const labelLabel = {
+export const label = {
     type: "product",
-    components: { [ns.key]: { type: "uri" }, [ns.value]: anyValue },
+    components: { [ns.key]: { type: "uri" }, [ns.value]: value },
 };
 // Product
-const productLabel = { type: "unit" };
+export const product = { type: "unit" };
 // Component
-const componentLabel = {
+export const component = {
     type: "product",
     components: {
         [ns.key]: { type: "uri" },
         [ns.source]: { type: "reference", value: ns.product },
-        [ns.value]: anyValue,
+        [ns.value]: value,
     },
 };
 // Coproduct
-const coproductLabel = { type: "unit" };
+export const coproduct = { type: "unit" };
 // Option
-const optionLabel = {
+export const option = {
     type: "product",
     components: {
         [ns.key]: { type: "uri" },
         [ns.source]: { type: "reference", value: ns.coproduct },
-        [ns.value]: anyValue,
+        [ns.value]: value,
     },
 };
 const schemaSchema = {
-    [ns.label]: labelLabel,
-    [ns.product]: productLabel,
-    [ns.component]: componentLabel,
-    [ns.coproduct]: coproductLabel,
-    [ns.option]: optionLabel,
+    [ns.label]: label,
+    [ns.product]: product,
+    [ns.component]: component,
+    [ns.coproduct]: coproduct,
+    [ns.option]: option,
 };
-for (const [_, label] of getEntries(schemaSchema)) {
+for (const [_, label] of forEntries(schemaSchema)) {
     freezeType(label);
 }
 Object.freeze(schemaSchema);

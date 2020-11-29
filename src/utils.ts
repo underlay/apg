@@ -7,7 +7,7 @@ const keyMap = new WeakMap<
 	readonly string[]
 >()
 
-export function* getEntries<T>(
+export function* forEntries<T>(
 	object: Readonly<{ [key: string]: T }>
 ): Generator<[string, T], void, undefined> {
 	for (const key of getKeys(object)) {
@@ -78,12 +78,12 @@ export function getID(): ID {
 
 export function freezeType(type: APG.Type) {
 	if (type.type === "product") {
-		for (const [_, value] of getEntries(type.components)) {
+		for (const [_, value] of forEntries(type.components)) {
 			freezeType(value)
 		}
 		Object.freeze(type.components)
 	} else if (type.type === "coproduct") {
-		for (const [_, value] of getEntries(type.options)) {
+		for (const [_, value] of forEntries(type.options)) {
 			freezeType(value)
 		}
 		Object.freeze(type.options)

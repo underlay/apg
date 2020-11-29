@@ -9,7 +9,7 @@ import {
 	rootId,
 	signalInvalidType,
 	getKeys,
-	getEntries,
+	forEntries,
 	mapKeys,
 } from "./utils.js"
 
@@ -149,7 +149,8 @@ export function map(
 		)
 	} else if (expression.type === "injection") {
 		return new APG.Variant(
-			expression.key,
+			Object.freeze([expression.key]),
+			0,
 			mapExpressions(expression.value, value, instance, schema)
 		)
 	} else {
@@ -167,7 +168,7 @@ export function delta(
 
 	const indices = mapKeys(S, () => new Map<APG.Value, number>())
 
-	for (const [key, type] of getEntries(S)) {
+	for (const [key, type] of forEntries(S)) {
 		if (!(key in M) || !(key in indices)) {
 			throw new Error("Invalid mapping")
 		}
@@ -262,7 +263,8 @@ function pullback(
 			throw new Error("Invalid image value: expected variant")
 		} else if (value.option in type.options) {
 			return new APG.Variant(
-				value.option,
+				value.options,
+				value.index,
 				pullback(state, type.options[value.option], value.value)
 			)
 		} else {

@@ -1,7 +1,7 @@
 import { BlankNode } from "n3.ts";
 import { v4 as uuid } from "uuid";
 const keyMap = new WeakMap();
-export function* getEntries(object) {
+export function* forEntries(object) {
     for (const key of getKeys(object)) {
         yield [key, object[key]];
     }
@@ -54,13 +54,13 @@ export function getID() {
 }
 export function freezeType(type) {
     if (type.type === "product") {
-        for (const [_, value] of getEntries(type.components)) {
+        for (const [_, value] of forEntries(type.components)) {
             freezeType(value);
         }
         Object.freeze(type.components);
     }
     else if (type.type === "coproduct") {
-        for (const [_, value] of getEntries(type.options)) {
+        for (const [_, value] of forEntries(type.options)) {
             freezeType(value);
         }
         Object.freeze(type.options);

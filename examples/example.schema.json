@@ -3,11 +3,7 @@
 		"id": "_:person",
 		"type": "label",
 		"key": "http://example.com/Person",
-		"value": { "unit": "_:person-value" }
-	},
-	{
-		"id": "_:person-value",
-		"type": "unit"
+		"value": { "unit": { "type": "unit" } }
 	},
 	{
 		"id": "_:name",
@@ -20,23 +16,21 @@
 		"type": "product",
 		"components": [
 			{
-				"id": "_:name-component-subject",
 				"type": "component",
 				"key": "http://underlay.org/ns/rex#subject",
 				"value": { "reference": { "type": "reference", "value": "_:person" } }
 			},
 			{
-				"id": "_:name-component-object",
 				"type": "component",
 				"key": "http://underlay.org/ns/rex#object",
-				"value": { "literal": "_:name-object" }
+				"value": {
+					"literal": {
+						"type": "literal",
+						"datatype": "http://www.w3.org/2001/XMLSchema#string"
+					}
+				}
 			}
 		]
-	},
-	{
-		"id": "_:name-object",
-		"type": "literal",
-		"datatype": "http://www.w3.org/2001/XMLSchema#string"
 	},
 	{
 		"id": "_:knows",
@@ -49,13 +43,11 @@
 		"type": "product",
 		"components": [
 			{
-				"id": "_:knows-component-subject",
 				"type": "component",
 				"key": "http://underlay.org/ns/rex#subject",
 				"value": { "reference": { "type": "reference", "value": "_:person" } }
 			},
 			{
-				"id": "_:knows-component-object",
 				"type": "component",
 				"key": "http://underlay.org/ns/rex#object",
 				"value": { "reference": { "type": "reference", "value": "_:person" } }
@@ -73,19 +65,16 @@
 		"type": "product",
 		"components": [
 			{
-				"id": "_:geo-component-subject",
 				"type": "component",
 				"key": "http://underlay.org/ns/rex#subject",
 				"value": { "reference": { "type": "reference", "value": "_:person" } }
 			},
 			{
-				"id": "_:geo-component-object",
 				"type": "component",
 				"key": "http://underlay.org/ns/rex#object",
 				"value": { "coproduct": "_:geo-object" }
 			},
 			{
-				"id": "_:geo-component-geo",
 				"type": "component",
 				"key": "http://underlay.org/ns/rex#self",
 				"value": { "reference": { "type": "reference", "value": "_:geo" } }

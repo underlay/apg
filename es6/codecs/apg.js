@@ -1,6 +1,6 @@
 import * as t from "io-ts";
 import { forType } from "../type.js";
-import { getEntries } from "../utils.js";
+import { forEntries } from "../utils.js";
 export const reference = t.type({
     type: t.literal("reference"),
     value: t.string,
@@ -27,7 +27,7 @@ const codec = new t.Type("Schema", labels.is, (input, context) => {
         return result;
     }
     // Check that references have valid referents
-    for (const [_, label] of getEntries(result.right)) {
+    for (const [_, label] of forEntries(result.right)) {
         for (const [type] of forType(label)) {
             if (type.type === "reference") {
                 if (type.value in result.right) {

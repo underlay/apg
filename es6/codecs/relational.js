@@ -1,6 +1,6 @@
 import * as t from "io-ts";
 import { ns } from "../index.js";
-import { getEntries } from "../utils.js";
+import { forEntries } from "../utils.js";
 const property = t.union([
     t.type({ type: t.literal("reference"), value: t.string }),
     t.type({ type: t.literal("literal"), datatype: t.string }),
@@ -32,12 +32,12 @@ const isOptionalProperty = (type) => isProperty(type) ||
         ns.some in type.options &&
         isProperty(type.options[ns.some]));
 export function isRelationalSchema(input) {
-    for (const [key, type] of getEntries(input)) {
+    for (const [key, type] of forEntries(input)) {
         if (type.type === "unit") {
             continue;
         }
         else if (type.type === "product") {
-            for (const [_, value] of getEntries(type.components)) {
+            for (const [_, value] of forEntries(type.components)) {
                 if (isOptionalProperty(value)) {
                     continue;
                 }

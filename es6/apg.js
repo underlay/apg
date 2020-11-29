@@ -38,10 +38,19 @@ var APG;
     }
     APG.Record = Record;
     class Variant {
-        constructor(option, value) {
-            this.option = option;
+        constructor(options, index, value) {
+            this.options = options;
+            this.index = index;
             this.value = value;
-            Object.freeze(this);
+            if (index in options) {
+                Object.freeze(this);
+            }
+            else {
+                throw new Error("Varint index out of range");
+            }
+        }
+        get option() {
+            return this.options[this.index];
         }
         get termType() {
             return "Variant";

@@ -3,7 +3,7 @@ import zip from "ziterable";
 import APG from "./apg.js";
 import { validateExpressions } from "./morphism.js";
 import { getType, getValues } from "./path.js";
-import { rootId, signalInvalidType, getKeys, getEntries, mapKeys, } from "./utils.js";
+import { rootId, signalInvalidType, getKeys, forEntries, mapKeys, } from "./utils.js";
 export function validateMapping(M, S, T) {
     for (const key of getKeys(S)) {
         const value = S[key];
@@ -120,7 +120,7 @@ export function map(expression, value, instance, schema) {
         return new APG.Record(keys, keys.map((key) => mapExpressions(expression.slots[key], value, instance, schema)));
     }
     else if (expression.type === "injection") {
-        return new APG.Variant(expression.key, mapExpressions(expression.value, value, instance, schema));
+        return new APG.Variant(Object.freeze([expression.key]), 0, mapExpressions(expression.value, value, instance, schema));
     }
     else {
         signalInvalidType(expression);
@@ -129,7 +129,7 @@ export function map(expression, value, instance, schema) {
 export function delta(M, S, T, TI) {
     const SI = mapKeys(S, () => []);
     const indices = mapKeys(S, () => new Map());
-    for (const [key, type] of getEntries(S)) {
+    for (const [key, type] of forEntries(S)) {
         if (!(key in M) || !(key in indices)) {
             throw new Error("Invalid mapping");
         }
@@ -215,7 +215,7 @@ value // of image
             throw new Error("Invalid image value: expected variant");
         }
         else if (value.option in type.options) {
-            return new APG.Variant(value.option, pullback(state, type.options[value.option], value.value));
+            return new APG.Variant(value.options, value.index, pullback(state, type.options[value.option], value.value));
         }
         else {
             throw new Error("Invalid image variant");

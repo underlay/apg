@@ -3,7 +3,7 @@ import * as t from "io-ts"
 import APG from "../apg.js"
 
 import { forType } from "../type.js"
-import { getEntries } from "../utils.js"
+import { forEntries } from "../utils.js"
 
 export const reference: t.Type<APG.Reference> = t.type({
 	type: t.literal("reference"),
@@ -49,7 +49,7 @@ const codec: t.Type<APG.Schema> = new t.Type(
 		}
 
 		// Check that references have valid referents
-		for (const [_, label] of getEntries(result.right)) {
+		for (const [_, label] of forEntries(result.right)) {
 			for (const [type] of forType(label)) {
 				if (type.type === "reference") {
 					if (type.value in result.right) {

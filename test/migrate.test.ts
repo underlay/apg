@@ -2,7 +2,7 @@ import { NamedNode } from "n3.ts"
 
 import APG from "../es6/apg.js"
 import { delta, fold, mapExpressions } from "../es6/mapping.js"
-import { getEntries } from "../es6/utils.js"
+import { forEntries } from "../es6/utils.js"
 import { validateValue } from "../es6/value.js"
 import { validateExpressions } from "../es6/morphism.js"
 import { getType, getValues } from "../es6/path.js"
@@ -150,7 +150,7 @@ const I: APG.Instance = {
 }
 
 test("Validate morphisms", () => {
-	for (const [key, type] of getEntries(S)) {
+	for (const [key, type] of forEntries(S)) {
 		const image = fold(M, S, T, type)
 		const source = getType(T, M[key].source, M[key].target)
 		// console.log(key, source, image)
@@ -159,7 +159,7 @@ test("Validate morphisms", () => {
 })
 
 test("Validate instance type", () => {
-	for (const [key, values] of getEntries(I)) {
+	for (const [key, values] of forEntries(I)) {
 		for (const value of values) {
 			expect(validateValue(T[key], value)).toBe(true)
 		}
@@ -167,7 +167,7 @@ test("Validate instance type", () => {
 })
 
 test("Validate instance image", () => {
-	for (const [key, type] of getEntries(S)) {
+	for (const [key, type] of forEntries(S)) {
 		const m = M[key]
 		const image = fold(M, S, T, type)
 		for (const value of getValues(T, I, m.source, m.target)) {
@@ -178,7 +178,7 @@ test("Validate instance image", () => {
 })
 
 test("Validate delta pullback", () => {
-	for (const [key, values] of getEntries(delta(M, S, T, I))) {
+	for (const [key, values] of forEntries(delta(M, S, T, I))) {
 		for (const value of values) {
 			expect(validateValue(S[key], value)).toBe(true)
 		}

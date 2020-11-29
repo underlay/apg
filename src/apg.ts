@@ -68,8 +68,19 @@ namespace APG {
 	}
 
 	export class Variant {
-		constructor(readonly option: string, readonly value: Value) {
-			Object.freeze(this)
+		constructor(
+			readonly options: readonly string[],
+			readonly index: number,
+			readonly value: Value
+		) {
+			if (index in options) {
+				Object.freeze(this)
+			} else {
+				throw new Error("Varint index out of range")
+			}
+		}
+		public get option(): string {
+			return this.options[this.index]
 		}
 		public get termType(): "Variant" {
 			return "Variant"

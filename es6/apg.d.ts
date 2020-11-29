@@ -47,9 +47,11 @@ declare namespace APG {
         map<T>(f: (value: Value, index: number, record: Record) => T): T[];
     }
     class Variant {
-        readonly option: string;
+        readonly options: readonly string[];
+        readonly index: number;
         readonly value: Value;
-        constructor(option: string, value: Value);
+        constructor(options: readonly string[], index: number, value: Value);
+        get option(): string;
         get termType(): "Variant";
     }
     type Expression = Identity | Initial | Terminal | Identifier | Constant | Dereference | Projection | Injection | Tuple | Match;

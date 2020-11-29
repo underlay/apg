@@ -1,8 +1,8 @@
 import * as N3 from "n3.ts";
 import APG from "../../apg.js";
-import schemaSchema from "./index.js";
+import schemaSchema, { value as valueType, label as labelType, component as componentType, option as optionType, } from "./index.js";
 import * as ns from "../../namespace.js";
-import { getKeys, getID, signalInvalidType, getKeyIndex, getEntries, freezeType, mapKeys, } from "../../utils.js";
+import { getKeys, getID, signalInvalidType, getKeyIndex, forEntries, freezeType, mapKeys, } from "../../utils.js";
 export function toSchema(instance) {
     const labels = instance[ns.label];
     const components = instance[ns.component];
@@ -98,33 +98,26 @@ function rotateTree(trees, pivot) {
     }
     return result;
 }
-const ul = {
-    label: new N3.NamedNode(ns.label),
-    key: new N3.NamedNode(ns.key),
-    value: new N3.NamedNode(ns.value),
-    reference: new N3.NamedNode(ns.reference),
-    unit: new N3.NamedNode(ns.unit),
-    uri: new N3.NamedNode(ns.uri),
-    literal: new N3.NamedNode(ns.literal),
-    datatype: new N3.NamedNode(ns.datatype),
-    product: new N3.NamedNode(ns.product),
-    component: new N3.NamedNode(ns.component),
-    coproduct: new N3.NamedNode(ns.coproduct),
-    option: new N3.NamedNode(ns.option),
-    source: new N3.NamedNode(ns.source),
+const labelKeys = getKeys(labelType.components);
+const componentKeys = getKeys(componentType.components);
+const optionKeys = getKeys(optionType.components);
+const valueKeys = getKeys(valueType.options);
+const getValueIndex = (value) => {
+    const index = valueKeys.indexOf(ns[value]);
+    if (index === -1) {
+        throw new Error("Invalid value option index");
+    }
+    else {
+        return index;
+    }
 };
-const labelKeys = Object.freeze([ns.key, ns.value]);
-const referenceKeys = Object.freeze([ns.value]);
-const literalKeys = Object.freeze([ns.datatype]);
-const productKeys = Object.freeze([ns.key, ns.source, ns.value]);
-const coproductKeys = Object.freeze([ns.key, ns.source, ns.value]);
 export function fromSchema(schema) {
     const id = getID();
     const instance = mapKeys(schemaSchema, () => []);
     const cache = new Map();
     for (const key of getKeys(schema)) {
         const type = schema[key];
-        const variant = new APG.Variant(ul[type.type].value, fromType(schema, instance, cache, id, type));
+        const variant = new APG.Variant(valueKeys, getValueIndex(type.type), fromType(schema, instance, cache, id, type));
         instance[ns.label].push(new APG.Record(labelKeys, [new N3.NamedNode(key), variant]));
     }
     for (const key of getKeys(schemaSchema)) {
@@ -153,11 +146,11 @@ function fromType(schema, instance, cache, id, type) {
         }
         const index = instance[ns.product].push(id()) - 1;
         cache.set(type, index);
-        for (const [key, value] of getEntries(type.components)) {
-            instance[ns.component].push(new APG.Record(productKeys, [
+        for (const [key, value] of forEntries(type.components)) {
+            instance[ns.component].push(new APG.Record(componentKeys, [
                 new N3.NamedNode(key),
                 new APG.Pointer(index),
-                new APG.Variant(ul[value.type].value, fromType(schema, instance, cache, id, value)),
+                new APG.Variant(valueKeys, getValueIndex(value.type), fromType(schema, instance, cache, id, value)),
             ]));
         }
         return new APG.Pointer(index);
@@ -169,11 +162,11 @@ function fromType(schema, instance, cache, id, type) {
         }
         const index = instance[ns.coproduct].push(id()) - 1;
         cache.set(type, index);
-        for (const [key, value] of getEntries(type.options)) {
-            instance[ns.option].push(new APG.Record(coproductKeys, [
+        for (const [key, value] of forEntries(type.options)) {
+            instance[ns.option].push(new APG.Record(optionKeys, [
                 new N3.NamedNode(key),
                 new APG.Pointer(index),
-                new APG.Variant(ul[value.type].value, fromType(schema, instance, cache, id, value)),
+                new APG.Variant(valueKeys, getValueIndex(value.type), fromType(schema, instance, cache, id, value)),
             ]));
         }
         return new APG.Pointer(index);

@@ -1,8 +1,8 @@
 import APG from "../../apg.js"
 import * as ns from "../../namespace.js"
-import { freezeType, getEntries } from "../../utils.js"
+import { freezeType, forEntries } from "../../utils.js"
 
-const anyValue: APG.Coproduct = {
+export const value: APG.Coproduct = {
 	type: "coproduct",
 	options: {
 		[ns.reference]: { type: "reference", value: ns.label },
@@ -15,46 +15,46 @@ const anyValue: APG.Coproduct = {
 }
 
 // Label
-const labelLabel: APG.Product = {
+export const label: APG.Product = {
 	type: "product",
-	components: { [ns.key]: { type: "uri" }, [ns.value]: anyValue },
+	components: { [ns.key]: { type: "uri" }, [ns.value]: value },
 }
 
 // Product
-const productLabel: APG.Unit = { type: "unit" }
+export const product: APG.Unit = { type: "unit" }
 
 // Component
-const componentLabel: APG.Product = {
+export const component: APG.Product = {
 	type: "product",
 	components: {
 		[ns.key]: { type: "uri" },
 		[ns.source]: { type: "reference", value: ns.product },
-		[ns.value]: anyValue,
+		[ns.value]: value,
 	},
 }
 
 // Coproduct
-const coproductLabel: APG.Unit = { type: "unit" }
+export const coproduct: APG.Unit = { type: "unit" }
 
 // Option
-const optionLabel: APG.Product = {
+export const option: APG.Product = {
 	type: "product",
 	components: {
 		[ns.key]: { type: "uri" },
 		[ns.source]: { type: "reference", value: ns.coproduct },
-		[ns.value]: anyValue,
+		[ns.value]: value,
 	},
 }
 
 const schemaSchema = {
-	[ns.label]: labelLabel,
-	[ns.product]: productLabel,
-	[ns.component]: componentLabel,
-	[ns.coproduct]: coproductLabel,
-	[ns.option]: optionLabel,
+	[ns.label]: label,
+	[ns.product]: product,
+	[ns.component]: component,
+	[ns.coproduct]: coproduct,
+	[ns.option]: option,
 }
 
-for (const [_, label] of getEntries(schemaSchema)) {
+for (const [_, label] of forEntries(schemaSchema)) {
 	freezeType(label)
 }
 
