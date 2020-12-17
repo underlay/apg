@@ -62,7 +62,7 @@ A schema is a map from URI keys to `Type` values:
 type Schema = { [key: string]: Type }
 ```
 
-There are six kinds of types:
+There are five kinds of types:
 
 ```typescript
 type Type = Reference | Uri | Literal | Product | Coproduct
