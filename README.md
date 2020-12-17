@@ -67,11 +67,10 @@ There are six kinds of types:
 ```typescript
 type Type = Reference | Uri | Literal | Product | Coproduct
 
-type Reference = { type: "reference"; value: number }
-type Uri = { type: "uri" }
+type Reference = { type: "reference"; value: string }
+type Unit = { type: "unit" }
 type Literal = { type: "literal"; datatype: string }
 type Product = { type: "product"; components: { [key: string]: Type } }
-type Component = { type: "component"; key: string; value: Type }
 type Coproduct = { type: "coproduct"; options: { [key: string]: Type } }
 ```
 
@@ -105,7 +104,11 @@ class Record extends Array<Value> {
 }
 
 class Variant {
-	constructor(readonly option: string, readonly value: Value) {}
+	constructor(
+		readonly options: string[],
+		readonly option: string,
+		readonly value: Value
+	) {}
 	get termType() {
 		return "Variant"
 	}
