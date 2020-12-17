@@ -68,7 +68,7 @@ There are five kinds of types:
 type Type = Reference | Uri | Literal | Product | Coproduct
 
 type Reference = { type: "reference"; value: string }
-type Unit = { type: "unit" }
+type Uri = { type: "uri" }
 type Literal = { type: "literal"; datatype: string }
 type Product = { type: "product"; components: { [key: string]: Type } }
 type Coproduct = { type: "coproduct"; options: { [key: string]: Type } }
