@@ -2,6 +2,7 @@ import * as N3 from "n3.ts"
 
 import APG from "../../apg.js"
 import schemaSchema, {
+	SchemaSchema,
 	value as valueType,
 	label as labelType,
 	component as componentType,
@@ -10,53 +11,53 @@ import schemaSchema, {
 import * as ns from "../../namespace.js"
 import {
 	getKeys,
-	getID,
-	ID,
 	signalInvalidType,
 	getKeyIndex,
 	forEntries,
-	freezeType,
 	mapKeys,
 } from "../../utils.js"
+
+type ValueTypeMap = typeof valueType extends APG.Coproduct<infer T> ? T : never
 
 type TypeCache = {
 	product: Map<number, APG.Product>
 	coproduct: Map<number, APG.Coproduct>
 }
 
-export function toSchema(instance: APG.Instance): APG.Schema {
-	const labels = instance[ns.label] as APG.Record[]
-	const components = instance[ns.component] as APG.Record[]
-	const options = instance[ns.option] as APG.Record[]
+type Sources = {
+	components: Map<
+		number,
+		APG.Record<Link<typeof ns.product, typeof valueType>>[]
+	>
+	options: Map<
+		number,
+		APG.Record<Link<typeof ns.coproduct, typeof valueType>>[]
+	>
+}
 
-	const componentSources = rotateTree(components, ns.source)
-	const optionSources = rotateTree(options, ns.source)
+export function toSchema(instance: APG.Instance<SchemaSchema>): APG.Schema {
+	const labels = instance[ns.label]
+
+	const sources: Sources = {
+		components: rotateTree(instance[ns.component]),
+		options: rotateTree(instance[ns.option]),
+	}
 
 	const typeCache: TypeCache = { product: new Map(), coproduct: new Map() }
-	//  = new Map(
-	// 	getKeys(schemaSchema).map((key) => [key, new Map()])
-	// )
 
 	const permutation = new Map(
 		labels.map((label, i) => {
-			const { value: key } = label.get(ns.key) as N3.NamedNode
+			const { value: key } = label.get(ns.key)
 			return [i, key]
 		})
 	)
 
 	const schema: APG.Schema = Object.fromEntries(
 		labels.map((label) => {
-			const { value: key } = label.get(ns.key) as N3.NamedNode<string>
-			const target = label.get(ns.value) as APG.Variant
-			const type = toType(
-				target,
-				instance,
-				typeCache,
-				componentSources,
-				optionSources,
-				permutation
-			)
-			freezeType(type)
+			const { value: key } = label.get(ns.key)
+			const target = label.get(ns.value)
+			const type = toType(target, instance, typeCache, sources, permutation)
+
 			return [key, type]
 		})
 	)
@@ -67,87 +68,71 @@ export function toSchema(instance: APG.Instance): APG.Schema {
 }
 
 function toType(
-	value: APG.Variant,
-	instance: APG.Instance,
+	value: APG.Variant<ValueTypeMap>,
+	instance: APG.Instance<SchemaSchema>,
 	typeCache: TypeCache,
-	componentSources: Map<number, APG.Record[]>,
-	optionSources: Map<number, APG.Record[]>,
+	sources: Sources,
 	permutation: Map<number, string>
 ): APG.Type {
-	const key = value.option
-	if (key === ns.reference) {
-		const { index } = value.value as APG.Pointer
-		return { type: "reference", value: permutation.get(index)! }
-	} else if (key === ns.unit) {
-		return { type: "unit" }
-	} else if (key === ns.uri) {
-		return { type: "uri" }
-	} else if (key === ns.literal) {
-		const { value: datatype } = value.value as N3.NamedNode
-		return { type: "literal", datatype }
-	} else if (key === ns.product) {
-		const { index } = value.value as APG.Pointer
-		return toProduct(
-			index,
-			instance,
-			typeCache,
-			componentSources,
-			optionSources,
-			permutation
-		)
-	} else if (key === ns.coproduct) {
-		const { index } = value.value as APG.Pointer
-		return toCoproduct(
-			index,
-			instance,
-			typeCache,
-			componentSources,
-			optionSources,
-			permutation
-		)
+	if (value.is(ns.reference)) {
+		const { index } = value.value
+		return APG.reference(permutation.get(index)!)
+	} else if (value.is(ns.uri)) {
+		return APG.uri()
+	} else if (value.is(ns.literal)) {
+		const { value: datatype } = value.value
+		return APG.literal(datatype)
+	} else if (value.is(ns.product)) {
+		const { index } = value.value
+		return toProduct(index, instance, typeCache, sources, permutation)
+	} else if (value.is(ns.coproduct)) {
+		const { index } = value.value
+		return toCoproduct(index, instance, typeCache, sources, permutation)
 	} else {
-		throw new Error(`Invalid value variant key ${key}`)
+		throw new Error(`Invalid value variant key ${value.key}`)
 	}
 }
 
 function toProduct(
 	index: number,
-	instance: APG.Instance,
+	instance: APG.Instance<SchemaSchema>,
 	typeCache: TypeCache,
-	componentSources: Map<number, APG.Record[]>,
-	optionSources: Map<number, APG.Record[]>,
+	sources: Sources,
 	permutation: Map<number, string>
 ): APG.Product {
 	if (typeCache.product.has(index)) {
 		return typeCache.product.get(index)!
 	}
 
-	const components = Object.fromEntries(
-		componentSources.get(index)!.map((component) => {
-			const { value: key } = component.get(ns.key) as N3.NamedNode
-			const value = toType(
-				component.get(ns.value) as APG.Variant,
-				instance,
-				typeCache,
-				componentSources,
-				optionSources,
-				permutation
-			)
-			return [key, value]
-		})
+	const components = sources.components.get(index)
+
+	const product = APG.product(
+		components === undefined
+			? {}
+			: Object.fromEntries(
+					components.map((component) => {
+						const { value: key } = component.get(ns.key)
+						const value = toType(
+							component.get(ns.value),
+							instance,
+							typeCache,
+							sources,
+							permutation
+						)
+						return [key, value]
+					})
+			  )
 	)
 
-	const product: APG.Product = { type: "product", components }
 	typeCache.product.set(index, product)
 	return product
 }
 
 function toCoproduct(
 	index: number,
-	instance: APG.Instance,
+	instance: APG.Instance<SchemaSchema>,
 	typeCache: TypeCache,
-	componentSources: Map<number, APG.Record[]>,
-	optionSources: Map<number, APG.Record[]>,
+	sources: Sources,
 	permutation: Map<number, string>
 ): APG.Coproduct {
 	if (typeCache.coproduct.has(index)) {
@@ -155,38 +140,39 @@ function toCoproduct(
 	}
 
 	const options = Object.fromEntries(
-		optionSources.get(index)!.map((option) => {
-			const { value: key } = option.get(ns.key) as N3.NamedNode
+		sources.options.get(index)!.map((option) => {
+			const { value: key } = option.get(ns.key)
 			const value = toType(
-				option.get(ns.value) as APG.Variant,
+				option.get(ns.value),
 				instance,
 				typeCache,
-				componentSources,
-				optionSources,
+				sources,
 				permutation
 			)
 			return [key, value]
 		})
 	)
 
-	const coproduct: APG.Coproduct = { type: "coproduct", options }
+	const coproduct = APG.coproduct(options)
 	typeCache.coproduct.set(index, coproduct)
 	return coproduct
 }
 
-function rotateTree(
-	trees: APG.Record[],
-	pivot: string
-): Map<number, APG.Record[]> {
-	const result: Map<number, APG.Record[]> = new Map()
+type Link<Key extends string, Value extends APG.Type> = {
+	[ns.source]: APG.Reference<Key>
+	[ns.key]: APG.Uri
+	[ns.value]: Value
+}
+
+function rotateTree<Key extends string, Value extends APG.Type>(
+	trees: APG.Record<Link<Key, Value>>[]
+): Map<number, APG.Record<Link<Key, Value>>[]> {
+	const result: Map<number, APG.Record<Link<Key, Value>>[]> = new Map()
 	for (const tree of trees) {
-		const value = tree.get(pivot)
-		if (value === undefined || value.termType !== "Pointer") {
-			throw new Error("Rotation failed because the value was not a pointer")
-		}
-		const trees = result.get(value.index)
+		const { index } = tree.get(ns.source)
+		const trees = result.get(index)
 		if (trees === undefined) {
-			result.set(value.index, [tree])
+			result.set(index, [tree])
 		} else {
 			trees.push(tree)
 		}
@@ -199,18 +185,7 @@ const componentKeys = getKeys(componentType.components)
 const optionKeys = getKeys(optionType.components)
 const valueKeys = getKeys(valueType.options)
 
-const getValueIndex = (value: APG.Type["type"]): number => {
-	const index = valueKeys.indexOf(ns[value])
-	if (index === -1) {
-		throw new Error("Invalid value option index")
-	} else {
-		return index
-	}
-}
-
 export function fromSchema(schema: APG.Schema): APG.Instance {
-	const id = getID()
-
 	const instance: APG.Instance = mapKeys(schemaSchema, () => [])
 
 	const cache = new Map<APG.Product | APG.Coproduct, number>()
@@ -219,8 +194,8 @@ export function fromSchema(schema: APG.Schema): APG.Instance {
 		const type = schema[key]
 		const variant = new APG.Variant(
 			valueKeys,
-			getValueIndex(type.type),
-			fromType(schema, instance, cache, id, type)
+			ns[type.type],
+			fromType(schema, instance, cache, type)
 		)
 		instance[ns.label].push(
 			new APG.Record(labelKeys, [new N3.NamedNode(key), variant])
@@ -240,15 +215,12 @@ function fromType(
 	schema: APG.Schema,
 	instance: APG.Instance,
 	cache: Map<APG.Product | APG.Coproduct, number>,
-	id: ID,
 	type: APG.Type
 ): APG.Value {
 	if (type.type === "reference") {
 		return new APG.Pointer(getKeyIndex(schema, type.value))
-	} else if (type.type === "unit") {
-		return id()
 	} else if (type.type === "uri") {
-		return id()
+		return APG.unit()
 	} else if (type.type === "literal") {
 		return new N3.NamedNode(type.datatype)
 	} else if (type.type === "product") {
@@ -257,7 +229,7 @@ function fromType(
 			return new APG.Pointer(pointer)
 		}
 
-		const index = instance[ns.product].push(id()) - 1
+		const index = instance[ns.product].push(APG.unit()) - 1
 		cache.set(type, index)
 
 		for (const [key, value] of forEntries(type.components)) {
@@ -267,8 +239,8 @@ function fromType(
 					new APG.Pointer(index),
 					new APG.Variant(
 						valueKeys,
-						getValueIndex(value.type),
-						fromType(schema, instance, cache, id, value)
+						ns[value.type],
+						fromType(schema, instance, cache, value)
 					),
 				])
 			)
@@ -281,7 +253,7 @@ function fromType(
 			return new APG.Pointer(pointer)
 		}
 
-		const index = instance[ns.coproduct].push(id()) - 1
+		const index = instance[ns.coproduct].push(APG.unit()) - 1
 		cache.set(type, index)
 
 		for (const [key, value] of forEntries(type.options)) {
@@ -291,8 +263,8 @@ function fromType(
 					new APG.Pointer(index),
 					new APG.Variant(
 						valueKeys,
-						getValueIndex(value.type),
-						fromType(schema, instance, cache, id, value)
+						ns[value.type],
+						fromType(schema, instance, cache, value)
 					),
 				])
 			)

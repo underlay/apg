@@ -5,8 +5,6 @@ import { getKeys, signalInvalidType } from "./utils.js"
 export function validateValue(type: APG.Type, value: APG.Value): boolean {
 	if (type.type === "reference") {
 		return value.termType === "Pointer"
-	} else if (type.type === "unit") {
-		return value.termType === "BlankNode"
 	} else if (type.type === "uri") {
 		return value.termType === "NamedNode"
 	} else if (type.type === "literal") {
@@ -19,8 +17,10 @@ export function validateValue(type: APG.Type, value: APG.Value): boolean {
 			if (keys.length !== value.length) {
 				return false
 			}
-			for (const [k, v] of zip(keys, value)) {
-				if (validateValue(type.components[k], v)) {
+			for (const [k1, k2, v] of zip(keys, value.components, value)) {
+				if (k1 !== k2) {
+					return false
+				} else if (validateValue(type.components[k1], v)) {
 					continue
 				} else {
 					return false
@@ -31,8 +31,8 @@ export function validateValue(type: APG.Type, value: APG.Value): boolean {
 			return false
 		}
 	} else if (type.type === "coproduct") {
-		if (value.termType === "Variant" && value.option in type.options) {
-			return validateValue(type.options[value.option], value.value)
+		if (value.termType === "Variant" && value.key in type.options) {
+			return validateValue(type.options[value.key], value.value)
 		} else {
 			return false
 		}
@@ -42,14 +42,23 @@ export function validateValue(type: APG.Type, value: APG.Value): boolean {
 }
 
 export function* forValue(
-	value: APG.Value
-): Generator<[APG.Value], void, undefined> {
-	yield [value]
+	value: APG.Value,
+	stack: APG.Value[] = []
+): Generator<[APG.Value, APG.Value[]], void, undefined> {
+	if (stack.includes(value)) {
+		throw new Error("Recursive type")
+	}
+
+	yield [value, stack]
 	if (value.termType === "Record") {
+		stack.push(value)
 		for (const leaf of value) {
-			yield* forValue(leaf)
+			yield* forValue(leaf, stack)
 		}
+		stack.pop()
 	} else if (value.termType === "Variant") {
-		yield* forValue(value.value)
+		stack.push(value)
+		yield* forValue(value.value, stack)
+		stack.pop()
 	}
 }

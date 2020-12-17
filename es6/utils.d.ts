@@ -1,21 +1,12 @@
-import { BlankNode } from "n3.ts";
-import APG from "./apg";
-export declare function forEntries<T>(object: Readonly<{
-    [key: string]: T;
-}>): Generator<[string, T], void, undefined>;
-export declare function getKeys(object: Readonly<{
-    [key: string]: any;
-}>): readonly string[];
+declare type R<K extends string = string, V = any> = Readonly<Record<K, V>>;
+export declare function forEntries<K extends string = string, V = any>(object: R<K, V>): Generator<[K, V, number], void, undefined>;
+export declare function getKeys<T extends R = R>(object: T): readonly (keyof T)[];
 export declare function getKeyIndex(object: Readonly<{
     [key: string]: any;
 }>, key: string): number;
-export declare function mapKeys<S, T>(object: Readonly<{
-    [key: string]: S;
-}>, map: (value: S, key: string) => T): {
+export declare function mapKeys<T, K extends string = string, V = any>(object: R<K, V>, map: <Key extends K>(value: R[Key], key: Key) => T): {
     [k: string]: T;
 };
 export declare function signalInvalidType(type: never): never;
 export declare const rootId: string;
-export declare type ID = () => BlankNode;
-export declare function getID(): ID;
-export declare function freezeType(type: APG.Type): void;
+export {};

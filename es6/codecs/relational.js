@@ -1,6 +1,7 @@
 import * as t from "io-ts";
-import { ns } from "../index.js";
-import { forEntries } from "../utils.js";
+import { none, some } from "../namespace.js";
+import { forEntries, getKeys } from "../utils.js";
+import { isUnit } from "./unit.js";
 const property = t.union([
     t.type({ type: t.literal("reference"), value: t.string }),
     t.type({ type: t.literal("literal"), datatype: t.string }),
@@ -11,32 +12,27 @@ const optionalProperty = t.union([
     t.type({
         type: t.literal("coproduct"),
         options: t.type({
-            [ns.none]: t.type({ type: t.literal("unit") }),
-            [ns.some]: property,
+            [none]: t.type({ type: t.literal("product"), components: t.type({}) }),
+            [some]: property,
         }),
     }),
 ]);
-const type = t.union([
-    t.type({ type: t.literal("unit") }),
-    t.type({
-        type: t.literal("product"),
-        components: t.record(t.string, optionalProperty),
-    }),
-]);
+const type = t.type({
+    type: t.literal("product"),
+    components: t.record(t.string, optionalProperty),
+});
 const labels = t.record(t.string, type);
 const isProperty = (type) => type.type === "reference" || type.type === "uri" || type.type === "literal";
 const isOptionalProperty = (type) => isProperty(type) ||
     (type.type === "coproduct" &&
-        ns.none in type.options &&
-        type.options[ns.none].type === "unit" &&
-        ns.some in type.options &&
-        isProperty(type.options[ns.some]));
+        getKeys(type).length === 2 &&
+        none in type.options &&
+        isUnit(type.options[none]) &&
+        some in type.options &&
+        isProperty(type.options[some]));
 export function isRelationalSchema(input) {
-    for (const [key, type] of forEntries(input)) {
-        if (type.type === "unit") {
-            continue;
-        }
-        else if (type.type === "product") {
+    for (const [{}, type] of forEntries(input)) {
+        if (type.type === "product") {
             for (const [_, value] of forEntries(type.components)) {
                 if (isOptionalProperty(value)) {
                     continue;
@@ -53,7 +49,7 @@ export function isRelationalSchema(input) {
     return true;
 }
 export const relationalSchema = new t.Type("Relational", (input) => {
-    return labels.is(input);
+    return labels.is(input) && isRelationalSchema(input);
 }, (input, context) => {
     if (isRelationalSchema(input)) {
         return t.success(input);

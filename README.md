@@ -23,7 +23,6 @@ The birds-eye view is that this library defines a collection of structures that 
 | Type        | Value       | Expression             |
 | ----------- | ----------- | ---------------------- |
 | `reference` | `Pointer`   | `dereference`          |
-| `unit`      | `BlankNode` | `terminal`             |
 | `uri`       | `NamedNode` | `identifier`           |
 | `literal`   | `Literal`   | `constant`             |
 | `product`   | `Record`    | `tuple` / `projection` |
@@ -46,7 +45,6 @@ There are a few different kinds of types. Primitive (or "scalar") types are are 
 | Type      |   Kind    |                       Interpretation |
 | --------- | :-------: | -----------------------------------: |
 | reference | reference |            label, pointer, recursion |
-| unit      | primitive |      RDF Blank Nodes, "node", "null" |
 | uri       | primitive | RDF Named Nodes, "identifier", "key" |
 | literal   | primitive |                RDF Literals, "value" |
 | product   | composite |         tuple, record, struct, "AND" |
@@ -67,10 +65,9 @@ type Schema = { [key: string]: Type }
 There are six kinds of types:
 
 ```typescript
-type Type = Reference | Unit | Uri | Literal | Product | Coproduct
+type Type = Reference | Uri | Literal | Product | Coproduct
 
 type Reference = { type: "reference"; value: number }
-type Unit = { type: "unit" }
 type Uri = { type: "uri" }
 type Literal = { type: "literal"; datatype: string }
 type Product = { type: "product"; components: { [key: string]: Type } }
@@ -86,8 +83,7 @@ So we've seen how schemas and types are represented - what do _values of those t
 
 ```typescript
 type Value =
-	| N3.BlankNode // Unit value
-	| N3.NamedNode // Iri value
+	| N3.NamedNode // Uri value
 	| N3.Literal // Literal value
 	| Record // Product value
 	| Variant // Coproduct value

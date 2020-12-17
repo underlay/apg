@@ -1,53 +1,39 @@
+import APG from "../../apg.js";
 import * as ns from "../../namespace.js";
-import { freezeType, forEntries } from "../../utils.js";
-export const value = {
-    type: "coproduct",
-    options: {
-        [ns.reference]: { type: "reference", value: ns.label },
-        [ns.unit]: { type: "unit" },
-        [ns.uri]: { type: "unit" },
-        [ns.literal]: { type: "uri" },
-        [ns.product]: { type: "reference", value: ns.product },
-        [ns.coproduct]: { type: "reference", value: ns.coproduct },
-    },
-};
+export const value = APG.coproduct({
+    [ns.reference]: APG.reference(ns.label),
+    [ns.uri]: APG.product({}),
+    [ns.literal]: APG.uri(),
+    [ns.product]: APG.reference(ns.product),
+    [ns.coproduct]: APG.reference(ns.coproduct),
+});
 // Label
-export const label = {
-    type: "product",
-    components: { [ns.key]: { type: "uri" }, [ns.value]: value },
-};
+export const label = APG.product({
+    [ns.key]: APG.uri(),
+    [ns.value]: value,
+});
 // Product
-export const product = { type: "unit" };
+export const product = APG.product({});
 // Component
-export const component = {
-    type: "product",
-    components: {
-        [ns.key]: { type: "uri" },
-        [ns.source]: { type: "reference", value: ns.product },
-        [ns.value]: value,
-    },
-};
+export const component = APG.product({
+    [ns.key]: APG.uri(),
+    [ns.source]: APG.reference(ns.product),
+    [ns.value]: value,
+});
 // Coproduct
-export const coproduct = { type: "unit" };
+export const coproduct = APG.product({});
 // Option
-export const option = {
-    type: "product",
-    components: {
-        [ns.key]: { type: "uri" },
-        [ns.source]: { type: "reference", value: ns.coproduct },
-        [ns.value]: value,
-    },
-};
-const schemaSchema = {
+export const option = APG.product({
+    [ns.key]: APG.uri(),
+    [ns.source]: APG.reference(ns.coproduct),
+    [ns.value]: value,
+});
+const schemaSchema = APG.schema({
     [ns.label]: label,
     [ns.product]: product,
     [ns.component]: component,
     [ns.coproduct]: coproduct,
     [ns.option]: option,
-};
-for (const [_, label] of forEntries(schemaSchema)) {
-    freezeType(label);
-}
-Object.freeze(schemaSchema);
+});
 export default schemaSchema;
 //# sourceMappingURL=index.js.map

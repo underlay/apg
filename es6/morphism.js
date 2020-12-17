@@ -1,3 +1,4 @@
+import APG from "./apg.js";
 import { isTypeAssignable, unify } from "./type.js";
 import { getKeys, mapKeys, signalInvalidType } from "./utils.js";
 export const applyExpressions = (S, expressions, source) => expressions.reduce((type, expression) => apply(S, expression, type), source);
@@ -5,17 +6,11 @@ export function apply(S, expression, source) {
     if (expression.type === "identity") {
         return source;
     }
-    else if (expression.type === "initial") {
-        throw new Error("Not implemented");
-    }
-    else if (expression.type === "terminal") {
-        return Object.freeze({ type: "unit" });
-    }
     else if (expression.type === "identifier") {
-        return Object.freeze({ type: "uri" });
+        return APG.uri();
     }
     else if (expression.type === "constant") {
-        return Object.freeze({ type: "literal", datatype: expression.datatype });
+        return APG.literal(expression.datatype);
     }
     else if (expression.type === "dereference") {
         if (source.type === "reference" &&
@@ -37,18 +32,12 @@ export function apply(S, expression, source) {
     }
     else if (expression.type === "injection") {
         const { key, value } = expression;
-        return Object.freeze({
-            type: "coproduct",
-            options: Object.freeze({
-                [key]: value.reduce((type, expression) => apply(S, expression, type), source),
-            }),
+        return APG.coproduct({
+            [key]: value.reduce((type, expression) => apply(S, expression, type), source),
         });
     }
     else if (expression.type === "tuple") {
-        return Object.freeze({
-            type: "product",
-            components: mapKeys(expression.slots, (value) => applyExpressions(S, value, source)),
-        });
+        return APG.product(mapKeys(expression.slots, (value) => applyExpressions(S, value, source)));
     }
     else if (expression.type === "match") {
         if (source.type === "coproduct") {

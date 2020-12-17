@@ -1,10 +1,8 @@
 import zip from "ziterable";
+import APG from "./apg.js";
 import { getKeys } from "./utils.js";
-export function* forType(type, stack) {
-    if (stack === undefined) {
-        stack = [];
-    }
-    else if (stack.includes(type)) {
+export function* forType(type, stack = []) {
+    if (stack.includes(type)) {
         throw new Error("Recursive type");
     }
     yield [type, stack];
@@ -32,9 +30,6 @@ export function isTypeEqual(a, b) {
     }
     else if (a.type === "reference" && b.type === "reference") {
         return a.value === b.value;
-    }
-    else if (a.type === "unit" && b.type === "unit") {
-        return true;
     }
     else if (a.type === "uri" && b.type === "uri") {
         return true;
@@ -94,9 +89,6 @@ export function isTypeAssignable(a, b) {
     else if (a.type === "reference" && b.type === "reference") {
         return a.value === b.value;
     }
-    else if (a.type === "unit" && b.type === "unit") {
-        return true;
-    }
     else if (a.type === "uri" && b.type === "uri") {
         return true;
     }
@@ -140,9 +132,6 @@ export function unify(a, b) {
             return b;
         }
     }
-    else if (a.type === "unit" && b.type === "unit") {
-        return b;
-    }
     else if (a.type === "uri" && b.type === "uri") {
         return b;
     }
@@ -152,14 +141,10 @@ export function unify(a, b) {
         }
     }
     else if (a.type === "product" && b.type === "product") {
-        const components = Object.fromEntries(unifyComponents(a, b));
-        Object.freeze(components);
-        return Object.freeze({ type: "product", components });
+        return APG.product(Object.fromEntries(unifyComponents(a, b)));
     }
     if (a.type === "coproduct" && b.type === "coproduct") {
-        const options = Object.fromEntries(unifyOptions(a, b));
-        Object.freeze(options);
-        return Object.freeze({ type: "coproduct", options });
+        return APG.coproduct(Object.fromEntries(unifyOptions(a, b)));
     }
     else {
         throw new Error("Cannot unify unequal types");

@@ -2,17 +2,14 @@ import * as N3 from "n3.ts";
 import zip from "ziterable";
 import APG from "./apg.js";
 import { validateExpressions } from "./morphism.js";
-import { getType, getValues } from "./path.js";
 import { rootId, signalInvalidType, getKeys, forEntries, mapKeys, } from "./utils.js";
 export function validateMapping(M, S, T) {
-    for (const key of getKeys(S)) {
-        const value = S[key];
+    for (const [key, type] of forEntries(S)) {
         if (!(key in M)) {
             return false;
         }
-        const source = getType(T, M[key].source, M[key].target);
-        const target = fold(M, S, T, value);
-        if (validateExpressions(S, M[key].value, source, target)) {
+        const { source, value } = M[key];
+        if (validateExpressions(S, value, T[source], fold(M, S, T, type))) {
             continue;
         }
         else {
@@ -23,17 +20,14 @@ export function validateMapping(M, S, T) {
 }
 export function fold(M, S, T, type) {
     if (type.type === "reference") {
-        const { source, target } = M[type.value];
-        const value = getType(T, source, target);
+        const { source } = M[type.value];
+        const value = T[source];
         if (value === undefined) {
             throw new Error("Invalid reference index");
         }
         else {
             return value;
         }
-    }
-    else if (type.type === "unit") {
-        return type;
     }
     else if (type.type === "uri") {
         return type;
@@ -42,16 +36,10 @@ export function fold(M, S, T, type) {
         return type;
     }
     else if (type.type === "product") {
-        return Object.freeze({
-            type: "product",
-            components: mapKeys(type.components, (value) => fold(M, S, T, value)),
-        });
+        return APG.product(mapKeys(type.components, (value) => fold(M, S, T, value)));
     }
     else if (type.type === "coproduct") {
-        return Object.freeze({
-            type: "coproduct",
-            options: mapKeys(type.options, (value) => fold(M, S, T, value)),
-        });
+        return APG.coproduct(mapKeys(type.options, (value) => fold(M, S, T, value)));
     }
     else {
         signalInvalidType(type);
@@ -61,17 +49,6 @@ export const mapExpressions = (expressions, value, instance, schema) => expressi
 export function map(expression, value, instance, schema) {
     if (expression.type === "identity") {
         return value;
-    }
-    else if (expression.type === "initial") {
-        throw new Error("Not implemented");
-    }
-    else if (expression.type === "terminal") {
-        if (value.termType === "BlankNode") {
-            return value;
-        }
-        else {
-            throw new Error("Invalid terminal expression");
-        }
     }
     else if (expression.type === "identifier") {
         return new N3.NamedNode(expression.value);
@@ -103,8 +80,8 @@ export function map(expression, value, instance, schema) {
     }
     else if (expression.type === "match") {
         if (value.termType === "Variant") {
-            if (value.option in expression.cases) {
-                const c = expression.cases[value.option];
+            if (value.key in expression.cases) {
+                const c = expression.cases[value.key];
                 return mapExpressions(c, value.value, instance, schema);
             }
             else {
@@ -120,7 +97,7 @@ export function map(expression, value, instance, schema) {
         return new APG.Record(keys, keys.map((key) => mapExpressions(expression.slots[key], value, instance, schema)));
     }
     else if (expression.type === "injection") {
-        return new APG.Variant(Object.freeze([expression.key]), 0, mapExpressions(expression.value, value, instance, schema));
+        return new APG.Variant(Object.freeze([expression.key]), expression.key, mapExpressions(expression.value, value, instance, schema));
     }
     else {
         signalInvalidType(expression);
@@ -133,7 +110,11 @@ export function delta(M, S, T, TI) {
         if (!(key in M) || !(key in indices)) {
             throw new Error("Invalid mapping");
         }
-        for (const value of getValues(T, TI, M[key].source, M[key].target)) {
+        const { source } = M[key];
+        if (!(source in TI)) {
+            throw new Error("Invalid instance");
+        }
+        for (const value of TI[source]) {
             if (indices[key].has(value)) {
                 continue;
             }
@@ -178,14 +159,6 @@ value // of image
             return new APG.Pointer(index);
         }
     }
-    else if (type.type === "unit") {
-        if (value.termType !== "BlankNode") {
-            throw new Error("Invalid image value: expected blank node");
-        }
-        else {
-            return value;
-        }
-    }
     else if (type.type === "uri") {
         if (value.termType !== "NamedNode") {
             throw new Error("Invalid image value: expected iri");
@@ -214,8 +187,8 @@ value // of image
         if (value.termType !== "Variant") {
             throw new Error("Invalid image value: expected variant");
         }
-        else if (value.option in type.options) {
-            return new APG.Variant(value.options, value.index, pullback(state, type.options[value.option], value.value));
+        else if (value.key in type.options) {
+            return new APG.Variant(value.options, value.key, pullback(state, type.options[value.key], value.value));
         }
         else {
             throw new Error("Invalid image variant");

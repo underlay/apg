@@ -1,23 +1,18 @@
-import { BlankNode } from "n3.ts"
 import { v4 as uuid } from "uuid"
-import APG from "./apg"
 
-const keyMap = new WeakMap<
-	Readonly<{ [key: string]: any }>,
-	readonly string[]
->()
+type R<K extends string = string, V = any> = Readonly<Record<K, V>>
 
-export function* forEntries<T>(
-	object: Readonly<{ [key: string]: T }>
-): Generator<[string, T], void, undefined> {
-	for (const key of getKeys(object)) {
-		yield [key, object[key]]
+const keyMap = new WeakMap<R, readonly string[]>()
+
+export function* forEntries<K extends string = string, V = any>(
+	object: R<K, V>
+): Generator<[K, V, number], void, undefined> {
+	for (const [index, key] of getKeys(object).entries()) {
+		yield [key, object[key], index]
 	}
 }
 
-export function getKeys(
-	object: Readonly<{ [key: string]: any }>
-): readonly string[] {
+export function getKeys<T extends R = R>(object: T): readonly (keyof T)[] {
 	if (keyMap.has(object)) {
 		return keyMap.get(object)!
 	} else {
@@ -50,9 +45,9 @@ export function getKeyIndex(
 	}
 }
 
-export function mapKeys<S, T>(
-	object: Readonly<{ [key: string]: S }>,
-	map: (value: S, key: string) => T
+export function mapKeys<T, K extends string = string, V = any>(
+	object: R<K, V>,
+	map: <Key extends K>(value: R[Key], key: Key) => T
 ) {
 	const keys = getKeys(object)
 	const result = Object.fromEntries(
@@ -69,24 +64,3 @@ export function signalInvalidType(type: never): never {
 }
 
 export const rootId = uuid()
-
-export type ID = () => BlankNode
-export function getID(): ID {
-	let id = 0
-	return () => new BlankNode(`b${id++}`)
-}
-
-export function freezeType(type: APG.Type) {
-	if (type.type === "product") {
-		for (const [_, value] of forEntries(type.components)) {
-			freezeType(value)
-		}
-		Object.freeze(type.components)
-	} else if (type.type === "coproduct") {
-		for (const [_, value] of forEntries(type.options)) {
-			freezeType(value)
-		}
-		Object.freeze(type.options)
-	}
-	Object.freeze(type)
-}

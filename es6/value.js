@@ -4,9 +4,6 @@ export function validateValue(type, value) {
     if (type.type === "reference") {
         return value.termType === "Pointer";
     }
-    else if (type.type === "unit") {
-        return value.termType === "BlankNode";
-    }
     else if (type.type === "uri") {
         return value.termType === "NamedNode";
     }
@@ -19,8 +16,11 @@ export function validateValue(type, value) {
             if (keys.length !== value.length) {
                 return false;
             }
-            for (const [k, v] of zip(keys, value)) {
-                if (validateValue(type.components[k], v)) {
+            for (const [k1, k2, v] of zip(keys, value.components, value)) {
+                if (k1 !== k2) {
+                    return false;
+                }
+                else if (validateValue(type.components[k1], v)) {
                     continue;
                 }
                 else {
@@ -34,8 +34,8 @@ export function validateValue(type, value) {
         }
     }
     else if (type.type === "coproduct") {
-        if (value.termType === "Variant" && value.option in type.options) {
-            return validateValue(type.options[value.option], value.value);
+        if (value.termType === "Variant" && value.key in type.options) {
+            return validateValue(type.options[value.key], value.value);
         }
         else {
             return false;
@@ -45,15 +45,22 @@ export function validateValue(type, value) {
         signalInvalidType(type);
     }
 }
-export function* forValue(value) {
-    yield [value];
+export function* forValue(value, stack = []) {
+    if (stack.includes(value)) {
+        throw new Error("Recursive type");
+    }
+    yield [value, stack];
     if (value.termType === "Record") {
+        stack.push(value);
         for (const leaf of value) {
-            yield* forValue(leaf);
+            yield* forValue(leaf, stack);
         }
+        stack.pop();
     }
     else if (value.termType === "Variant") {
-        yield* forValue(value.value);
+        stack.push(value);
+        yield* forValue(value.value, stack);
+        stack.pop();
     }
 }
 //# sourceMappingURL=value.js.map

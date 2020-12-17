@@ -1,6 +1,6 @@
 {
 	"name": "@underlay/apg",
-	"version": "0.7.1",
+	"version": "0.8.0",
 	"description": "Underlay APG utilities",
 	"main": "lib/index.js",
 	"types": "es6/index.d.ts",
@@ -25,22 +25,20 @@
 	"homepage": "https://github.com/underlay/apg#readme",
 	"dependencies": {
 		"@types/uuid": "^8.3.0",
-		"uuid": "^8.3.1",
+		"uuid": "^8.3.2",
 		"ziterable": "^1.0.1"
 	},
 	"devDependencies": {
-		"@babel/cli": "^7.12.8",
-		"@babel/core": "^7.12.9",
+		"@babel/cli": "^7.12.10",
+		"@babel/core": "^7.12.10",
 		"@babel/plugin-transform-modules-commonjs": "^7.12.1",
 		"@babel/preset-typescript": "^7.12.7",
-		"@types/jest": "^26.0.15",
-		"@types/rdf-canonize": "gist:dc406f4c567dcab1da98cf19b2b8a6d8",
-		"fp-ts": "^2.9.0",
+		"@types/jest": "^26.0.19",
+		"fp-ts": "^2.9.1",
 		"io-ts": "^2.2.13",
 		"jest": "^26.6.3",
-		"n3.ts": "^0.2.0",
-		"rdf-canonize": "^1.2.0",
-		"typescript": "^4.1.2"
+		"n3.ts": "^0.2.1",
+		"typescript": "^4.1.3"
 	},
 	"peerDependencies": {
 		"fp-ts": "^2.8.6",

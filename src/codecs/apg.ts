@@ -10,8 +10,6 @@ export const reference: t.Type<APG.Reference> = t.type({
 	value: t.string,
 })
 
-export const unit: t.Type<APG.Unit> = t.type({ type: t.literal("unit") })
-
 export const uri: t.Type<APG.Uri> = t.type({ type: t.literal("uri") })
 
 export const literal: t.Type<APG.Literal> = t.type({
@@ -34,7 +32,7 @@ export const coproduct: t.Type<APG.Coproduct> = t.recursion("Coproduct", () =>
 )
 
 export const type: t.Type<APG.Type> = t.recursion("Type", () =>
-	t.union([reference, unit, uri, literal, product, coproduct])
+	t.union([reference, uri, literal, product, coproduct])
 )
 
 const labels = t.record(t.string, type)

@@ -1,9 +1,7 @@
 import * as t from "io-ts";
 import APG from "../apg.js";
-import { ns } from "../index.js";
-declare const labels: t.RecordC<t.StringC, t.UnionC<[t.TypeC<{
-    type: t.LiteralC<"unit">;
-}>, t.TypeC<{
+import { none, some } from "../namespace.js";
+declare const labels: t.RecordC<t.StringC, t.TypeC<{
     type: t.LiteralC<"product">;
     components: t.RecordC<t.StringC, t.UnionC<[t.UnionC<[t.TypeC<{
         type: t.LiteralC<"reference">;
@@ -17,7 +15,8 @@ declare const labels: t.RecordC<t.StringC, t.UnionC<[t.TypeC<{
         type: t.LiteralC<"coproduct">;
         options: t.TypeC<{
             "http://underlay.org/ns/none": t.TypeC<{
-                type: t.LiteralC<"unit">;
+                type: t.LiteralC<"product">;
+                components: t.TypeC<{}>;
             }>;
             "http://underlay.org/ns/some": t.UnionC<[t.TypeC<{
                 type: t.LiteralC<"reference">;
@@ -30,12 +29,10 @@ declare const labels: t.RecordC<t.StringC, t.UnionC<[t.TypeC<{
             }>]>;
         }>;
     }>]>>;
-}>]>>;
+}>>;
 export declare function isRelationalSchema(input: APG.Schema): input is t.TypeOf<typeof labels>;
 export declare const relationalSchema: t.Type<{
     [x: string]: {
-        type: "unit";
-    } | {
         type: "product";
         components: {
             [x: string]: {
@@ -50,7 +47,8 @@ export declare const relationalSchema: t.Type<{
                 type: "coproduct";
                 options: {
                     "http://underlay.org/ns/none": {
-                        type: "unit";
+                        type: "product";
+                        components: {};
                     };
                     "http://underlay.org/ns/some": {
                         type: "reference";
@@ -67,8 +65,6 @@ export declare const relationalSchema: t.Type<{
     };
 }, {
     [x: string]: {
-        type: "unit";
-    } | {
         type: "product";
         components: {
             [x: string]: {
@@ -83,7 +79,8 @@ export declare const relationalSchema: t.Type<{
                 type: "coproduct";
                 options: {
                     "http://underlay.org/ns/none": {
-                        type: "unit";
+                        type: "product";
+                        components: {};
                     };
                     "http://underlay.org/ns/some": {
                         type: "reference";
@@ -98,7 +95,5 @@ export declare const relationalSchema: t.Type<{
             };
         };
     };
-}, Readonly<{
-    [key: string]: APG.Type;
-}>>;
+}, Record<string, APG.Type>>;
 export {};

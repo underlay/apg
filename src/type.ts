@@ -4,11 +4,9 @@ import { getKeys } from "./utils.js"
 
 export function* forType(
 	type: APG.Type,
-	stack?: APG.Type[]
+	stack: APG.Type[] = []
 ): Generator<[APG.Type, APG.Type[]], void, undefined> {
-	if (stack === undefined) {
-		stack = []
-	} else if (stack.includes(type)) {
+	if (stack.includes(type)) {
 		throw new Error("Recursive type")
 	}
 
@@ -35,8 +33,6 @@ export function isTypeEqual(a: APG.Type, b: APG.Type) {
 		return false
 	} else if (a.type === "reference" && b.type === "reference") {
 		return a.value === b.value
-	} else if (a.type === "unit" && b.type === "unit") {
-		return true
 	} else if (a.type === "uri" && b.type === "uri") {
 		return true
 	} else if (a.type === "literal" && b.type === "literal") {
@@ -85,8 +81,6 @@ export function isTypeAssignable(a: APG.Type, b: APG.Type): boolean {
 		return false
 	} else if (a.type === "reference" && b.type === "reference") {
 		return a.value === b.value
-	} else if (a.type === "unit" && b.type === "unit") {
-		return true
 	} else if (a.type === "uri" && b.type === "uri") {
 		return true
 	} else if (a.type === "literal" && b.type === "literal") {
@@ -127,8 +121,6 @@ export function unify(a: APG.Type, b: APG.Type): APG.Type {
 		if (a.value === b.value) {
 			return b
 		}
-	} else if (a.type === "unit" && b.type === "unit") {
-		return b
 	} else if (a.type === "uri" && b.type === "uri") {
 		return b
 	} else if (a.type === "literal" && b.type === "literal") {
@@ -136,14 +128,10 @@ export function unify(a: APG.Type, b: APG.Type): APG.Type {
 			return b
 		}
 	} else if (a.type === "product" && b.type === "product") {
-		const components = Object.fromEntries(unifyComponents(a, b))
-		Object.freeze(components)
-		return Object.freeze({ type: "product", components })
+		return APG.product(Object.fromEntries(unifyComponents(a, b)))
 	}
 	if (a.type === "coproduct" && b.type === "coproduct") {
-		const options = Object.fromEntries(unifyOptions(a, b))
-		Object.freeze(options)
-		return Object.freeze({ type: "coproduct", options })
+		return APG.coproduct(Object.fromEntries(unifyOptions(a, b)))
 	} else {
 		throw new Error("Cannot unify unequal types")
 	}

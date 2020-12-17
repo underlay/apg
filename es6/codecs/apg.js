@@ -5,7 +5,6 @@ export const reference = t.type({
     type: t.literal("reference"),
     value: t.string,
 });
-export const unit = t.type({ type: t.literal("unit") });
 export const uri = t.type({ type: t.literal("uri") });
 export const literal = t.type({
     type: t.literal("literal"),
@@ -19,7 +18,7 @@ export const coproduct = t.recursion("Coproduct", () => t.type({
     type: t.literal("coproduct"),
     options: t.record(t.string, type),
 }));
-export const type = t.recursion("Type", () => t.union([reference, unit, uri, literal, product, coproduct]));
+export const type = t.recursion("Type", () => t.union([reference, uri, literal, product, coproduct]));
 const labels = t.record(t.string, type);
 const codec = new t.Type("Schema", labels.is, (input, context) => {
     const result = labels.validate(input, context);
