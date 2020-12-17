@@ -1,13 +1,16 @@
 import * as N3 from "n3.ts"
+import { forEntries } from "./utils"
 
-type TypeMap = Record<string, APG.Type>
 type ExpressionMap = Record<string, APG.Expression[]>
 
 namespace APG {
-	export type Schema<T extends TypeMap = TypeMap> = T
+	export type Schema<
+		S extends { [key in string]: APG.Type } = { [key in string]: APG.Type }
+	> = Readonly<S>
 
-	export const schema = <T extends TypeMap>(labels: T): Schema<T> =>
-		Object.freeze(labels)
+	export const schema = <S extends { [key in string]: APG.Type }>(
+		labels: S
+	): Schema<S> => Object.freeze(labels)
 
 	export type Type = Uri | Literal | Product | Coproduct | Reference
 
@@ -19,11 +22,16 @@ namespace APG {
 	export const reference = <T extends string>(value: T): Reference<T> =>
 		Object.freeze({ type: "reference", value })
 
+	export const isReference = (type: APG.Type): type is APG.Reference =>
+		type.type === "reference"
+
 	export interface Uri {
 		readonly type: "uri"
 	}
 
 	export const uri = (): Uri => Object.freeze({ type: "uri" })
+
+	export const isUri = (type: APG.Type): type is APG.Uri => type.type === "uri"
 
 	export interface Literal<T extends string = string> {
 		readonly type: "literal"
@@ -33,30 +41,69 @@ namespace APG {
 	export const literal = <T extends string>(datatype: T): Literal<T> =>
 		Object.freeze({ type: "literal", datatype })
 
-	export interface Product<T extends TypeMap = TypeMap> {
+	export const isLiteral = (type: APG.Type): type is APG.Literal =>
+		type.type === "literal"
+
+	export interface Product<
+		Components extends { [key in string]: APG.Type } = {
+			[key in string]: APG.Type
+		}
+	> {
 		readonly type: "product"
-		readonly components: Readonly<T>
+		readonly components: Readonly<Components>
 	}
 
-	export const product = <T extends TypeMap>(components: T): Product<T> =>
+	export const product = <
+		Components extends { [key in string]: APG.Type } = {
+			[key in string]: APG.Type
+		}
+	>(
+		components: Components
+	): Product<Components> =>
 		Object.freeze({ type: "product", components: Object.freeze(components) })
 
-	export interface Coproduct<T extends TypeMap = TypeMap> {
+	export const isProduct = (type: APG.Type): type is APG.Product =>
+		type.type === "product"
+
+	export interface Coproduct<
+		Options extends { [key in string]: APG.Type } = {
+			[key in string]: APG.Type
+		}
+	> {
 		readonly type: "coproduct"
-		readonly options: Readonly<T>
+		readonly options: Readonly<Options>
 	}
 
-	export const coproduct = <T extends TypeMap>(options: T): Coproduct<T> =>
+	export const coproduct = <
+		Options extends { [key in string]: APG.Type } = {
+			[key in string]: APG.Type
+		}
+	>(
+		options: Options
+	): Coproduct<Options> =>
 		Object.freeze({ type: "coproduct", options: Object.freeze(options) })
 
-	export type Instance<S extends Schema = Schema> = Readonly<
-		{ [key in keyof S]: Value<S[key]>[] }
-	>
+	export const isCoproduct = (type: APG.Type): type is APG.Coproduct =>
+		type.type === "coproduct"
+
+	export type Instance<
+		S extends { [key in string]: APG.Type } = { [key in string]: APG.Type }
+	> = Readonly<{ [key in keyof S]: Value<S[key]>[] }>
+
+	export const instance = <S extends { [key in string]: APG.Type }>(
+		schema: S,
+		instance: { [key in keyof S]: Value<S[key]>[] }
+	): Instance<S> => {
+		for (const [{}, values] of forEntries(instance)) {
+			Object.freeze(values)
+		}
+		return Object.freeze(instance)
+	}
 
 	export type Value<T extends Type = Type> = T extends Uri
 		? N3.NamedNode
-		: T extends Literal
-		? N3.Literal
+		: T extends Literal<infer D>
+		? N3.Literal<D>
 		: T extends Product<infer Components>
 		? Record<Components>
 		: T extends Coproduct<infer Options>
@@ -74,54 +121,77 @@ namespace APG {
 		}
 	}
 
-	export class Record<T extends TypeMap = TypeMap> extends Array<
-		Value<T[keyof T]>
+	export const isPointer = (value: APG.Value): value is Pointer =>
+		value.termType === "Pointer"
+
+	export const isNamedNode = (value: APG.Value): value is N3.NamedNode =>
+		value.termType === "NamedNode"
+
+	export const isLiteralValue = (value: APG.Value): value is N3.Literal =>
+		value.termType === "Literal"
+
+	export class Record<
+		Components extends { [key in string]: APG.Type } = {
+			[key in string]: APG.Type
+		}
 	> {
 		public get termType(): "Record" {
 			return "Record"
 		}
 
+		readonly values: Value<Components[keyof Components]>[]
+		readonly length: number
 		constructor(
-			readonly components: readonly (keyof T)[],
-			values: Iterable<Value<T[keyof T]>>
+			readonly components: readonly (keyof Components)[],
+			values: Iterable<Value<Components[keyof Components]>>
 		) {
-			super(...values)
+			this.values = Array.from(values)
+			this.length = this.values.length
 			Object.freeze(this)
 		}
 
-		get<K extends keyof T>(key: K): Value<T[K]> {
+		get<K extends keyof Components>(key: K): Value<Components[K]> {
 			const index = this.components.indexOf(key)
-			if (index in this) {
-				return this[index] as Value<T[K]>
+			if (index in this.values) {
+				return this.values[index] as Value<Components[K]>
 			} else {
 				throw new Error(`Index out of range: ${index}`)
 			}
 		}
 
+		[Symbol.iterator]() {
+			return this.values[Symbol.iterator]()
+		}
+
 		map<V>(
-			f: (value: Value<T[keyof T]>, index: number, record: Record<T>) => V
+			f: (value: Value<Components[keyof Components]>, index: number) => V
 		): V[] {
 			const result = new Array<V>(this.length)
-			for (const [i, value] of this.entries()) {
-				result[i] = f(value, i, this)
+			for (const [i, value] of this.values.entries()) {
+				result[i] = f(value, i)
 			}
 			return result
 		}
 	}
+
+	export const isRecord = (value: APG.Value): value is Record =>
+		value.termType === "Record"
 
 	const unitKeys: [] = []
 	const unitValues: [] = []
 	export const unit = () => new Record<{}>(unitKeys, unitValues)
 
 	export class Variant<
-		T extends TypeMap = TypeMap,
-		K extends keyof T = keyof T
+		Options extends { [key in string]: APG.Type } = {
+			[key in string]: APG.Type
+		},
+		Option extends keyof Options = keyof Options
 	> {
 		readonly index: number
 		constructor(
-			readonly options: readonly (keyof T)[],
-			readonly key: K,
-			readonly value: Value<T[K]>
+			readonly options: readonly (keyof Options)[],
+			readonly key: Option,
+			readonly value: Value<Options[Option]>
 		) {
 			this.index = options.indexOf(key)
 			if (this.index in options) {
@@ -133,10 +203,13 @@ namespace APG {
 		public get termType(): "Variant" {
 			return "Variant"
 		}
-		is<Key extends K>(key: Key): this is Variant<T, Key> {
-			return key === this.key
+		is<Key extends keyof Options>(key: Key): this is Variant<Options, Key> {
+			return (key as string) === (this.key as string)
 		}
 	}
+
+	export const isVariant = (value: APG.Value): value is Variant =>
+		value.termType === "Variant"
 
 	export type Expression =
 		| Identity

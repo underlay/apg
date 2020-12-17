@@ -95,5 +95,7 @@ export declare const relationalSchema: t.Type<{
             };
         };
     };
-}, Record<string, APG.Type>>;
+}, Readonly<{
+    [x: string]: APG.Type;
+}>>;
 export {};

@@ -185,8 +185,10 @@ const componentKeys = getKeys(componentType.components)
 const optionKeys = getKeys(optionType.components)
 const valueKeys = getKeys(valueType.options)
 
-export function fromSchema(schema: APG.Schema): APG.Instance {
-	const instance: APG.Instance = mapKeys(schemaSchema, () => [])
+export function fromSchema<S extends { [key in string]: APG.Type }>(
+	schema: APG.Schema<S>
+): APG.Instance<SchemaSchema> {
+	const instance: APG.Instance<SchemaSchema> = mapKeys(schemaSchema, () => [])
 
 	const cache = new Map<APG.Product | APG.Coproduct, number>()
 
@@ -213,10 +215,10 @@ export function fromSchema(schema: APG.Schema): APG.Instance {
 
 function fromType(
 	schema: APG.Schema,
-	instance: APG.Instance,
+	instance: APG.Instance<SchemaSchema>,
 	cache: Map<APG.Product | APG.Coproduct, number>,
 	type: APG.Type
-): APG.Value {
+) {
 	if (type.type === "reference") {
 		return new APG.Pointer(getKeyIndex(schema, type.value))
 	} else if (type.type === "uri") {

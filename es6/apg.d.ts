@@ -1,60 +1,117 @@
 import * as N3 from "n3.ts";
-declare type TypeMap = Record<string, APG.Type>;
 declare type ExpressionMap = Record<string, APG.Expression[]>;
 declare namespace APG {
-    type Schema<T extends TypeMap = TypeMap> = T;
-    const schema: <T extends globalThis.Record<string, Type>>(labels: T) => T;
+    type Schema<S extends {
+        [key in string]: APG.Type;
+    } = {
+        [key in string]: APG.Type;
+    }> = Readonly<S>;
+    const schema: <S extends {
+        [x: string]: Type;
+    }>(labels: S) => Readonly<S>;
     type Type = Uri | Literal | Product | Coproduct | Reference;
     interface Reference<T extends string = string> {
         readonly type: "reference";
         readonly value: T;
     }
     const reference: <T extends string>(value: T) => Reference<T>;
+    const isReference: (type: APG.Type) => type is Reference<string>;
     interface Uri {
         readonly type: "uri";
     }
     const uri: () => Uri;
+    const isUri: (type: APG.Type) => type is Uri;
     interface Literal<T extends string = string> {
         readonly type: "literal";
         readonly datatype: T;
     }
     const literal: <T extends string>(datatype: T) => Literal<T>;
-    interface Product<T extends TypeMap = TypeMap> {
+    const isLiteral: (type: APG.Type) => type is Literal<string>;
+    interface Product<Components extends {
+        [key in string]: APG.Type;
+    } = {
+        [key in string]: APG.Type;
+    }> {
         readonly type: "product";
-        readonly components: Readonly<T>;
+        readonly components: Readonly<Components>;
     }
-    const product: <T extends globalThis.Record<string, Type>>(components: T) => Product<T>;
-    interface Coproduct<T extends TypeMap = TypeMap> {
+    const product: <Components extends {
+        [x: string]: Type;
+    } = {
+        [x: string]: Type;
+    }>(components: Components) => Product<Components>;
+    const isProduct: (type: APG.Type) => type is Product<{
+        [x: string]: Type;
+    }>;
+    interface Coproduct<Options extends {
+        [key in string]: APG.Type;
+    } = {
+        [key in string]: APG.Type;
+    }> {
         readonly type: "coproduct";
-        readonly options: Readonly<T>;
+        readonly options: Readonly<Options>;
     }
-    const coproduct: <T extends globalThis.Record<string, Type>>(options: T) => Coproduct<T>;
-    type Instance<S extends Schema = Schema> = Readonly<{
+    const coproduct: <Options extends {
+        [x: string]: Type;
+    } = {
+        [x: string]: Type;
+    }>(options: Options) => Coproduct<Options>;
+    const isCoproduct: (type: APG.Type) => type is Coproduct<{
+        [x: string]: Type;
+    }>;
+    type Instance<S extends {
+        [key in string]: APG.Type;
+    } = {
+        [key in string]: APG.Type;
+    }> = Readonly<{
         [key in keyof S]: Value<S[key]>[];
     }>;
-    type Value<T extends Type = Type> = T extends Uri ? N3.NamedNode : T extends Literal ? N3.Literal : T extends Product<infer Components> ? Record<Components> : T extends Coproduct<infer Options> ? Variant<Options> : T extends Reference ? Pointer : never;
+    const instance: <S extends {
+        [x: string]: Type;
+    }>(schema: S, instance: { [key in keyof S]: Value<S[key]>[]; }) => Readonly<{ [key_1 in keyof S]: Value<S[key_1]>[]; }>;
+    type Value<T extends Type = Type> = T extends Uri ? N3.NamedNode : T extends Literal<infer D> ? N3.Literal<D> : T extends Product<infer Components> ? Record<Components> : T extends Coproduct<infer Options> ? Variant<Options> : T extends Reference ? Pointer : never;
     class Pointer {
         readonly index: number;
         constructor(index: number);
         get termType(): "Pointer";
     }
-    class Record<T extends TypeMap = TypeMap> extends Array<Value<T[keyof T]>> {
-        readonly components: readonly (keyof T)[];
+    const isPointer: (value: APG.Value) => value is Pointer;
+    const isNamedNode: (value: APG.Value) => value is N3.NamedNode<string>;
+    const isLiteralValue: (value: APG.Value) => value is N3.Literal<string>;
+    class Record<Components extends {
+        [key in string]: APG.Type;
+    } = {
+        [key in string]: APG.Type;
+    }> {
+        readonly components: readonly (keyof Components)[];
         get termType(): "Record";
-        constructor(components: readonly (keyof T)[], values: Iterable<Value<T[keyof T]>>);
-        get<K extends keyof T>(key: K): Value<T[K]>;
-        map<V>(f: (value: Value<T[keyof T]>, index: number, record: Record<T>) => V): V[];
+        readonly values: Value<Components[keyof Components]>[];
+        readonly length: number;
+        constructor(components: readonly (keyof Components)[], values: Iterable<Value<Components[keyof Components]>>);
+        get<K extends keyof Components>(key: K): Value<Components[K]>;
+        [Symbol.iterator](): IterableIterator<Value<Components[keyof Components]>>;
+        map<V>(f: (value: Value<Components[keyof Components]>, index: number) => V): V[];
     }
+    const isRecord: (value: APG.Value) => value is Record<{
+        [x: string]: Type;
+    }>;
     const unit: () => Record<{}>;
-    class Variant<T extends TypeMap = TypeMap, K extends keyof T = keyof T> {
-        readonly options: readonly (keyof T)[];
-        readonly key: K;
-        readonly value: Value<T[K]>;
+    class Variant<Options extends {
+        [key in string]: APG.Type;
+    } = {
+        [key in string]: APG.Type;
+    }, Option extends keyof Options = keyof Options> {
+        readonly options: readonly (keyof Options)[];
+        readonly key: Option;
+        readonly value: Value<Options[Option]>;
         readonly index: number;
-        constructor(options: readonly (keyof T)[], key: K, value: Value<T[K]>);
+        constructor(options: readonly (keyof Options)[], key: Option, value: Value<Options[Option]>);
         get termType(): "Variant";
-        is<Key extends K>(key: Key): this is Variant<T, Key>;
+        is<Key extends keyof Options>(key: Key): this is Variant<Options, Key>;
     }
+    const isVariant: (value: APG.Value) => value is Variant<{
+        [x: string]: Type;
+    }, string>;
     type Expression = Identity | Identifier | Constant | Dereference | Projection | Injection | Tuple | Match;
     interface Identity {
         readonly type: "identity";

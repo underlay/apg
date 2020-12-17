@@ -1,17 +1,35 @@
 import zip from "ziterable";
-import { getKeys, signalInvalidType } from "./utils.js";
+import APG from "./apg.js";
+import { forEntries, getKeys } from "./utils.js";
+export function validateInstance(schema, instance) {
+    const iter = zip(forEntries(schema), forEntries(instance));
+    for (const [[k1, type], [k2, values]] of iter) {
+        if (k1 !== k2) {
+            return false;
+        }
+        for (const value of values) {
+            if (validateValue(type, value)) {
+                continue;
+            }
+            else {
+                return false;
+            }
+        }
+    }
+    return true;
+}
 export function validateValue(type, value) {
-    if (type.type === "reference") {
+    if (APG.isReference(type)) {
         return value.termType === "Pointer";
     }
-    else if (type.type === "uri") {
+    else if (APG.isUri(type)) {
         return value.termType === "NamedNode";
     }
-    else if (type.type === "literal") {
-        return (value.termType === "Literal" && value.datatype.value === type.datatype);
+    else if (APG.isLiteral(type)) {
+        return APG.isLiteralValue(value) && value.datatype.value === type.datatype;
     }
-    else if (type.type === "product") {
-        if (value.termType === "Record") {
+    else if (APG.isProduct(type)) {
+        if (APG.isRecord(value)) {
             const keys = getKeys(type.components);
             if (keys.length !== value.length) {
                 return false;
@@ -33,8 +51,8 @@ export function validateValue(type, value) {
             return false;
         }
     }
-    else if (type.type === "coproduct") {
-        if (value.termType === "Variant" && value.key in type.options) {
+    else if (APG.isCoproduct(type)) {
+        if (APG.isVariant(value) && value.key in type.options) {
             return validateValue(type.options[value.key], value.value);
         }
         else {
@@ -42,7 +60,8 @@ export function validateValue(type, value) {
         }
     }
     else {
-        signalInvalidType(type);
+        console.error(type);
+        throw new Error("Unexpected type");
     }
 }
 export function* forValue(value, stack = []) {

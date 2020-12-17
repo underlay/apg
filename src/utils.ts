@@ -1,10 +1,10 @@
 import { v4 as uuid } from "uuid"
 
-type R<K extends string = string, V = any> = Readonly<Record<K, V>>
+type R<K extends string, V extends any = any> = Readonly<Record<K, V>>
 
-const keyMap = new WeakMap<R, readonly string[]>()
+const keyMap = new WeakMap<R<string>, readonly string[]>()
 
-export function* forEntries<K extends string = string, V = any>(
+export function* forEntries<K extends string, V extends any>(
 	object: R<K, V>
 ): Generator<[K, V, number], void, undefined> {
 	for (const [index, key] of getKeys(object).entries()) {
@@ -12,21 +12,18 @@ export function* forEntries<K extends string = string, V = any>(
 	}
 }
 
-export function getKeys<T extends R = R>(object: T): readonly (keyof T)[] {
+export function getKeys<K extends string>(object: R<K>): readonly K[] {
 	if (keyMap.has(object)) {
-		return keyMap.get(object)!
+		return keyMap.get(object)! as K[]
 	} else {
 		const keys = Object.keys(object).sort()
 		Object.freeze(keys)
 		keyMap.set(object, keys)
-		return keys
+		return keys as K[]
 	}
 }
 
-export function getKeyIndex(
-	object: Readonly<{ [key: string]: any }>,
-	key: string
-) {
+export function getKeyIndex<K extends string>(object: R<K>, key: K): number {
 	if (keyMap.has(object)) {
 		const index = keyMap.get(object)!.indexOf(key)
 		if (index === -1) {
@@ -45,17 +42,17 @@ export function getKeyIndex(
 	}
 }
 
-export function mapKeys<T, K extends string = string, V = any>(
-	object: R<K, V>,
-	map: <Key extends K>(value: R[Key], key: Key) => T
-) {
+export function mapKeys<S extends { readonly [key in string]: any }, T>(
+	object: S,
+	map: <Key extends keyof S>(value: S[Key], key: Key) => T
+): { readonly [key in keyof S]: T } {
 	const keys = getKeys(object)
 	const result = Object.fromEntries(
 		keys.map((key) => [key, map(object[key], key)])
 	)
-	keyMap.set(result, keys)
+	keyMap.set(result, keys as readonly string[])
 	Object.freeze(result)
-	return result
+	return result as { readonly [key in keyof S]: T }
 }
 
 export function signalInvalidType(type: never): never {

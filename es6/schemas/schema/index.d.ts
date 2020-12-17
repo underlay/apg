@@ -41,7 +41,7 @@ export declare const option: APG.Product<{
         "http://underlay.org/ns/coproduct": APG.Reference<"http://underlay.org/ns/coproduct">;
     }>;
 }>;
-declare const schemaSchema: {
+declare const schemaSchema: Readonly<{
     "http://underlay.org/ns/label": APG.Product<{
         "http://underlay.org/ns/key": APG.Uri;
         "http://underlay.org/ns/value": APG.Coproduct<{
@@ -76,6 +76,6 @@ declare const schemaSchema: {
             "http://underlay.org/ns/coproduct": APG.Reference<"http://underlay.org/ns/coproduct">;
         }>;
     }>;
-};
+}>;
 export declare type SchemaSchema = typeof schemaSchema;
 export default schemaSchema;
