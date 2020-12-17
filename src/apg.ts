@@ -134,41 +134,38 @@ namespace APG {
 		Components extends { [key in string]: APG.Type } = {
 			[key in string]: APG.Type
 		}
-	> {
+	> extends Array<Value<Components[keyof Components]>> {
 		public get termType(): "Record" {
 			return "Record"
 		}
 
-		readonly values: Value<Components[keyof Components]>[]
-		readonly length: number
 		constructor(
 			readonly components: readonly (keyof Components)[],
 			values: Iterable<Value<Components[keyof Components]>>
 		) {
-			this.values = Array.from(values)
-			this.length = this.values.length
+			super(...values)
 			Object.freeze(this)
 		}
 
 		get<K extends keyof Components>(key: K): Value<Components[K]> {
 			const index = this.components.indexOf(key)
-			if (index in this.values) {
-				return this.values[index] as Value<Components[K]>
+			if (index in this) {
+				return this[index] as Value<Components[K]>
 			} else {
 				throw new Error(`Index out of range: ${index}`)
 			}
 		}
 
-		[Symbol.iterator]() {
-			return this.values[Symbol.iterator]()
-		}
-
 		map<V>(
-			f: (value: Value<Components[keyof Components]>, index: number) => V
+			f: (
+				value: Value<Components[keyof Components]>,
+				index: number,
+				record: Record<Components>
+			) => V
 		): V[] {
 			const result = new Array<V>(this.length)
-			for (const [i, value] of this.values.entries()) {
-				result[i] = f(value, i)
+			for (const [i, value] of this.entries()) {
+				result[i] = f(value, i, this)
 			}
 			return result
 		}

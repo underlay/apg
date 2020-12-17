@@ -31,11 +31,10 @@ var APG;
     APG.isPointer = (value) => value.termType === "Pointer";
     APG.isNamedNode = (value) => value.termType === "NamedNode";
     APG.isLiteralValue = (value) => value.termType === "Literal";
-    class Record {
+    class Record extends Array {
         constructor(components, values) {
+            super(...values);
             this.components = components;
-            this.values = Array.from(values);
-            this.length = this.values.length;
             Object.freeze(this);
         }
         get termType() {
@@ -43,20 +42,17 @@ var APG;
         }
         get(key) {
             const index = this.components.indexOf(key);
-            if (index in this.values) {
-                return this.values[index];
+            if (index in this) {
+                return this[index];
             }
             else {
                 throw new Error(`Index out of range: ${index}`);
             }
         }
-        [Symbol.iterator]() {
-            return this.values[Symbol.iterator]();
-        }
         map(f) {
             const result = new Array(this.length);
-            for (const [i, value] of this.values.entries()) {
-                result[i] = f(value, i);
+            for (const [i, value] of this.entries()) {
+                result[i] = f(value, i, this);
             }
             return result;
         }

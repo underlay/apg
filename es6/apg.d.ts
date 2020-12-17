@@ -82,15 +82,12 @@ declare namespace APG {
         [key in string]: APG.Type;
     } = {
         [key in string]: APG.Type;
-    }> {
+    }> extends Array<Value<Components[keyof Components]>> {
         readonly components: readonly (keyof Components)[];
         get termType(): "Record";
-        readonly values: Value<Components[keyof Components]>[];
-        readonly length: number;
         constructor(components: readonly (keyof Components)[], values: Iterable<Value<Components[keyof Components]>>);
         get<K extends keyof Components>(key: K): Value<Components[K]>;
-        [Symbol.iterator](): IterableIterator<Value<Components[keyof Components]>>;
-        map<V>(f: (value: Value<Components[keyof Components]>, index: number) => V): V[];
+        map<V>(f: (value: Value<Components[keyof Components]>, index: number, record: Record<Components>) => V): V[];
     }
     const isRecord: (value: APG.Value) => value is Record<{
         [x: string]: Type;
