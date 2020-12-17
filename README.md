@@ -89,7 +89,7 @@ type Value =
 	| Pointer // Reference value
 ```
 
-The primitives are easy: unit types have blank nodes as values, IRI types have named nodes as values, and literal types have literals as values.
+The primitives are easy: URI types have named nodes as values, and literal types have literals as values.
 
 The composite types are simple classes
 
