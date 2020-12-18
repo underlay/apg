@@ -1,17 +1,16 @@
 {
 	"name": "@underlay/apg",
-	"version": "0.8.2",
+	"version": "0.8.3",
 	"description": "Underlay APG utilities",
 	"main": "lib/index.js",
-	"types": "es6/index.d.ts",
-	"module": "es6/index.js",
-	"directories": {
-		"lib": "lib",
-		"es6": "es6"
-	},
+	"types": "lib/index.d.ts",
+	"files": [
+		"lib",
+		"src"
+	],
 	"scripts": {
 		"test": "npx jest",
-		"build": "tsc && npx babel es6 -d lib"
+		"build": "tsc && npx babel lib -d lib"
 	},
 	"repository": {
 		"type": "git",

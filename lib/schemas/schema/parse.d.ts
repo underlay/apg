@@ -1,4 +1,4 @@
-import APG from "../../apg.js";
+import { APG } from "../../index.js";
 import { SchemaSchema } from "./index.js";
 export declare function toSchema(instance: APG.Instance<SchemaSchema>): APG.Schema;
 export declare function fromSchema<S extends {

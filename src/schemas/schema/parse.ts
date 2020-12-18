@@ -1,6 +1,15 @@
 import * as N3 from "n3.ts"
 
-import APG from "../../apg.js"
+import {
+	APG,
+	ns,
+	getKeys,
+	signalInvalidType,
+	getKeyIndex,
+	forEntries,
+	mapKeys,
+} from "../../index.js"
+
 import schemaSchema, {
 	SchemaSchema,
 	value as valueType,
@@ -8,14 +17,6 @@ import schemaSchema, {
 	component as componentType,
 	option as optionType,
 } from "./index.js"
-import * as ns from "../../namespace.js"
-import {
-	getKeys,
-	signalInvalidType,
-	getKeyIndex,
-	forEntries,
-	mapKeys,
-} from "../../utils.js"
 
 type ValueTypeMap = typeof valueType extends APG.Coproduct<infer T> ? T : never
 

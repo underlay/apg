@@ -1,6 +1,5 @@
 import * as t from "io-ts";
-import APG from "../apg.js";
-import { none, some } from "../namespace.js";
+import { APG, ns } from "../index.js";
 declare const labels: t.RecordC<t.StringC, t.TypeC<{
     type: t.LiteralC<"product">;
     components: t.RecordC<t.StringC, t.UnionC<[t.UnionC<[t.TypeC<{

@@ -1,9 +1,6 @@
 import * as t from "io-ts"
 
-import APG from "../apg.js"
-
-import { none, some } from "../namespace.js"
-import { forEntries, getKeys } from "../utils.js"
+import { APG, ns, forEntries, getKeys } from "../index.js"
 import { isUnit } from "./unit.js"
 
 const property = t.union([
@@ -17,8 +14,8 @@ const optionalProperty = t.union([
 	t.type({
 		type: t.literal("coproduct"),
 		options: t.type({
-			[none]: t.type({ type: t.literal("product"), components: t.type({}) }),
-			[some]: property,
+			[ns.none]: t.type({ type: t.literal("product"), components: t.type({}) }),
+			[ns.some]: property,
 		}),
 	}),
 ])
@@ -39,10 +36,10 @@ const isOptionalProperty = (
 	isProperty(type) ||
 	(type.type === "coproduct" &&
 		getKeys(type).length === 2 &&
-		none in type.options &&
-		isUnit(type.options[none]) &&
-		some in type.options &&
-		isProperty(type.options[some]))
+		ns.none in type.options &&
+		isUnit(type.options[ns.none]) &&
+		ns.some in type.options &&
+		isProperty(type.options[ns.some]))
 
 export function isRelationalSchema(
 	input: APG.Schema

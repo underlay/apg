@@ -1,7 +1,6 @@
 import { xsd } from "n3.ts"
 
-import APG from "../../apg.js"
-import * as ns from "../../namespace.js"
+import { APG, ns } from "../../index.js"
 
 // 0. case
 

@@ -1,5 +1,5 @@
 import * as t from "io-ts";
-import APG from "../apg.js";
+import { APG } from "../index.js";
 export declare const reference: t.Type<APG.Reference>;
 export declare const uri: t.Type<APG.Uri>;
 export declare const literal: t.Type<APG.Literal>;
