@@ -1,7 +1,7 @@
 import * as N3 from "n3.ts"
 import zip from "ziterable"
 
-import APG from "./apg.js"
+import * as APG from "./apg.js"
 import { validateExpressions } from "./morphism.js"
 
 import {

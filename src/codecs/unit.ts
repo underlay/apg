@@ -1,4 +1,5 @@
-import { APG, getKeys } from "../index.js"
+import * as APG from "../apg.js"
+import { getKeys } from "../utils.js"
 
 export type Unit = APG.Product<{}>
 

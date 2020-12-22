@@ -1,4 +1,4 @@
-import APG from "./apg.js"
+import * as APG from "./apg.js"
 import { getKeys } from "./utils.js"
 
 export default function diff(a: APG.Schema, b: APG.Schema): null | APG.Mapping {

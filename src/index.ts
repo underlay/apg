@@ -1,4 +1,4 @@
-import APG from "./apg.js"
+import * as APG from "./apg.js"
 import * as ns from "./namespace.js"
 
 export { ns, APG }

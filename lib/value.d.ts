@@ -1,4 +1,4 @@
-import APG from "./apg.js";
+import * as APG from "./apg.js";
 export declare function validateInstance<S extends {
     [key in string]: APG.Type;
 }>(schema: APG.Schema<S>, instance: APG.Instance<S>): boolean;

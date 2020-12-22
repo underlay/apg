@@ -1,5 +1,6 @@
 import { Literal, NamedNode, xsd } from "n3.ts"
-import { APG, validateInstance } from "../es6/index.js"
+
+import { APG, validateInstance } from ".."
 
 const xsdString = new NamedNode(xsd.string)
 

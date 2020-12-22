@@ -1,6 +1,8 @@
 import * as t from "io-ts"
 
-import { APG, forType, forEntries } from "../index.js"
+import * as APG from "../apg.js"
+import { forType } from "../type.js"
+import { forEntries } from "../utils.js"
 
 export const reference: t.Type<APG.Reference> = t.type({
 	type: t.literal("reference"),

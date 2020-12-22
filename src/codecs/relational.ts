@@ -1,6 +1,9 @@
 import * as t from "io-ts"
 
-import { APG, ns, forEntries, getKeys } from "../index.js"
+import * as APG from "../apg.js"
+import * as ns from "../namespace.js"
+import { forEntries, getKeys } from "../utils.js"
+
 import { isUnit } from "./unit.js"
 
 const property = t.union([

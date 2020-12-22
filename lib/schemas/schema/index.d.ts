@@ -1,4 +1,5 @@
-import { APG, ns } from "../../index.js";
+import * as APG from "../../apg.js";
+import * as ns from "../../namespace.js";
 export declare const value: APG.Coproduct<{
     "http://underlay.org/ns/reference": APG.Reference<"http://underlay.org/ns/label">;
     "http://underlay.org/ns/uri": APG.Product<{}>;

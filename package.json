@@ -1,16 +1,15 @@
 {
 	"name": "@underlay/apg",
-	"version": "0.8.3",
+	"version": "0.8.4",
 	"description": "Underlay APG utilities",
 	"main": "lib/index.js",
-	"types": "lib/index.d.ts",
 	"files": [
-		"lib",
-		"src"
+		"lib"
 	],
 	"scripts": {
 		"test": "npx jest",
-		"build": "tsc && npx babel lib -d lib"
+		"clean": "rm -rf lib",
+		"build": "tsc && npx babel src -d lib --extensions '.ts'"
 	},
 	"repository": {
 		"type": "git",
@@ -32,6 +31,7 @@
 		"@babel/core": "^7.12.10",
 		"@babel/plugin-proposal-export-namespace-from": "^7.12.1",
 		"@babel/plugin-transform-modules-commonjs": "^7.12.1",
+		"@babel/plugin-transform-typescript": "^7.12.1",
 		"@babel/preset-typescript": "^7.12.7",
 		"@types/jest": "^26.0.19",
 		"fp-ts": "^2.9.1",

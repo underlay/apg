@@ -1,4 +1,5 @@
-import { APG, ns } from "../../index.js"
+import * as APG from "../../apg.js"
+import * as ns from "../../namespace.js"
 
 export const value = APG.coproduct({
 	[ns.reference]: APG.reference(ns.label),

@@ -1,10 +1,8 @@
 import zip from "ziterable"
-import schemaSchema from "../es6/schemas/schema/index.js"
-import { fromSchema, toSchema } from "../es6/schemas/schema/parse.js"
-import { isTypeEqual } from "../es6/type.js"
-import { validateValue } from "../es6/value.js"
-import { getKeys } from "../es6/utils.js"
-import * as ns from "../es6/namespace.js"
+import schemaSchema from "../lib/schemas/schema/index.js"
+import { fromSchema, toSchema } from "../lib/schemas/schema/parse.js"
+
+import { isTypeEqual, validateValue, getKeys, ns } from ".."
 
 test("Round-trip schema schema to instance and back", () => {
 	const instance = fromSchema(schemaSchema)

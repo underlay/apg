@@ -1,10 +1,14 @@
 import { NamedNode } from "n3.ts"
 
-import APG from "../es6/apg.js"
-import { delta, fold, mapExpressions } from "../es6/mapping.js"
-import { forEntries } from "../es6/utils.js"
-import { validateValue } from "../es6/value.js"
-import { validateExpressions } from "../es6/morphism.js"
+import {
+	APG,
+	delta,
+	fold,
+	mapExpressions,
+	forEntries,
+	validateValue,
+	validateExpressions,
+} from ".."
 
 const S = APG.schema({
 	"http://example.com/a": APG.product({

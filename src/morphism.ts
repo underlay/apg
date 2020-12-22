@@ -1,4 +1,4 @@
-import APG from "./apg.js"
+import * as APG from "./apg.js"
 
 import { isTypeAssignable, unify } from "./type.js"
 import { getKeys, mapKeys, signalInvalidType } from "./utils.js"

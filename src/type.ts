@@ -1,5 +1,6 @@
 import zip from "ziterable"
-import APG from "./apg.js"
+
+import * as APG from "./apg.js"
 import { getKeys } from "./utils.js"
 
 export function* forType(

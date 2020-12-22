@@ -1,4 +1,5 @@
-import { APG, ns } from "../../index.js";
+import * as APG from "../../apg.js";
+import * as ns from "../../namespace.js";
 declare const mappingSchema: Readonly<{
     "http://underlay.org/ns/case": APG.Product<{
         "http://underlay.org/ns/key": APG.Uri;

@@ -1,14 +1,14 @@
 import * as N3 from "n3.ts"
 
+import * as APG from "../../apg.js"
+import * as ns from "../../namespace.js"
 import {
-	APG,
-	ns,
 	getKeys,
 	signalInvalidType,
 	getKeyIndex,
 	forEntries,
 	mapKeys,
-} from "../../index.js"
+} from "../../utils.js"
 
 import schemaSchema, {
 	SchemaSchema,
