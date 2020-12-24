@@ -18,9 +18,7 @@ export function apply(
 	expression: APG.Expression,
 	source: APG.Type
 ): APG.Type {
-	if (expression.type === "identity") {
-		return source
-	} else if (expression.type === "identifier") {
+	if (expression.type === "identifier") {
 		return APG.uri()
 	} else if (expression.type === "constant") {
 		return APG.literal(expression.datatype)
@@ -41,13 +39,8 @@ export function apply(
 			throw new Error("Invalid projection morphism")
 		}
 	} else if (expression.type === "injection") {
-		const { key, value } = expression
-		return APG.coproduct({
-			[key]: value.reduce(
-				(type, expression) => apply(S, expression, type),
-				source
-			),
-		})
+		const { key } = expression
+		return APG.coproduct({ [key]: source })
 	} else if (expression.type === "tuple") {
 		return APG.product(
 			mapKeys(expression.slots, (value) => applyExpressions(S, value, source))

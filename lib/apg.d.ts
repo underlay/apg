@@ -107,11 +107,7 @@ export declare class Variant<Options extends {
 export declare const isVariant: (value: Value) => value is Variant<{
     [x: string]: Type;
 }, string>;
-export declare type Expression = Identity | Identifier | Constant | Dereference | Projection | Injection | Tuple | Match;
-export interface Identity {
-    readonly type: "identity";
-}
-export declare const identity: () => Identity;
+export declare type Expression = Identifier | Constant | Dereference | Projection | Injection | Tuple | Match;
 export interface Identifier<T extends string = string> {
     readonly type: "identifier";
     readonly value: T;
@@ -133,12 +129,11 @@ export interface Projection<Key extends string = string> {
     readonly key: Key;
 }
 export declare const projection: <Key extends string = string>(key: Key) => Projection<Key>;
-export interface Injection<Key extends string = string, Value extends readonly Expression[] = readonly Expression[]> {
+export interface Injection<Key extends string = string> {
     readonly type: "injection";
     readonly key: Key;
-    readonly value: Value;
 }
-export declare const injection: <Key extends string = string, Value_1 extends readonly Expression[] = readonly Expression[]>(key: Key, value: Value_1) => Injection<Key, Value_1>;
+export declare const injection: <Key extends string = string>(key: Key) => Injection<Key>;
 export interface Tuple {
     readonly type: "tuple";
     readonly slots: Readonly<{

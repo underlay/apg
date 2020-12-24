@@ -13,21 +13,25 @@ const caseLabel = APG.product({
 
 // 1. expression
 
-const expressionLabel = APG.coproduct({
+const expression = APG.coproduct({
 	[ns.constant]: APG.product({
 		[ns.datatype]: APG.uri(),
 		[ns.value]: APG.literal(xsd.string),
 	}),
 	[ns.dereference]: APG.uri(),
 	[ns.identifier]: APG.uri(),
-	[ns.identity]: APG.product({}),
-	[ns.injection]: APG.product({
-		[ns.key]: APG.uri(),
-		[ns.value]: APG.reference(ns.expression),
-	}),
+	[ns.injection]: APG.uri(),
 	[ns.match]: APG.reference(ns.match),
 	[ns.projection]: APG.uri(),
 	[ns.tuple]: APG.reference(ns.tuple),
+})
+
+const expressionLabel = APG.coproduct({
+	[ns.none]: APG.product({}),
+	[ns.some]: APG.product({
+		[ns.head]: expression,
+		[ns.tail]: APG.reference(ns.expression),
+	}),
 })
 
 // 2. map

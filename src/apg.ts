@@ -206,7 +206,6 @@ export const isVariant = (value: Value): value is Variant =>
 	value.termType === "Variant"
 
 export type Expression =
-	| Identity
 	| Identifier
 	| Constant
 	| Dereference
@@ -214,12 +213,6 @@ export type Expression =
 	| Injection
 	| Tuple
 	| Match
-
-export interface Identity {
-	readonly type: "identity"
-}
-
-export const identity = (): Identity => Object.freeze({ type: "identity" })
 
 export interface Identifier<T extends string = string> {
 	readonly type: "identifier"
@@ -267,21 +260,22 @@ export const projection = <Key extends string = string>(
 ): Projection<Key> => Object.freeze({ type: "projection", key })
 
 export interface Injection<
-	Key extends string = string,
-	Value extends readonly Expression[] = readonly Expression[]
+	Key extends string = string
+	// Value extends readonly Expression[] = readonly Expression[]
 > {
 	readonly type: "injection"
 	readonly key: Key
-	readonly value: Value
+	// readonly value: Value
 }
 
 export const injection = <
-	Key extends string = string,
-	Value extends readonly Expression[] = readonly Expression[]
+	Key extends string = string
+	// Value extends readonly Expression[] = readonly Expression[]
 >(
-	key: Key,
-	value: Value
-): Injection<Key, Value> => Object.freeze({ type: "injection", key, value })
+	key: Key
+	// value: Value
+	// ): Injection<Key, Value> => Object.freeze({ type: "injection", key, value })
+): Injection<Key> => Object.freeze({ type: "injection", key })
 
 export interface Tuple {
 	readonly type: "tuple"

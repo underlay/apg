@@ -80,9 +80,7 @@ export function map(
 	instance: APG.Instance,
 	schema: APG.Schema
 ): APG.Value {
-	if (expression.type === "identity") {
-		return value
-	} else if (expression.type === "identifier") {
+	if (expression.type === "identifier") {
 		return new N3.NamedNode(expression.value)
 	} else if (expression.type === "constant") {
 		return new N3.Literal(
@@ -130,7 +128,7 @@ export function map(
 		return new APG.Variant(
 			Object.freeze([expression.key]),
 			expression.key,
-			mapExpressions(expression.value, value, instance, schema)
+			value
 		)
 	} else {
 		signalInvalidType(expression)

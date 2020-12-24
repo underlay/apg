@@ -52,10 +52,9 @@ const M = APG.mapping({
 				}),
 			],
 			"http://example.com/a/b": [
-				APG.injection("http://example.com/a/b/b", [
-					APG.projection("http://example.com/0.1"),
-					APG.dereference("http://example.com/1"),
-				]),
+				APG.projection("http://example.com/0.1"),
+				APG.dereference("http://example.com/1"),
+				APG.injection("http://example.com/a/b/b"),
 			],
 		}),
 	]),
