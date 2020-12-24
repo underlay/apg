@@ -1,7 +1,4 @@
 import * as N3 from "n3.ts";
-declare type ExpressionMap = {
-    [key in string]: Expression[];
-};
 export declare type Schema<S extends {
     [key in string]: Type;
 } = {
@@ -144,14 +141,22 @@ export interface Injection<Key extends string = string, Value extends readonly E
 export declare const injection: <Key extends string = string, Value_1 extends readonly Expression[] = readonly Expression[]>(key: Key, value: Value_1) => Injection<Key, Value_1>;
 export interface Tuple {
     readonly type: "tuple";
-    readonly slots: Readonly<ExpressionMap>;
+    readonly slots: Readonly<{
+        [key in string]: Expression[];
+    }>;
 }
-export declare const tuple: (slots: Readonly<ExpressionMap>) => Tuple;
+export declare const tuple: (slots: Readonly<{
+    [x: string]: Expression[];
+}>) => Tuple;
 export interface Match {
     readonly type: "match";
-    readonly cases: Readonly<ExpressionMap>;
+    readonly cases: Readonly<{
+        [key in string]: Expression[];
+    }>;
 }
-export declare const match: (cases: Readonly<ExpressionMap>) => Match;
+export declare const match: (cases: Readonly<{
+    [x: string]: Expression[];
+}>) => Match;
 export interface Map {
     readonly type: "map";
     readonly source: string;
@@ -164,4 +169,3 @@ export declare type Mapping = Readonly<{
 export declare const mapping: (maps: Readonly<{
     [key: string]: Map;
 }>) => Mapping;
-export {};

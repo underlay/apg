@@ -1,7 +1,5 @@
 import * as N3 from "n3.ts"
-import { forEntries } from "./utils"
-
-type ExpressionMap = { [key in string]: Expression[] }
+import { forEntries } from "./utils.js"
 
 export type Schema<
 	S extends { [key in string]: Type } = { [key in string]: Type }
@@ -287,19 +285,21 @@ export const injection = <
 
 export interface Tuple {
 	readonly type: "tuple"
-	readonly slots: Readonly<ExpressionMap>
+	readonly slots: Readonly<{ [key in string]: Expression[] }>
 }
 
-export const tuple = (slots: Readonly<ExpressionMap>): Tuple =>
-	Object.freeze({ type: "tuple", slots: Object.freeze(slots) })
+export const tuple = (
+	slots: Readonly<{ [key in string]: Expression[] }>
+): Tuple => Object.freeze({ type: "tuple", slots: Object.freeze(slots) })
 
 export interface Match {
 	readonly type: "match"
-	readonly cases: Readonly<ExpressionMap>
+	readonly cases: Readonly<{ [key in string]: Expression[] }>
 }
 
-export const match = (cases: Readonly<ExpressionMap>): Match =>
-	Object.freeze({ type: "match", cases: Object.freeze(cases) })
+export const match = (
+	cases: Readonly<{ [key in string]: Expression[] }>
+): Match => Object.freeze({ type: "match", cases: Object.freeze(cases) })
 
 export interface Map {
 	readonly type: "map"
