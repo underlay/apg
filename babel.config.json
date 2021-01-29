@@ -1,7 +1,0 @@
-{
-	"plugins": [
-		["@babel/plugin-transform-typescript", { "onlyRemoveTypeImports": true }],
-		"@babel/plugin-transform-modules-commonjs",
-		"@babel/plugin-proposal-export-namespace-from"
-	]
-}

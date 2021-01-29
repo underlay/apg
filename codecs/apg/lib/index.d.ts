@@ -1,0 +1,10 @@
+import * as t from "io-ts";
+import { Schema } from "@underlay/apg";
+export declare const reference: t.Type<Schema.Reference>;
+export declare const uri: t.Type<Schema.Uri>;
+export declare const literal: t.Type<Schema.Literal>;
+export declare const product: t.Type<Schema.Product>;
+export declare const coproduct: t.Type<Schema.Coproduct>;
+export declare const type: t.Type<Schema.Type>;
+declare const codec: t.Type<Schema.Schema>;
+export default codec;

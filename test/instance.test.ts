@@ -1,58 +1,60 @@
-import { Literal, NamedNode, xsd } from "n3.ts"
+import { xsd } from "@underlay/namespaces"
 
-import { APG, validateInstance } from ".."
+import { Schema, Instance, validateInstance } from ".."
 
-const xsdString = new NamedNode(xsd.string)
+const xsdString = Instance.uri(xsd.string)
 
 test("Tiny test", () => {
-	const s = APG.schema({ foo: APG.uri() })
-	const i: APG.Instance<typeof s> = { foo: [new NamedNode("http://wow.neat")] }
+	const s = Schema.schema({ foo: Schema.uri() })
+	const i: Instance.Instance<typeof s> = {
+		foo: [Instance.uri("http://wow.neat")],
+	}
 	expect(validateInstance(s, i)).toBe(true)
 })
 
 test("Tiny test 2", () => {
-	const s = APG.schema({ foo: APG.product({}) })
-	const i: APG.Instance<typeof s> = { foo: [APG.unit()] }
+	const s = Schema.schema({ foo: Schema.product({}) })
+	const i: Instance.Instance<typeof s> = { foo: [Instance.unit()] }
 	expect(validateInstance(s, i)).toBe(true)
 })
 
 test("Tiny test 2", () => {
-	const s = APG.schema({
-		foo: APG.product({ "foo/1": APG.uri() }),
+	const s = Schema.schema({
+		foo: Schema.product({ "foo/1": Schema.uri() }),
 	})
 
-	const i: APG.Instance<typeof s> = {
-		foo: [new APG.Record(["foo/1"], [new NamedNode("http://wow.neat")])],
+	const i: Instance.Instance<typeof s> = {
+		foo: [Instance.product(["foo/1"], [Instance.uri("http://wow.neat")])],
 	}
 	expect(validateInstance(s, i)).toBe(true)
 })
 
 test("Simple test", () => {
-	const s = APG.schema({
-		foo: APG.product({ "foo/1": APG.uri() }),
-		bar: APG.coproduct({
-			"bar/1": APG.literal(xsd.string),
-			"bar/2": APG.product({
-				"bar/2/1": APG.uri(),
-				"bar/2/2": APG.reference("foo"),
+	const s = Schema.schema({
+		foo: Schema.product({ "foo/1": Schema.uri() }),
+		bar: Schema.coproduct({
+			"bar/1": Schema.literal(xsd.string),
+			"bar/2": Schema.product({
+				"bar/2/1": Schema.uri(),
+				"bar/2/2": Schema.reference("foo"),
 			}),
 		}),
 	})
 
-	const i = APG.instance(s, {
-		foo: [new APG.Record(["foo/1"], [new NamedNode("http://wow.neat")])],
+	const i = Instance.instance(s, {
+		foo: [Instance.product(["foo/1"], [Instance.uri("http://wow.neat")])],
 		bar: [
-			new APG.Variant(
+			Instance.coproduct(
 				["bar/1", "bar/2"],
 				"bar/1",
-				new Literal("hello world", "", xsdString)
+				Instance.literal("hello world", xsdString)
 			),
-			new APG.Variant(
+			Instance.coproduct(
 				["bar/1", "bar/2"],
 				"bar/2",
-				new APG.Record(
+				Instance.product(
 					["bar/2/1", "bar/2/2"],
-					[new NamedNode("http://cool.stuff"), new APG.Pointer(0)]
+					[Instance.uri("http://cool.stuff"), Instance.reference(0)]
 				)
 			),
 		],

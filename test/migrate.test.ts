@@ -1,7 +1,7 @@
-import { NamedNode } from "n3.ts"
-
 import {
-	APG,
+	Schema,
+	Instance,
+	Mapping,
 	delta,
 	fold,
 	mapExpressions,
@@ -10,85 +10,85 @@ import {
 	validateExpressions,
 } from ".."
 
-const S = APG.schema({
-	"http://example.com/a": APG.product({
-		"http://example.com/a/a": APG.product({
-			"http://example.com/a/a/a": APG.uri(),
+const S = Schema.schema({
+	"http://example.com/a": Schema.product({
+		"http://example.com/a/a": Schema.product({
+			"http://example.com/a/a/a": Schema.uri(),
 		}),
-		"http://example.com/a/b": APG.coproduct({
-			"http://example.com/a/b/a": APG.product({}),
-			"http://example.com/a/b/b": APG.reference("http://example.com/b"),
+		"http://example.com/a/b": Schema.coproduct({
+			"http://example.com/a/b/a": Schema.product({}),
+			"http://example.com/a/b/b": Schema.reference("http://example.com/b"),
 		}),
 	}),
-	"http://example.com/b": APG.product({
-		"http://example.com/b/a": APG.reference("http://example.com/a"),
-		"http://example.com/b/b": APG.uri(),
+	"http://example.com/b": Schema.product({
+		"http://example.com/b/a": Schema.reference("http://example.com/a"),
+		"http://example.com/b/b": Schema.uri(),
 	}),
 })
 
-const T = APG.schema({
-	"http://example.com/0": APG.product({
-		"http://example.com/0.0": APG.product({
-			"http://example.com/0.0.0": APG.uri(),
-			"http://example.com/0.0.1": APG.uri(),
+const T = Schema.schema({
+	"http://example.com/0": Schema.product({
+		"http://example.com/0.0": Schema.product({
+			"http://example.com/0.0.0": Schema.uri(),
+			"http://example.com/0.0.1": Schema.uri(),
 		}),
-		"http://example.com/0.1": APG.reference("http://example.com/1"),
+		"http://example.com/0.1": Schema.reference("http://example.com/1"),
 	}),
-	"http://example.com/1": APG.product({
-		"http://example.com/1.0": APG.reference("http://example.com/0"),
-		"http://example.com/1.1": APG.uri(),
+	"http://example.com/1": Schema.product({
+		"http://example.com/1.0": Schema.reference("http://example.com/0"),
+		"http://example.com/1.1": Schema.uri(),
 	}),
 })
 
-const M = APG.mapping({
-	"http://example.com/a": APG.map("http://example.com/0", [
-		APG.tuple({
+const M = Mapping.mapping({
+	"http://example.com/a": Mapping.map("http://example.com/0", [
+		Mapping.tuple({
 			"http://example.com/a/a": [
-				APG.tuple({
+				Mapping.tuple({
 					"http://example.com/a/a/a": [
-						APG.projection("http://example.com/0.0"),
-						APG.projection("http://example.com/0.0.0"),
+						Mapping.projection("http://example.com/0.0"),
+						Mapping.projection("http://example.com/0.0.0"),
 					],
 				}),
 			],
 			"http://example.com/a/b": [
-				APG.projection("http://example.com/0.1"),
-				APG.dereference("http://example.com/1"),
-				APG.injection("http://example.com/a/b/b"),
+				Mapping.projection("http://example.com/0.1"),
+				Mapping.dereference("http://example.com/1"),
+				Mapping.injection("http://example.com/a/b/b"),
 			],
 		}),
 	]),
-	"http://example.com/b": APG.map("http://example.com/1", [
-		APG.tuple({
+	"http://example.com/b": Mapping.map("http://example.com/1", [
+		Mapping.tuple({
 			"http://example.com/b/a": [
-				APG.projection("http://example.com/1.0"),
-				APG.dereference("http://example.com/0"),
+				Mapping.projection("http://example.com/1.0"),
+				Mapping.dereference("http://example.com/0"),
 			],
-			"http://example.com/b/b": [APG.projection("http://example.com/1.1")],
+			"http://example.com/b/b": [Mapping.projection("http://example.com/1.1")],
 		}),
 	]),
 })
 
-const I: APG.Instance = {
+const I: Instance.Instance = {
 	"http://example.com/0": [
-		new APG.Record(
+		Instance.product(
 			["http://example.com/0.0", "http://example.com/0.1"],
 			[
-				new APG.Record(
+				Instance.product(
 					["http://example.com/0.0.0", "http://example.com/0.0.1"],
 					[
-						new NamedNode("http://foo.com/neat"),
-						new NamedNode("http://foo.com/wow"),
+						Instance.uri("http://foo.com/neat"),
+						Instance.uri("http://foo.com/wow"),
 					]
 				),
-				new APG.Pointer(0),
+				Instance.reference(0),
 			]
 		),
 	],
 	"http://example.com/1": [
-		new APG.Record(
+		Instance.product(
 			["http://example.com/1.0", "http://example.com/1.1"],
-			[new APG.Pointer(0), new NamedNode("http://bar.org/fantastic")]
+			[Instance.reference(0), Instance.uri("http://bar.org/fantastic")]
 		),
 	],
 }

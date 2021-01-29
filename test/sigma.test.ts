@@ -1,7 +1,9 @@
-import { Literal, NamedNode, xsd } from "n3.ts"
+import { xsd } from "@underlay/namespaces"
 
 import {
-	APG,
+	Schema,
+	Instance,
+	Mapping,
 	delta,
 	fold,
 	mapExpressions,
@@ -10,63 +12,63 @@ import {
 	validateExpressions,
 } from ".."
 
-const S: APG.Schema = {
-	"ex:n1": APG.product({
-		"ex:n1/a": APG.literal(xsd.string),
-		"ex:n1/b": APG.literal(xsd.integer),
-		"ex:n1/c": APG.reference("ex:n2"),
+const S: Schema.Schema = {
+	"ex:n1": Schema.product({
+		"ex:n1/a": Schema.literal(xsd.string),
+		"ex:n1/b": Schema.literal(xsd.integer),
+		"ex:n1/c": Schema.reference("ex:n2"),
 	}),
-	"ex:n2": APG.product({ "ex:n2/a": APG.uri() }),
+	"ex:n2": Schema.product({ "ex:n2/a": Schema.uri() }),
 }
 
-const T: APG.Schema = {
-	"ex:n0": APG.product({
-		"ex:n0/a": APG.literal(xsd.string),
-		"ex:n0/b": APG.literal(xsd.integer),
-		"ex:n0/c": APG.uri(),
+const T: Schema.Schema = {
+	"ex:n0": Schema.product({
+		"ex:n0/a": Schema.literal(xsd.string),
+		"ex:n0/b": Schema.literal(xsd.integer),
+		"ex:n0/c": Schema.uri(),
 	}),
 }
 
-const M: APG.Mapping = {
-	"ex:n1": APG.map("ex:n0", [
-		APG.tuple({
-			"ex:n1/a": [APG.projection("ex:n0/a")],
-			"ex:n1/b": [APG.projection("ex:n0/b")],
-			"ex:n1/c": [APG.identity()],
+const M: Mapping.Mapping = {
+	"ex:n1": Mapping.map("ex:n0", [
+		Mapping.tuple({
+			"ex:n1/a": [Mapping.projection("ex:n0/a")],
+			"ex:n1/b": [Mapping.projection("ex:n0/b")],
+			"ex:n1/c": [],
 		}),
 	]),
-	"ex:n2": APG.map("ex:n0", [
-		APG.tuple({ "ex:n2/a": [APG.projection("ex:n0/c")] }),
+	"ex:n2": Mapping.map("ex:n0", [
+		Mapping.tuple({ "ex:n2/a": [Mapping.projection("ex:n0/c")] }),
 	]),
 }
 
-const xsdString = new NamedNode(xsd.string)
-const xsdInteger = new NamedNode(xsd.integer)
+const xsdString = Instance.uri(xsd.string)
+const xsdInteger = Instance.uri(xsd.integer)
 
-const I: APG.Instance = {
+const I: Instance.Instance = {
 	"ex:n0": [
-		new APG.Record(
+		Instance.product(
 			["ex:n0/a", "ex:n0/b", "ex:n0/c"],
 			[
-				new Literal("foo", "", xsdString),
-				new Literal("18", "", xsdInteger),
-				new NamedNode("http://example.com/foo"),
+				Instance.literal("foo", xsdString),
+				Instance.literal("18", xsdInteger),
+				Instance.uri("http://example.com/foo"),
 			]
 		),
-		new APG.Record(
+		Instance.product(
 			["ex:n0/a", "ex:n0/b", "ex:n0/c"],
 			[
-				new Literal("bar", "", xsdString),
-				new Literal("44", "", xsdInteger),
-				new NamedNode("http://example.com/bar"),
+				Instance.literal("bar", xsdString),
+				Instance.literal("44", xsdInteger),
+				Instance.uri("http://example.com/bar"),
 			]
 		),
-		new APG.Record(
+		Instance.product(
 			["ex:n0/a", "ex:n0/b", "ex:n0/c"],
 			[
-				new Literal("baz", "", xsdString),
-				new Literal("91", "", xsdInteger),
-				new NamedNode("http://example.com/baz"),
+				Instance.literal("baz", xsdString),
+				Instance.literal("91", xsdInteger),
+				Instance.uri("http://example.com/baz"),
 			]
 		),
 	],

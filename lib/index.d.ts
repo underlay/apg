@@ -1,8 +1,4 @@
-import * as APG from "./apg.js";
-import * as ns from "./namespace.js";
-export { ns, APG };
-export * from "./mapping.js";
-export * from "./morphism.js";
-export * from "./type.js";
-export * from "./value.js";
+export * from "./schema/index.js";
+export * from "./instance/index.js";
+export * from "./mapping/index.js";
 export * from "./utils.js";
