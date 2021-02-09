@@ -1,6 +1,7 @@
 {
 	"include": ["src/*"],
 	"compilerOptions": {
+		"outDir": "lib",
 		"strict": true,
 		"module": "ESNext",
 		"target": "ES2020",
@@ -9,6 +10,6 @@
 		"alwaysStrict": true,
 		"moduleResolution": "node",
 		"esModuleInterop": true,
-		"outDir": "lib"
+		"isolatedModules": true
 	}
 }

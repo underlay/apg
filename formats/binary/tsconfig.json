@@ -2,13 +2,15 @@
 	"include": ["src/*"],
 	"exclude": ["test/*"],
 	"compilerOptions": {
+		"outDir": "lib",
 		"strict": true,
 		"module": "ESNext",
 		"target": "ES2020",
-		"outDir": "lib",
+		"sourceMap": false,
 		"declaration": true,
 		"alwaysStrict": true,
 		"moduleResolution": "node",
-		"esModuleInterop": true
+		"esModuleInterop": true,
+		"isolatedModules": true
 	}
 }
