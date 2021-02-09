@@ -1,7 +1,7 @@
 import { Buffer } from "buffer"
 import varint from "varint"
 import signedVarint from "signed-varint"
-import cbor from "cbor"
+import { CBOR } from "cbor-redux"
 
 import { xsd, rdf } from "@underlay/namespaces"
 
@@ -235,7 +235,7 @@ function* encodeValue(
 			yield new Uint8Array(varint.encode(data.length))
 			yield data
 		} else if (value.datatype.value === rdf.JSON) {
-			const data = cbor.encode(JSON.parse(value.value)) as Buffer
+			const data = Buffer.from(CBOR.encode(JSON.parse(value.value)))
 			yield new Uint8Array(varint.encode(data.length))
 			yield data
 		} else {

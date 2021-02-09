@@ -10,6 +10,7 @@
 		"declaration": true,
 		"alwaysStrict": true,
 		"moduleResolution": "node",
-		"esModuleInterop": true
+		"esModuleInterop": true,
+		"isolatedModules": true
 	}
 }

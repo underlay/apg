@@ -1,6 +1,6 @@
 import varint from "varint";
 import signedVarint from "signed-varint";
-import cbor from "cbor";
+import { CBOR } from "cbor-redux";
 import { rdf, xsd } from "@underlay/namespaces";
 import { Instance, forEntries, forType, getKeys } from "@underlay/apg";
 import { signalInvalidType } from "./utils.js";
@@ -214,7 +214,9 @@ function decodeLiteral(state, datatype) {
     }
     else if (datatype === rdf.JSON) {
         const length = getVarint(state);
-        const value = cbor.decodeFirstSync(state.data.slice(state.offset, state.offset + length));
+        const slice = state.data.slice(state.offset, state.offset + length);
+        const array = new Uint8Array(slice);
+        const value = CBOR.decode(array.buffer);
         state.offset += length;
         return JSON.stringify(value);
     }

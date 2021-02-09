@@ -21,11 +21,10 @@
 	},
 	"homepage": "https://github.com/underlay/apg#readme",
 	"dependencies": {
-		"@types/cbor": "^5.0.1",
 		"@types/signed-varint": "gist:b46025b5175e06c1586d714dc0960443",
 		"@types/varint": "^5.0.0",
 		"@underlay/namespaces": "0.0.1",
-		"cbor": "^5.1.0",
+		"cbor-redux": "^0.3.1",
 		"signed-varint": "^2.0.1",
 		"varint": "^6.0.0"
 	},
