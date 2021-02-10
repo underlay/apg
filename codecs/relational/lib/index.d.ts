@@ -1,5 +1,6 @@
 import * as t from "io-ts";
-import { Schema, ns } from "@underlay/apg";
+import { Schema } from "@underlay/apg";
+import { ul } from "@underlay/namespaces";
 declare const labels: t.RecordC<t.StringC, t.TypeC<{
     type: t.LiteralC<"product">;
     components: t.RecordC<t.StringC, t.UnionC<[t.UnionC<[t.TypeC<{

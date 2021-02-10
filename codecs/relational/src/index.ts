@@ -1,6 +1,7 @@
 import * as t from "io-ts"
 
-import { Schema, ns, forEntries, getKeys } from "@underlay/apg"
+import { Schema, forEntries, getKeys } from "@underlay/apg"
+import { ul } from "@underlay/namespaces"
 
 import { isUnit } from "./unit.js"
 
@@ -15,8 +16,11 @@ const optionalProperty = t.union([
 	t.type({
 		type: t.literal("coproduct"),
 		options: t.type({
-			[ns.none]: t.type({ type: t.literal("product"), components: t.type({}) }),
-			[ns.some]: property,
+			[ul.none]: t.type({
+				type: t.literal("product"),
+				components: t.type({}),
+			}),
+			[ul.some]: property,
 		}),
 	}),
 ])
@@ -37,10 +41,10 @@ const isOptionalProperty = (
 	isProperty(type) ||
 	(type.type === "coproduct" &&
 		getKeys(type).length === 2 &&
-		ns.none in type.options &&
-		isUnit(type.options[ns.none]) &&
-		ns.some in type.options &&
-		isProperty(type.options[ns.some]))
+		ul.none in type.options &&
+		isUnit(type.options[ul.none]) &&
+		ul.some in type.options &&
+		isProperty(type.options[ul.some]))
 
 export function isRelationalSchema(
 	input: Schema.Schema
