@@ -1,6 +1,7 @@
 {
 	"name": "@underlay/apg-format-binary",
-	"version": "0.0.1",
+	"version": "0.0.2",
+	"type": "module",
 	"description": "Parse and serialize APG instances to and from a binary format",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",
@@ -23,16 +24,16 @@
 	"dependencies": {
 		"@types/signed-varint": "gist:b46025b5175e06c1586d714dc0960443",
 		"@types/varint": "^5.0.0",
-		"@underlay/namespaces": "0.0.1",
+		"@underlay/namespaces": "0.0.2",
 		"cbor-redux": "^0.3.1",
 		"signed-varint": "^2.0.1",
 		"varint": "^6.0.0"
 	},
 	"devDependencies": {
-		"@babel/core": "^7.12.10",
-		"@babel/plugin-proposal-export-namespace-from": "^7.12.1",
-		"@babel/plugin-transform-modules-commonjs": "^7.12.1",
-		"@babel/preset-typescript": "^7.12.7",
+		"@babel/core": "^7.12.13",
+		"@babel/plugin-proposal-export-namespace-from": "^7.12.13",
+		"@babel/plugin-transform-modules-commonjs": "^7.12.13",
+		"@babel/preset-typescript": "^7.12.13",
 		"@types/jest": "^26.0.19",
 		"@underlay/apg": "^0.9.0",
 		"babel-jest": "^26.6.3",
