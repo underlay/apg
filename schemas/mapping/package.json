@@ -22,7 +22,7 @@
 	},
 	"homepage": "https://github.com/underlay/apg#readme",
 	"dependencies": {
-		"@underlay/namespaces": "0.0.1"
+		"@underlay/namespaces": "0.0.2"
 	},
 	"devDependencies": {
 		"@underlay/apg": "^0.9.0",
