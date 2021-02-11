@@ -29,12 +29,16 @@ const type = t.type({
 
 const labels = t.record(t.string, type)
 
-const isProperty = (type: Schema.Type): type is t.TypeOf<typeof property> =>
+export type Property = t.TypeOf<typeof property>
+
+export const isProperty = (type: Schema.Type): type is Property =>
 	type.type === "uri" || type.type === "literal"
 
-const isOptionalProperty = (
+export type OptionalProperty = t.TypeOf<typeof optionalProperty>
+
+export const isOptionalProperty = (
 	type: Schema.Type
-): type is t.TypeOf<typeof optionalProperty> =>
+): type is OptionalProperty =>
 	isProperty(type) ||
 	(type.type === "coproduct" &&
 		getKeys(type).length === 2 &&

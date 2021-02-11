@@ -23,8 +23,8 @@ const type = t.type({
     components: t.record(t.string, optionalProperty),
 });
 const labels = t.record(t.string, type);
-const isProperty = (type) => type.type === "uri" || type.type === "literal";
-const isOptionalProperty = (type) => isProperty(type) ||
+export const isProperty = (type) => type.type === "uri" || type.type === "literal";
+export const isOptionalProperty = (type) => isProperty(type) ||
     (type.type === "coproduct" &&
         getKeys(type).length === 2 &&
         ul.none in type.options &&
