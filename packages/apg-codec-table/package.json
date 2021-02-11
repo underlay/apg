@@ -1,8 +1,13 @@
 {
 	"name": "@underlay/apg-codec-table",
 	"version": "1.0.0",
+	"type": "module",
 	"description": "",
 	"main": "lib/index.js",
+	"types": "lib/index.d.ts",
+	"files": [
+		"lib"
+	],
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1"
 	},
