@@ -1,0 +1,11 @@
+{
+	"files": [],
+	"references": [
+		{ "path": "./apg" },
+		{ "path": "./apg-codec-apg" },
+		{ "path": "./apg-codec-relational" },
+		{ "path": "./apg-format-binary" },
+		{ "path": "./apg-schema-mapping" },
+		{ "path": "./apg-schema-schema" }
+	]
+}

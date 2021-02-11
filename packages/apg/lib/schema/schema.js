@@ -1,0 +1,13 @@
+import { getKeys } from "../utils";
+export const schema = (labels) => Object.freeze(labels);
+export const reference = (value) => Object.freeze({ type: "reference", value });
+export const isReference = (type) => type.type === "reference";
+export const uri = () => Object.freeze({ type: "uri" });
+export const isUri = (type) => type.type === "uri";
+export const literal = (datatype) => Object.freeze({ type: "literal", datatype });
+export const isLiteral = (type) => type.type === "literal";
+export const product = (components) => Object.freeze({ type: "product", components: Object.freeze(components) });
+export const isProduct = (type) => type.type === "product";
+export const isUnit = (type) => type.type === "product" && getKeys(type.components).length === 0;
+export const coproduct = (options) => Object.freeze({ type: "coproduct", options: Object.freeze(options) });
+export const isCoproduct = (type) => type.type === "coproduct";
