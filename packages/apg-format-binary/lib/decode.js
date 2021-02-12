@@ -251,7 +251,7 @@ export function log(schema, data) {
         }
     }
 }
-function logValue(prefix, state, type) {
+export function logValue(prefix, state, type) {
     if (type.type === "uri") {
         const index = getVarint(state);
         process.stdout.write(`${prefix} uri index: ${index}\n`);

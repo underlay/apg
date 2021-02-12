@@ -277,7 +277,7 @@ export function log<S extends { [key in string]: Schema.Type }>(
 	}
 }
 
-function logValue(
+export function logValue(
 	prefix: string,
 	state: { data: Buffer; offset: number },
 	type: Schema.Type

@@ -16,4 +16,8 @@ export declare function decodeLiteral(state: {
 export declare function log<S extends {
     [key in string]: Schema.Type;
 }>(schema: Schema.Schema<S>, data: Buffer): void;
+export declare function logValue(prefix: string, state: {
+    data: Buffer;
+    offset: number;
+}, type: Schema.Type): void;
 export {};
