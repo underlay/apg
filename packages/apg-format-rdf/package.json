@@ -1,0 +1,51 @@
+{
+	"name": "@underlay/apg-format-rdf",
+	"private": true,
+	"version": "0.0.2",
+	"type": "module",
+	"description": "Serialize and parse APG instances to and from RDF datasets",
+	"main": "lib/index.js",
+	"types": "lib/index.d.ts",
+	"files": [
+		"lib"
+	],
+	"scripts": {
+		"test": "npx jest"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/underlay/apg.git"
+	},
+	"author": "Joel Gustafson",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/underlay/apg/issues"
+	},
+	"homepage": "https://github.com/underlay/apg#readme",
+	"dependencies": {
+		"@types/rdf-canonize": "gist:dc406f4c567dcab1da98cf19b2b8a6d8",
+		"@types/rdf-js": "^4.0.1",
+		"@types/uuid": "^8.3.0",
+		"@underlay/namespaces": "0.0.2",
+		"n3": "^1.8.0",
+		"rdf-canonize": "^1.2.0",
+		"shex": "github:shexSpec/shex.js",
+		"uuid": "^8.3.1",
+		"ziterable": "^1.0.1"
+	},
+	"devDependencies": {
+		"@babel/cli": "^7.12.1",
+		"@babel/core": "^7.12.3",
+		"@babel/plugin-transform-modules-commonjs": "^7.12.1",
+		"@babel/preset-typescript": "^7.12.1",
+		"@types/jest": "^26.0.15",
+		"@underlay/apg": "^1.0.1",
+		"fp-ts": "^2.9.3",
+		"jest": "^26.6.3",
+		"typescript": "^4.1.3"
+	},
+	"peerDependencies": {
+		"@underlay/apg": "^1.0.0",
+		"fp-ts": "^2.9.3"
+	}
+}
