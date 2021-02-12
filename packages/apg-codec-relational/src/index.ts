@@ -3,13 +3,13 @@ import * as t from "io-ts"
 import { Schema, forEntries, getKeys } from "@underlay/apg"
 import { ul } from "@underlay/namespaces"
 
-const property = t.union([
+export const property = t.union([
 	t.type({ type: t.literal("reference"), value: t.string }),
 	t.type({ type: t.literal("literal"), datatype: t.string }),
 	t.type({ type: t.literal("uri") }),
 ])
 
-const optionalProperty = t.union([
+export const optionalProperty = t.union([
 	property,
 	t.type({
 		type: t.literal("coproduct"),
@@ -30,12 +30,14 @@ const type = t.type({
 
 const labels = t.record(t.string, type)
 
-const isProperty = (type: Schema.Type): type is t.TypeOf<typeof property> =>
+export type Property = t.TypeOf<typeof property>
+
+const isProperty = (type: Schema.Type): type is Property =>
 	type.type === "reference" || type.type === "uri" || type.type === "literal"
 
-const isOptionalProperty = (
-	type: Schema.Type
-): type is t.TypeOf<typeof optionalProperty> =>
+export type OptionalProperty = t.TypeOf<typeof optionalProperty>
+
+const isOptionalProperty = (type: Schema.Type): type is OptionalProperty =>
 	isProperty(type) ||
 	(type.type === "coproduct" &&
 		getKeys(type).length === 2 &&

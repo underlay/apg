@@ -43,7 +43,7 @@ export function decode(schema, data) {
     }
     return instance;
 }
-function decodeValue(state, type, datatypes) {
+export function decodeValue(state, type, datatypes) {
     if (type.type === "uri") {
         const index = getVarint(state);
         if (index >= state.uris.length) {
@@ -100,7 +100,7 @@ function getVarint(state) {
     state.offset += varint.encodingLength(length);
     return length;
 }
-function decodeLiteral(state, datatype) {
+export function decodeLiteral(state, datatype) {
     if (datatype === xsd.boolean) {
         const value = varint.decode(state.data, state.offset);
         state.offset += varint.encodingLength(value);

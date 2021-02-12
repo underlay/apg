@@ -1,12 +1,12 @@
 import * as t from "io-ts";
 import { Schema, forEntries, getKeys } from "@underlay/apg";
 import { ul } from "@underlay/namespaces";
-const property = t.union([
+export const property = t.union([
     t.type({ type: t.literal("reference"), value: t.string }),
     t.type({ type: t.literal("literal"), datatype: t.string }),
     t.type({ type: t.literal("uri") }),
 ]);
-const optionalProperty = t.union([
+export const optionalProperty = t.union([
     property,
     t.type({
         type: t.literal("coproduct"),

@@ -41,6 +41,7 @@ export declare const isProduct: (type: Type) => type is Product<{
     [x: string]: Type;
 }>;
 export declare type Unit = Product<{}>;
+export declare const unit: () => Product<{}>;
 export declare const isUnit: (type: Type) => type is Unit;
 export interface Coproduct<Options extends {
     [key in string]: Type;

@@ -58,7 +58,7 @@ export function decode<S extends { [key in string]: Schema.Type }>(
 	return instance as Instance.Instance<S>
 }
 
-function decodeValue(
+export function decodeValue(
 	state: State,
 	type: Schema.Type,
 	datatypes: Map<string, Instance.Uri>
@@ -123,7 +123,7 @@ function getVarint(state: { data: Buffer; offset: number }) {
 	return length
 }
 
-function decodeLiteral(
+export function decodeLiteral(
 	state: { data: Buffer; offset: number },
 	datatype: string
 ): string {

@@ -63,6 +63,8 @@ export const isProduct = (type: Type): type is Product =>
 
 export type Unit = Product<{}>
 
+export const unit = () => product({})
+
 export const isUnit = (type: Type): type is Unit =>
 	type.type === "product" && getKeys(type.components).length === 0
 

@@ -8,6 +8,7 @@ export const literal = (datatype) => Object.freeze({ type: "literal", datatype }
 export const isLiteral = (type) => type.type === "literal";
 export const product = (components) => Object.freeze({ type: "product", components: Object.freeze(components) });
 export const isProduct = (type) => type.type === "product";
+export const unit = () => product({});
 export const isUnit = (type) => type.type === "product" && getKeys(type.components).length === 0;
 export const coproduct = (options) => Object.freeze({ type: "coproduct", options: Object.freeze(options) });
 export const isCoproduct = (type) => type.type === "coproduct";
