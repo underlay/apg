@@ -9,7 +9,7 @@ export function encode(schema, instance) {
     for (const [{}, values] of forEntries(instance)) {
         for (const value of values) {
             for (const [leaf] of forValue(value)) {
-                if (leaf.type === "uri") {
+                if (leaf.kind === "uri") {
                     namedNodes.add(leaf.value);
                 }
             }
@@ -35,25 +35,25 @@ export function encode(schema, instance) {
 }
 const integerPattern = /^(?:\+|\-)?[0-9]+$/;
 export function* encodeValue(value, namedNodeIds) {
-    if (value.type === "reference") {
+    if (value.kind === "reference") {
         yield new Uint8Array(varint.encode(value.index));
     }
-    else if (value.type === "uri") {
+    else if (value.kind === "uri") {
         const id = namedNodeIds.get(value.value);
         if (id === undefined) {
             throw new Error(`Could not find id for named node ${value.value}`);
         }
         yield new Uint8Array(varint.encode(id));
     }
-    else if (value.type === "literal") {
+    else if (value.kind === "literal") {
         yield* encodeLiteral(value);
     }
-    else if (value.type === "product") {
+    else if (value.kind === "product") {
         for (const field of value) {
             yield* encodeValue(field, namedNodeIds);
         }
     }
-    else if (value.type === "coproduct") {
+    else if (value.kind === "coproduct") {
         yield new Uint8Array(varint.encode(value.index));
         yield* encodeValue(value.value, namedNodeIds);
     }

@@ -33,7 +33,7 @@ export function decode<S extends { [key in string]: Schema.Type }>(
 	const datatypes: Map<string, Instance.Uri> = new Map()
 	for (const [_, label] of forEntries(schema)) {
 		for (const [type] of forType(label)) {
-			if (type.type === "literal") {
+			if (type.kind === "literal") {
 				if (datatypes.has(type.datatype)) {
 					continue
 				} else {
@@ -63,14 +63,14 @@ export function decodeValue(
 	type: Schema.Type,
 	datatypes: Map<string, Instance.Uri>
 ): Instance.Value {
-	if (type.type === "uri") {
+	if (type.kind === "uri") {
 		const index = getVarint(state)
 		if (index >= state.uris.length) {
 			throw new Error("Invalid named node index")
 		}
 
 		return state.uris[index]
-	} else if (type.type === "literal") {
+	} else if (type.kind === "literal") {
 		const datatype = datatypes.get(type.datatype)
 		if (datatype === undefined) {
 			throw new Error("Unexpected datatype")
@@ -78,14 +78,14 @@ export function decodeValue(
 			const value = decodeLiteral(state, type.datatype)
 			return Instance.literal(value, datatype)
 		}
-	} else if (type.type === "product") {
+	} else if (type.kind === "product") {
 		const values: Instance.Value[] = []
 		for (const [{}, component] of forEntries(type.components)) {
 			values.push(decodeValue(state, component, datatypes))
 		}
 		const keys = getKeys(type.components)
 		return new Instance.Product(keys, values)
-	} else if (type.type === "coproduct") {
+	} else if (type.kind === "coproduct") {
 		const index = varint.decode(state.data, state.offset)
 		state.offset += varint.encodingLength(index)
 		const keys = getKeys(type.options)
@@ -96,7 +96,7 @@ export function decodeValue(
 		} else {
 			throw new Error("Invalid option index")
 		}
-	} else if (type.type === "reference") {
+	} else if (type.kind === "reference") {
 		const index = getVarint(state)
 		return new Instance.Reference(index)
 	} else {
@@ -282,20 +282,20 @@ export function logValue(
 	state: { data: Buffer; offset: number },
 	type: Schema.Type
 ) {
-	if (type.type === "uri") {
+	if (type.kind === "uri") {
 		const index = getVarint(state)
 		process.stdout.write(`${prefix} uri index: ${index}\n`)
-	} else if (type.type === "literal") {
+	} else if (type.kind === "literal") {
 		const value = decodeLiteral(state, type.datatype)
 		process.stdout.write(`${prefix} literal value: ${JSON.stringify(value)}\n`)
-	} else if (type.type === "product") {
+	} else if (type.kind === "product") {
 		process.stdout.write(
 			`${prefix} record with ${getKeys(type.components).length} components\n`
 		)
 		for (const [{}, component, i] of forEntries(type.components)) {
 			logValue(`${prefix} | `, state, component)
 		}
-	} else if (type.type === "coproduct") {
+	} else if (type.kind === "coproduct") {
 		const index = getVarint(state)
 		const keys = getKeys(type.options)
 		if (index in keys && keys[index] in type.options) {
@@ -305,7 +305,7 @@ export function logValue(
 		} else {
 			throw new Error("Invalid option index")
 		}
-	} else if (type.type === "reference") {
+	} else if (type.kind === "reference") {
 		const index = getVarint(state)
 		process.stdout.write(`${prefix} reference to element ${index}\n`)
 	} else {

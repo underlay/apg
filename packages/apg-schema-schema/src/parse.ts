@@ -203,7 +203,7 @@ export function fromSchema<S extends { [key in string]: Schema.Type }>(
 		const type = schema[key]
 		const variant = Instance.coproduct(
 			valueKeys,
-			ul[type.type],
+			ul[type.kind],
 			fromType(schema, instance, cache, type)
 		)
 		instance[ul.label].push(
@@ -226,13 +226,13 @@ function fromType(
 	cache: Map<Schema.Product | Schema.Coproduct, number>,
 	type: Schema.Type
 ) {
-	if (type.type === "reference") {
+	if (type.kind === "reference") {
 		return Instance.reference(getKeyIndex(schema, type.value))
-	} else if (type.type === "uri") {
+	} else if (type.kind === "uri") {
 		return Instance.unit()
-	} else if (type.type === "literal") {
+	} else if (type.kind === "literal") {
 		return Instance.uri(type.datatype)
-	} else if (type.type === "product") {
+	} else if (type.kind === "product") {
 		const pointer = cache.get(type)
 		if (pointer !== undefined) {
 			return Instance.reference(pointer)
@@ -248,7 +248,7 @@ function fromType(
 					Instance.reference(index),
 					Instance.coproduct(
 						valueKeys,
-						ul[value.type],
+						ul[value.kind],
 						fromType(schema, instance, cache, value)
 					),
 				])
@@ -256,7 +256,7 @@ function fromType(
 		}
 
 		return Instance.reference(index)
-	} else if (type.type === "coproduct") {
+	} else if (type.kind === "coproduct") {
 		const pointer = cache.get(type)
 		if (pointer !== undefined) {
 			return Instance.reference(pointer)
@@ -272,7 +272,7 @@ function fromType(
 					Instance.reference(index),
 					Instance.coproduct(
 						valueKeys,
-						ul[value.type],
+						ul[value.kind],
 						fromType(schema, instance, cache, value)
 					),
 				])

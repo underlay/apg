@@ -10,42 +10,42 @@ export class Reference {
         this.index = index;
         Object.freeze(this);
     }
-    get type() {
+    get kind() {
         return "reference";
     }
 }
 export const reference = (index) => new Reference(index);
-export const isReference = (value) => value.type === "reference";
+export const isReference = (value) => value.kind === "reference";
 export class Uri {
     constructor(value) {
         this.value = value;
         Object.freeze(this);
     }
-    get type() {
+    get kind() {
         return "uri";
     }
 }
 export const uri = (value) => new Uri(value);
-export const isUri = (value) => value.type === "uri";
+export const isUri = (value) => value.kind === "uri";
 export class Literal {
     constructor(value, datatype) {
         this.value = value;
         this.datatype = datatype;
         Object.freeze(this);
     }
-    get type() {
+    get kind() {
         return "literal";
     }
 }
 export const literal = (value, datatype) => new Literal(value, datatype);
-export const isLiteral = (value) => value.type === "literal";
+export const isLiteral = (value) => value.kind === "literal";
 export class Product extends Array {
     constructor(components, values) {
         super(...values);
         this.components = components;
         Object.freeze(this);
     }
-    get type() {
+    get kind() {
         return "product";
     }
     get(key) {
@@ -66,7 +66,7 @@ export class Product extends Array {
     }
 }
 export const product = (components, values) => new Product(components, values);
-export const isProduct = (value) => value.type === "product";
+export const isProduct = (value) => value.kind === "product";
 const unitKeys = [];
 const unitValues = [];
 export const unit = () => new Product(unitKeys, unitValues);
@@ -83,7 +83,7 @@ export class Coproduct {
             throw new Error("Coproduct value index out of range");
         }
     }
-    get type() {
+    get kind() {
         return "coproduct";
     }
     is(key) {
@@ -91,4 +91,4 @@ export class Coproduct {
     }
 }
 export const coproduct = (options, key, value) => new Coproduct(options, key, value);
-export const isCoproduct = (value) => value.type === "coproduct";
+export const isCoproduct = (value) => value.kind === "coproduct";

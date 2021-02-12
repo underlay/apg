@@ -18,13 +18,13 @@ export function apply(
 	expression: Mapping.Expression,
 	source: Schema.Type
 ): Schema.Type {
-	if (expression.type === "identifier") {
+	if (expression.kind === "identifier") {
 		return Schema.uri()
-	} else if (expression.type === "constant") {
+	} else if (expression.kind === "constant") {
 		return Schema.literal(expression.datatype)
-	} else if (expression.type === "dereference") {
+	} else if (expression.kind === "dereference") {
 		if (
-			source.type === "reference" &&
+			source.kind === "reference" &&
 			source.value in S &&
 			source.value === expression.key
 		) {
@@ -32,21 +32,21 @@ export function apply(
 		} else {
 			throw new Error("Invalid dereference morphism")
 		}
-	} else if (expression.type === "projection") {
-		if (source.type === "product" && expression.key in source.components) {
+	} else if (expression.kind === "projection") {
+		if (source.kind === "product" && expression.key in source.components) {
 			return source.components[expression.key]
 		} else {
 			throw new Error("Invalid projection morphism")
 		}
-	} else if (expression.type === "injection") {
+	} else if (expression.kind === "injection") {
 		const { key } = expression
 		return Schema.coproduct({ [key]: source })
-	} else if (expression.type === "tuple") {
+	} else if (expression.kind === "tuple") {
 		return Schema.product(
 			mapKeys(expression.slots, (value) => applyExpressions(S, value, source))
 		)
-	} else if (expression.type === "match") {
-		if (source.type === "coproduct") {
+	} else if (expression.kind === "match") {
+		if (source.kind === "coproduct") {
 			const cases = Array.from(applyCases(S, source, expression))
 			if (cases.length === 0) {
 				throw new Error("Empty case analysis")

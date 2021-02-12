@@ -13,14 +13,14 @@ export declare type Value<T extends Schema.Type = Schema.Type> = T extends Schem
 export declare class Reference {
     readonly index: number;
     constructor(index: number);
-    get type(): "reference";
+    get kind(): "reference";
 }
 export declare const reference: (index: number) => Reference;
 export declare const isReference: (value: Value) => value is Reference;
 export declare class Uri<Value extends string = string> {
     readonly value: Value;
     constructor(value: Value);
-    get type(): "uri";
+    get kind(): "uri";
 }
 export declare const uri: <Value_1 extends string = string>(value: Value_1) => Uri<Value_1>;
 export declare const isUri: (value: Value) => value is Uri<string>;
@@ -28,7 +28,7 @@ export declare class Literal<Datatype extends string = string> {
     readonly value: string;
     readonly datatype: Uri<Datatype>;
     constructor(value: string, datatype: Uri<Datatype>);
-    get type(): "literal";
+    get kind(): "literal";
 }
 export declare const literal: <Datatype extends string = string>(value: string, datatype: Uri<Datatype>) => Literal<Datatype>;
 export declare const isLiteral: (value: Value) => value is Literal<string>;
@@ -38,7 +38,7 @@ export declare class Product<Components extends {
     [key in string]: Schema.Type;
 }> extends Array<Value<Components[keyof Components]>> {
     readonly components: readonly (keyof Components)[];
-    get type(): "product";
+    get kind(): "product";
     constructor(components: readonly (keyof Components)[], values: Iterable<Value<Components[keyof Components]>>);
     get<K extends keyof Components>(key: K): Value<Components[K]>;
     map<V>(f: (value: Value<Components[keyof Components]>, index: number, record: Product<Components>) => V): V[];
@@ -62,7 +62,7 @@ export declare class Coproduct<Options extends {
     readonly value: Value<Options[Option]>;
     readonly index: number;
     constructor(options: readonly (keyof Options)[], key: Option, value: Value<Options[Option]>);
-    get type(): "coproduct";
+    get kind(): "coproduct";
     is<Key extends keyof Options>(key: Key): this is Coproduct<Options, Key>;
 }
 export declare const coproduct: <Options extends {

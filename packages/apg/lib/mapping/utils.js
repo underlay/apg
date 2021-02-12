@@ -18,7 +18,7 @@ export function validateMapping(M, S, T) {
     return true;
 }
 export function fold(M, S, T, type) {
-    if (type.type === "reference") {
+    if (type.kind === "reference") {
         const { source } = M[type.value];
         const value = T[source];
         if (value === undefined) {
@@ -28,16 +28,16 @@ export function fold(M, S, T, type) {
             return value;
         }
     }
-    else if (type.type === "uri") {
+    else if (type.kind === "uri") {
         return type;
     }
-    else if (type.type === "literal") {
+    else if (type.kind === "literal") {
         return type;
     }
-    else if (type.type === "product") {
+    else if (type.kind === "product") {
         return Schema.product(mapKeys(type.components, (value) => fold(M, S, T, value)));
     }
-    else if (type.type === "coproduct") {
+    else if (type.kind === "coproduct") {
         return Schema.coproduct(mapKeys(type.options, (value) => fold(M, S, T, value)));
     }
     else {
@@ -46,14 +46,14 @@ export function fold(M, S, T, type) {
 }
 export const mapExpressions = (expressions, value, instance, schema) => expressions.reduce((value, expression) => map(expression, value, instance, schema), value);
 export function map(expression, value, instance, schema) {
-    if (expression.type === "identifier") {
+    if (expression.kind === "identifier") {
         return Instance.uri(expression.value);
     }
-    else if (expression.type === "constant") {
+    else if (expression.kind === "constant") {
         return Instance.literal(expression.value, Instance.uri(expression.datatype));
     }
-    else if (expression.type === "dereference") {
-        if (value.type === "reference") {
+    else if (expression.kind === "dereference") {
+        if (value.kind === "reference") {
             const { key } = expression;
             if (key in instance && value.index in instance[key]) {
                 return instance[key][value.index];
@@ -66,16 +66,16 @@ export function map(expression, value, instance, schema) {
             throw new Error("Invalid pointer dereference");
         }
     }
-    else if (expression.type === "projection") {
-        if (value.type === "product") {
+    else if (expression.kind === "projection") {
+        if (value.kind === "product") {
             return value.get(expression.key);
         }
         else {
             throw new Error("Invalid projection");
         }
     }
-    else if (expression.type === "match") {
-        if (value.type === "coproduct") {
+    else if (expression.kind === "match") {
+        if (value.kind === "coproduct") {
             if (value.key in expression.cases) {
                 const c = expression.cases[value.key];
                 return mapExpressions(c, value.value, instance, schema);
@@ -88,11 +88,11 @@ export function map(expression, value, instance, schema) {
             throw new Error("Invalid match morphism");
         }
     }
-    else if (expression.type === "tuple") {
+    else if (expression.kind === "tuple") {
         const keys = getKeys(expression.slots);
         return Instance.product(keys, keys.map((key) => mapExpressions(expression.slots[key], value, instance, schema)));
     }
-    else if (expression.type === "injection") {
+    else if (expression.kind === "injection") {
         return Instance.coproduct(Object.freeze([expression.key]), expression.key, value);
     }
     else {
@@ -156,7 +156,7 @@ value // of image
         }
     }
     else if (Schema.isUri(type)) {
-        if (value.type !== "uri") {
+        if (value.kind !== "uri") {
             throw new Error("Invalid image value: expected iri");
         }
         else {
@@ -164,7 +164,7 @@ value // of image
         }
     }
     else if (Schema.isLiteral(type)) {
-        if (value.type !== "literal") {
+        if (value.kind !== "literal") {
             throw new Error("Invalid image value: expected literal");
         }
         else {
@@ -172,7 +172,7 @@ value // of image
         }
     }
     else if (Schema.isProduct(type)) {
-        if (value.type !== "product") {
+        if (value.kind !== "product") {
             throw new Error("Invalid image value: expected record");
         }
         else {
@@ -180,7 +180,7 @@ value // of image
         }
     }
     else if (Schema.isCoproduct(type)) {
-        if (value.type !== "coproduct") {
+        if (value.kind !== "coproduct") {
             throw new Error("Invalid image value: expected variant");
         }
         else if (value.key in type.options) {

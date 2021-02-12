@@ -5,14 +5,14 @@ export function* forType(type, stack = []) {
         throw new Error("Recursive type");
     }
     yield [type, stack];
-    if (type.type === "product") {
+    if (type.kind === "product") {
         stack.push(type);
         for (const key of getKeys(type.components)) {
             yield* forType(type.components[key], stack);
         }
         stack.pop();
     }
-    else if (type.type === "coproduct") {
+    else if (type.kind === "coproduct") {
         stack.push(type);
         for (const key of getKeys(type.options)) {
             yield* forType(type.options[key], stack);
@@ -24,19 +24,19 @@ export function isTypeEqual(a, b) {
     if (a === b) {
         return true;
     }
-    else if (a.type !== b.type) {
+    else if (a.kind !== b.kind) {
         return false;
     }
-    else if (a.type === "reference" && b.type === "reference") {
+    else if (a.kind === "reference" && b.kind === "reference") {
         return a.value === b.value;
     }
-    else if (a.type === "uri" && b.type === "uri") {
+    else if (a.kind === "uri" && b.kind === "uri") {
         return true;
     }
-    else if (a.type === "literal" && b.type === "literal") {
+    else if (a.kind === "literal" && b.kind === "literal") {
         return a.datatype === b.datatype;
     }
-    else if (a.type === "product" && b.type === "product") {
+    else if (a.kind === "product" && b.kind === "product") {
         const A = getKeys(a.components);
         const B = getKeys(b.components);
         if (A.length !== B.length) {
@@ -55,7 +55,7 @@ export function isTypeEqual(a, b) {
         }
         return true;
     }
-    else if (a.type === "coproduct" && b.type === "coproduct") {
+    else if (a.kind === "coproduct" && b.kind === "coproduct") {
         const A = getKeys(a.options);
         const B = getKeys(b.options);
         if (A.length !== B.length) {
@@ -82,19 +82,19 @@ export function isTypeAssignable(a, b) {
     if (a === b) {
         return true;
     }
-    else if (a.type !== b.type) {
+    else if (a.kind !== b.kind) {
         return false;
     }
-    else if (a.type === "reference" && b.type === "reference") {
+    else if (a.kind === "reference" && b.kind === "reference") {
         return a.value === b.value;
     }
-    else if (a.type === "uri" && b.type === "uri") {
+    else if (a.kind === "uri" && b.kind === "uri") {
         return true;
     }
-    else if (a.type === "literal" && b.type === "literal") {
+    else if (a.kind === "literal" && b.kind === "literal") {
         return a.datatype === b.datatype;
     }
-    else if (a.type === "product" && b.type === "product") {
+    else if (a.kind === "product" && b.kind === "product") {
         for (const key of getKeys(b.components)) {
             if (key in a.components &&
                 isTypeAssignable(a.components[key], b.components[key])) {
@@ -106,7 +106,7 @@ export function isTypeAssignable(a, b) {
         }
         return true;
     }
-    else if (a.type === "coproduct" && b.type === "coproduct") {
+    else if (a.kind === "coproduct" && b.kind === "coproduct") {
         for (const key of getKeys(a.options)) {
             if (key in b.options &&
                 isTypeAssignable(a.options[key], b.options[key])) {
@@ -126,23 +126,23 @@ export function unify(a, b) {
     if (a === b) {
         return b;
     }
-    else if (a.type === "reference" && b.type === "reference") {
+    else if (a.kind === "reference" && b.kind === "reference") {
         if (a.value === b.value) {
             return b;
         }
     }
-    else if (a.type === "uri" && b.type === "uri") {
+    else if (a.kind === "uri" && b.kind === "uri") {
         return b;
     }
-    else if (a.type === "literal" && b.type === "literal") {
+    else if (a.kind === "literal" && b.kind === "literal") {
         if (a.datatype === b.datatype) {
             return b;
         }
     }
-    else if (a.type === "product" && b.type === "product") {
+    else if (a.kind === "product" && b.kind === "product") {
         return Schema.product(Object.fromEntries(unifyComponents(a, b)));
     }
-    if (a.type === "coproduct" && b.type === "coproduct") {
+    if (a.kind === "coproduct" && b.kind === "coproduct") {
         return Schema.coproduct(Object.fromEntries(unifyOptions(a, b)));
     }
     else {

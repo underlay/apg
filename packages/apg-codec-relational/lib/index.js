@@ -2,17 +2,17 @@ import * as t from "io-ts";
 import { Schema, forEntries, getKeys } from "@underlay/apg";
 import { ul } from "@underlay/namespaces";
 export const property = t.union([
-    t.type({ type: t.literal("reference"), value: t.string }),
-    t.type({ type: t.literal("literal"), datatype: t.string }),
-    t.type({ type: t.literal("uri") }),
+    t.type({ kind: t.literal("reference"), value: t.string }),
+    t.type({ kind: t.literal("literal"), datatype: t.string }),
+    t.type({ kind: t.literal("uri") }),
 ]);
 export const optionalProperty = t.union([
     property,
     t.type({
-        type: t.literal("coproduct"),
+        kind: t.literal("coproduct"),
         options: t.type({
             [ul.none]: t.type({
-                type: t.literal("product"),
+                kind: t.literal("product"),
                 components: t.type({}),
             }),
             [ul.some]: property,
@@ -20,13 +20,13 @@ export const optionalProperty = t.union([
     }),
 ]);
 const type = t.type({
-    type: t.literal("product"),
+    kind: t.literal("product"),
     components: t.record(t.string, optionalProperty),
 });
 const labels = t.record(t.string, type);
-const isProperty = (type) => type.type === "reference" || type.type === "uri" || type.type === "literal";
+const isProperty = (type) => type.kind === "reference" || type.kind === "uri" || type.kind === "literal";
 const isOptionalProperty = (type) => isProperty(type) ||
-    (type.type === "coproduct" &&
+    (type.kind === "coproduct" &&
         getKeys(type).length === 2 &&
         ul.none in type.options &&
         Schema.isUnit(type.options[ul.none]) &&
@@ -34,7 +34,7 @@ const isOptionalProperty = (type) => isProperty(type) ||
         isProperty(type.options[ul.some]));
 export function isRelationalSchema(input) {
     for (const [{}, type] of forEntries(input)) {
-        if (type.type === "product") {
+        if (type.kind === "product") {
             for (const [_, value] of forEntries(type.components)) {
                 if (isOptionalProperty(value)) {
                     continue;

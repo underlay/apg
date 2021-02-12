@@ -96,7 +96,7 @@ export function fromSchema(schema) {
     const cache = new Map();
     for (const key of getKeys(schema)) {
         const type = schema[key];
-        const variant = Instance.coproduct(valueKeys, ul[type.type], fromType(schema, instance, cache, type));
+        const variant = Instance.coproduct(valueKeys, ul[type.kind], fromType(schema, instance, cache, type));
         instance[ul.label].push(Instance.product(labelKeys, [Instance.uri(key), variant]));
     }
     for (const key of getKeys(schemaSchema)) {
@@ -106,16 +106,16 @@ export function fromSchema(schema) {
     return instance;
 }
 function fromType(schema, instance, cache, type) {
-    if (type.type === "reference") {
+    if (type.kind === "reference") {
         return Instance.reference(getKeyIndex(schema, type.value));
     }
-    else if (type.type === "uri") {
+    else if (type.kind === "uri") {
         return Instance.unit();
     }
-    else if (type.type === "literal") {
+    else if (type.kind === "literal") {
         return Instance.uri(type.datatype);
     }
-    else if (type.type === "product") {
+    else if (type.kind === "product") {
         const pointer = cache.get(type);
         if (pointer !== undefined) {
             return Instance.reference(pointer);
@@ -126,12 +126,12 @@ function fromType(schema, instance, cache, type) {
             instance[ul.component].push(Instance.product(componentKeys, [
                 Instance.uri(key),
                 Instance.reference(index),
-                Instance.coproduct(valueKeys, ul[value.type], fromType(schema, instance, cache, value)),
+                Instance.coproduct(valueKeys, ul[value.kind], fromType(schema, instance, cache, value)),
             ]));
         }
         return Instance.reference(index);
     }
-    else if (type.type === "coproduct") {
+    else if (type.kind === "coproduct") {
         const pointer = cache.get(type);
         if (pointer !== undefined) {
             return Instance.reference(pointer);
@@ -142,7 +142,7 @@ function fromType(schema, instance, cache, type) {
             instance[ul.option].push(Instance.product(optionKeys, [
                 Instance.uri(key),
                 Instance.reference(index),
-                Instance.coproduct(valueKeys, ul[value.type], fromType(schema, instance, cache, value)),
+                Instance.coproduct(valueKeys, ul[value.kind], fromType(schema, instance, cache, value)),
             ]));
         }
         return Instance.reference(index);

@@ -8,18 +8,18 @@ export declare const schema: <S extends {
 }>(labels: S) => Readonly<S>;
 export declare type Type = Uri | Literal | Product | Coproduct | Reference;
 export interface Reference<T extends string = string> {
-    readonly type: "reference";
+    readonly kind: "reference";
     readonly value: T;
 }
 export declare const reference: <T extends string>(value: T) => Reference<T>;
 export declare const isReference: (type: Type) => type is Reference<string>;
 export interface Uri {
-    readonly type: "uri";
+    readonly kind: "uri";
 }
 export declare const uri: () => Uri;
 export declare const isUri: (type: Type) => type is Uri;
 export interface Literal<T extends string = string> {
-    readonly type: "literal";
+    readonly kind: "literal";
     readonly datatype: T;
 }
 export declare const literal: <T extends string>(datatype: T) => Literal<T>;
@@ -29,7 +29,7 @@ export interface Product<Components extends {
 } = {
     [key in string]: Type;
 }> {
-    readonly type: "product";
+    readonly kind: "product";
     readonly components: Readonly<Components>;
 }
 export declare const product: <Components extends {
@@ -48,7 +48,7 @@ export interface Coproduct<Options extends {
 } = {
     [key in string]: Type;
 }> {
-    readonly type: "coproduct";
+    readonly kind: "coproduct";
     readonly options: Readonly<Options>;
 }
 export declare const coproduct: <Options extends {

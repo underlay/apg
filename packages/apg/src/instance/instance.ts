@@ -32,7 +32,7 @@ export class Reference {
 	constructor(readonly index: number) {
 		Object.freeze(this)
 	}
-	public get type(): "reference" {
+	public get kind(): "reference" {
 		return "reference"
 	}
 }
@@ -40,13 +40,13 @@ export class Reference {
 export const reference = (index: number) => new Reference(index)
 
 export const isReference = (value: Value): value is Reference =>
-	value.type === "reference"
+	value.kind === "reference"
 
 export class Uri<Value extends string = string> {
 	constructor(readonly value: Value) {
 		Object.freeze(this)
 	}
-	public get type(): "uri" {
+	public get kind(): "uri" {
 		return "uri"
 	}
 }
@@ -55,13 +55,13 @@ export const uri = <Value extends string = string>(value: Value) =>
 	new Uri(value)
 
 export const isUri = (value: Value): value is Uri<string> =>
-	value.type === "uri"
+	value.kind === "uri"
 
 export class Literal<Datatype extends string = string> {
 	constructor(readonly value: string, readonly datatype: Uri<Datatype>) {
 		Object.freeze(this)
 	}
-	public get type(): "literal" {
+	public get kind(): "literal" {
 		return "literal"
 	}
 }
@@ -72,14 +72,14 @@ export const literal = <Datatype extends string = string>(
 ) => new Literal(value, datatype)
 
 export const isLiteral = (value: Value): value is Literal<string> =>
-	value.type === "literal"
+	value.kind === "literal"
 
 export class Product<
 	Components extends { [key in string]: Schema.Type } = {
 		[key in string]: Schema.Type
 	}
 > extends Array<Value<Components[keyof Components]>> {
-	public get type(): "product" {
+	public get kind(): "product" {
 		return "product"
 	}
 
@@ -125,7 +125,7 @@ export const product = <
 ) => new Product<Components>(components, values)
 
 export const isProduct = (value: Value): value is Product =>
-	value.type === "product"
+	value.kind === "product"
 
 const unitKeys: [] = []
 const unitValues: [] = []
@@ -150,7 +150,7 @@ export class Coproduct<
 			throw new Error("Coproduct value index out of range")
 		}
 	}
-	public get type(): "coproduct" {
+	public get kind(): "coproduct" {
 		return "coproduct"
 	}
 	is<Key extends keyof Options>(key: Key): this is Coproduct<Options, Key> {
@@ -170,4 +170,4 @@ export const coproduct = <
 ) => new Coproduct<Options, Option>(options, key, value)
 
 export const isCoproduct = (value: Value): value is Coproduct =>
-	value.type === "coproduct"
+	value.kind === "coproduct"
