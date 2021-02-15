@@ -18,9 +18,9 @@ export function apply(
 	expression: Mapping.Expression,
 	source: Schema.Type
 ): Schema.Type {
-	if (expression.kind === "identifier") {
+	if (expression.kind === "uri") {
 		return Schema.uri()
-	} else if (expression.kind === "constant") {
+	} else if (expression.kind === "literal") {
 		return Schema.literal(expression.datatype)
 	} else if (expression.kind === "dereference") {
 		if (
@@ -41,36 +41,39 @@ export function apply(
 	} else if (expression.kind === "injection") {
 		const { key } = expression
 		return Schema.coproduct({ [key]: source })
-	} else if (expression.kind === "tuple") {
+	} else if (expression.kind === "product") {
 		return Schema.product(
-			mapKeys(expression.slots, (value) => applyExpressions(S, value, source))
+			mapKeys(expression.components, (value) =>
+				applyExpressions(S, value, source)
+			)
 		)
-	} else if (expression.kind === "match") {
+	} else if (expression.kind === "coproduct") {
 		if (source.kind === "coproduct") {
-			const cases = Array.from(applyCases(S, source, expression))
+			const cases = Array.from(applyOptions(S, source, expression))
 			if (cases.length === 0) {
 				throw new Error("Empty case analysis")
 			} else {
+				// This line is magic
 				return cases.reduce(unify)
 			}
 		} else {
-			throw new Error("Invalid match morphism")
+			throw new Error("Invalid coproduct morphism")
 		}
 	} else {
 		signalInvalidType(expression)
 	}
 }
 
-function* applyCases(
+function* applyOptions(
 	S: Schema.Schema,
 	source: Schema.Coproduct,
-	{ cases }: Mapping.Match
+	{ options }: Mapping.Coproduct
 ): Generator<Schema.Type, void, undefined> {
 	for (const key of getKeys(source.options)) {
-		if (key in cases) {
-			yield applyExpressions(S, cases[key], source.options[key])
+		if (key in options) {
+			yield applyExpressions(S, options[key], source.options[key])
 		} else {
-			throw new Error("Invalid case analysis")
+			throw new Error("Invalid coproduct case analysis")
 		}
 	}
 }

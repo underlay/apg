@@ -2,40 +2,39 @@ export * from "./utils.js"
 export * from "./apply.js"
 
 export type Expression =
-	| Identifier
-	| Constant
+	| Uri
+	| Literal
 	| Dereference
 	| Projection
 	| Injection
-	| Tuple
-	| Match
+	| Product
+	| Coproduct
 
-export interface Identifier<Value extends string = string> {
-	readonly kind: "identifier"
+export interface Uri<Value extends string = string> {
+	readonly kind: "uri"
 	readonly value: Value
 }
 
-export const identifier = <Value extends string>(
-	value: Value
-): Identifier<Value> => Object.freeze({ kind: "identifier", value })
+export const uri = <Value extends string>(value: Value): Uri<Value> =>
+	Object.freeze({ kind: "uri", value })
 
-export interface Constant<
+export interface Literal<
 	Datatype extends string = string,
 	Value extends string = string
 > {
-	readonly kind: "constant"
+	readonly kind: "literal"
 	readonly value: Value
 	readonly datatype: Datatype
 }
 
-export const constant = <
+export const literal = <
 	Datatype extends string = string,
 	Value extends string = string
 >(
 	value: Value,
 	datatype: Datatype
-): Constant<Datatype, Value> =>
-	Object.freeze({ kind: "constant", value, datatype })
+): Literal<Datatype, Value> =>
+	Object.freeze({ kind: "literal", value, datatype })
 
 export interface Dereference<Key extends string = string> {
 	readonly kind: "dereference"
@@ -64,23 +63,29 @@ export const injection = <Key extends string = string>(
 	key: Key
 ): Injection<Key> => Object.freeze({ kind: "injection", key })
 
-export interface Tuple {
-	readonly kind: "tuple"
-	readonly slots: { readonly [key in string]: Expression[] }
+export interface Product<
+	Components extends Record<string, Expression[]> = Record<string, Expression[]>
+> {
+	readonly kind: "product"
+	readonly components: Readonly<Components>
 }
 
-export const tuple = (
-	slots: { readonly [key in string]: Expression[] }
-): Tuple => Object.freeze({ kind: "tuple", slots: Object.freeze(slots) })
+export const product = <Components extends Record<string, Expression[]>>(
+	components: Components
+): Product<Components> =>
+	Object.freeze({ kind: "product", components: Object.freeze(components) })
 
-export interface Match {
-	readonly kind: "match"
-	readonly cases: { readonly [key in string]: Expression[] }
+export interface Coproduct<
+	Options extends Record<string, Expression[]> = Record<string, Expression[]>
+> {
+	readonly kind: "coproduct"
+	readonly options: Readonly<Options>
 }
 
-export const match = (
-	cases: { readonly [key in string]: Expression[] }
-): Match => Object.freeze({ kind: "match", cases: Object.freeze(cases) })
+export const coproduct = <Options extends Record<string, Expression[]>>(
+	options: Options
+): Coproduct<Options> =>
+	Object.freeze({ kind: "coproduct", options: Object.freeze(options) })
 
 export interface Map {
 	readonly kind: "map"

@@ -10,7 +10,7 @@ import {
 	mapKeys,
 } from "../utils.js"
 
-import { validateExpressions } from "./apply.js"
+import { validateExpressions, apply, applyExpressions } from "./apply.js"
 
 export function validateMapping(
 	M: Mapping.Mapping,
@@ -69,7 +69,7 @@ export const mapExpressions = (
 	value: Instance.Value,
 	instance: Instance.Instance,
 	schema: Schema.Schema
-) =>
+): Instance.Value =>
 	expressions.reduce(
 		(value: Instance.Value, expression: Mapping.Expression) =>
 			map(expression, value, instance, schema),
@@ -82,10 +82,13 @@ export function map(
 	instance: Instance.Instance,
 	schema: Schema.Schema
 ): Instance.Value {
-	if (expression.kind === "identifier") {
-		return Instance.uri(expression.value)
-	} else if (expression.kind === "constant") {
-		return Instance.literal(expression.value, Instance.uri(expression.datatype))
+	if (expression.kind === "uri") {
+		return Instance.uri(Schema.uri(), expression.value)
+	} else if (expression.kind === "literal") {
+		return Instance.literal(
+			Schema.literal(expression.datatype),
+			expression.value
+		)
 	} else if (expression.kind === "dereference") {
 		if (value.kind === "reference") {
 			const { key } = expression
@@ -103,27 +106,31 @@ export function map(
 		} else {
 			throw new Error("Invalid projection")
 		}
-	} else if (expression.kind === "match") {
+	} else if (expression.kind === "coproduct") {
 		if (value.kind === "coproduct") {
-			if (value.key in expression.cases) {
-				const c = expression.cases[value.key]
+			if (value.option in expression.options) {
+				const c = expression.options[value.option]
 				return mapExpressions(c, value.value, instance, schema)
 			} else {
-				throw new Error("Invalid case analysis")
+				throw new Error("Invalid coproduct case analysis")
 			}
 		} else {
-			throw new Error("Invalid match morphism")
+			throw new Error("Invalid coproduct morphism")
 		}
-	} else if (expression.kind === "tuple") {
-		const keys = getKeys(expression.slots)
+	} else if (expression.kind === "product") {
+		const keys = getKeys(expression.components)
+		mapKeys(expression.components, (expressions) =>
+			mapExpressions(expressions, value, instance, schema)
+		)
 		return Instance.product(
 			keys,
 			keys.map((key) =>
-				mapExpressions(expression.slots[key], value, instance, schema)
+				mapExpressions(expression.components[key], value, instance, schema)
 			)
 		)
 	} else if (expression.kind === "injection") {
 		return Instance.coproduct(
+			// Schema.coproduct({})
 			Object.freeze([expression.key]),
 			expression.key,
 			value
@@ -174,7 +181,7 @@ export function delta(
 	return SI
 }
 
-const placeholder = Instance.uri("")
+const placeholder = Instance.uri(Schema.uri(), "")
 
 type State = {
 	M: Mapping.Mapping
@@ -213,7 +220,7 @@ function pullback(
 		}
 	} else if (Schema.isUri(type)) {
 		if (value.kind !== "uri") {
-			throw new Error("Invalid image value: expected iri")
+			throw new Error("Invalid image value: expected uri")
 		} else {
 			return value
 		}
@@ -225,7 +232,7 @@ function pullback(
 		}
 	} else if (Schema.isProduct(type)) {
 		if (value.kind !== "product") {
-			throw new Error("Invalid image value: expected record")
+			throw new Error("Invalid image value: expected product")
 		} else {
 			return Instance.product(
 				value.components,
@@ -234,15 +241,15 @@ function pullback(
 		}
 	} else if (Schema.isCoproduct(type)) {
 		if (value.kind !== "coproduct") {
-			throw new Error("Invalid image value: expected variant")
-		} else if (value.key in type.options) {
+			throw new Error("Invalid image value: expected coproduct")
+		} else if (value.option in type.options) {
 			return Instance.coproduct(
 				value.options,
-				value.key,
-				pullback(state, type.options[value.key], value.value)
+				value.option,
+				pullback(state, type.options[value.option], value.value)
 			)
 		} else {
-			throw new Error("Invalid image variant")
+			throw new Error("Invalid image coproduct")
 		}
 	} else {
 		signalInvalidType(type)

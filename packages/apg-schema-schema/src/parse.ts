@@ -93,7 +93,7 @@ function toType(
 		const { index } = value.value
 		return toCoproduct(index, instance, typeCache, sources, permutation)
 	} else {
-		throw new Error(`Invalid value variant key ${value.key}`)
+		throw new Error(`Invalid value variant key ${value.option}`)
 	}
 }
 

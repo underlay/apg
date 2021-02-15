@@ -41,18 +41,14 @@ export const isLiteral = (type: Type): type is Literal =>
 	type.kind === "literal"
 
 export interface Product<
-	Components extends { [key in string]: Type } = {
-		[key in string]: Type
-	}
+	Components extends Record<string, Type> = Record<string, Type>
 > {
 	readonly kind: "product"
 	readonly components: Readonly<Components>
 }
 
 export const product = <
-	Components extends { [key in string]: Type } = {
-		[key in string]: Type
-	}
+	Components extends Record<string, Type> = Record<string, Type>
 >(
 	components: Components
 ): Product<Components> =>
@@ -69,18 +65,14 @@ export const isUnit = (type: Type): type is Unit =>
 	type.kind === "product" && getKeys(type.components).length === 0
 
 export interface Coproduct<
-	Options extends { [key in string]: Type } = {
-		[key in string]: Type
-	}
+	Options extends Record<string, Type> = Record<string, Type>
 > {
 	readonly kind: "coproduct"
 	readonly options: Readonly<Options>
 }
 
 export const coproduct = <
-	Options extends { [key in string]: Type } = {
-		[key in string]: Type
-	}
+	Options extends Record<string, Type> = Record<string, Type>
 >(
 	options: Options
 ): Coproduct<Options> =>
