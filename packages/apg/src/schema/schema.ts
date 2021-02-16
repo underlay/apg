@@ -1,4 +1,4 @@
-import { getKeys } from "../utils"
+import { getKeys } from "../utils.js"
 
 export type Schema<
 	S extends { [key in string]: Type } = { [key in string]: Type }

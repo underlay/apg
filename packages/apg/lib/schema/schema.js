@@ -1,4 +1,4 @@
-import { getKeys } from "../utils";
+import { getKeys } from "../utils.js";
 export const schema = (labels) => Object.freeze(labels);
 export const reference = (value) => Object.freeze({ kind: "reference", value });
 export const isReference = (type) => type.kind === "reference";

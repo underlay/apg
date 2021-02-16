@@ -189,8 +189,8 @@ const componentKeys = getKeys(componentType.components)
 const optionKeys = getKeys(optionType.components)
 const valueKeys = getKeys(valueType.options)
 
-export function fromSchema<S extends { [key in string]: Schema.Type }>(
-	schema: Schema.Schema<S>
+export function fromSchema(
+	schema: Schema.Schema
 ): Instance.Instance<SchemaSchema> {
 	const instance: Instance.Instance<SchemaSchema> = mapKeys(
 		schemaSchema,
