@@ -34,11 +34,11 @@
 		"ziterable": "^1.0.1"
 	},
 	"devDependencies": {
-		"@babel/cli": "^7.12.1",
-		"@babel/core": "^7.12.3",
-		"@babel/plugin-transform-modules-commonjs": "^7.12.1",
-		"@babel/preset-typescript": "^7.12.1",
-		"@types/jest": "^26.0.15",
+		"@babel/cli": "^7.12.16",
+		"@babel/core": "^7.12.16",
+		"@babel/plugin-transform-modules-commonjs": "^7.12.13",
+		"@babel/preset-typescript": "^7.12.16",
+		"@types/jest": "^26.0.20",
 		"@underlay/apg": "^1.1.1",
 		"fp-ts": "^2.9.3",
 		"jest": "^26.6.3",

@@ -2,6 +2,9 @@
   "name": "root",
   "private": true,
   "devDependencies": {
-    "lerna": "^3.22.1"
+    "install": "^0.13.0",
+    "lerna": "^3.22.1",
+    "lerna-update-wizard": "^0.17.8",
+    "npm": "^7.5.4"
   }
 }
