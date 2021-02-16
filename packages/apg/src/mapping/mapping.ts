@@ -64,23 +64,27 @@ export const injection = <Key extends string = string>(
 	key: Key
 ): Injection<Key> => Object.freeze({ kind: "injection", key })
 
-export interface Tuple {
+export interface Tuple<
+	Slots extends Record<string, Expression[]> = Record<string, Expression[]>
+> {
 	readonly kind: "tuple"
-	readonly slots: { readonly [key in string]: Expression[] }
+	readonly slots: Readonly<Slots>
 }
 
-export const tuple = (
-	slots: { readonly [key in string]: Expression[] }
-): Tuple => Object.freeze({ kind: "tuple", slots: Object.freeze(slots) })
+export const tuple = <Slots extends Record<string, Expression[]>>(
+	slots: Readonly<Slots>
+): Tuple<Slots> => Object.freeze({ kind: "tuple", slots: Object.freeze(slots) })
 
-export interface Match {
+export interface Match<
+	Cases extends Record<string, Expression[]> = Record<string, Expression[]>
+> {
 	readonly kind: "match"
-	readonly cases: { readonly [key in string]: Expression[] }
+	readonly cases: Readonly<Cases>
 }
 
-export const match = (
-	cases: { readonly [key in string]: Expression[] }
-): Match => Object.freeze({ kind: "match", cases: Object.freeze(cases) })
+export const match = <Cases extends Record<string, Expression[]>>(
+	cases: Readonly<Cases>
+): Match<Cases> => Object.freeze({ kind: "match", cases: Object.freeze(cases) })
 
 export interface Map {
 	readonly kind: "map"

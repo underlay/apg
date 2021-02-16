@@ -27,24 +27,16 @@ export interface Injection<Key extends string = string> {
     readonly key: Key;
 }
 export declare const injection: <Key extends string = string>(key: Key) => Injection<Key>;
-export interface Tuple {
+export interface Tuple<Slots extends Record<string, Expression[]> = Record<string, Expression[]>> {
     readonly kind: "tuple";
-    readonly slots: {
-        readonly [key in string]: Expression[];
-    };
+    readonly slots: Readonly<Slots>;
 }
-export declare const tuple: (slots: {
-    readonly [x: string]: Expression[];
-}) => Tuple;
-export interface Match {
+export declare const tuple: <Slots extends Record<string, Expression[]>>(slots: Readonly<Slots>) => Tuple<Slots>;
+export interface Match<Cases extends Record<string, Expression[]> = Record<string, Expression[]>> {
     readonly kind: "match";
-    readonly cases: {
-        readonly [key in string]: Expression[];
-    };
+    readonly cases: Readonly<Cases>;
 }
-export declare const match: (cases: {
-    readonly [x: string]: Expression[];
-}) => Match;
+export declare const match: <Cases extends Record<string, Expression[]>>(cases: Readonly<Cases>) => Match<Cases>;
 export interface Map {
     readonly kind: "map";
     readonly source: string;

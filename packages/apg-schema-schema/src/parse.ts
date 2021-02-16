@@ -40,27 +40,32 @@ type Sources = {
 export function toSchema(
 	instance: Instance.Instance<SchemaSchema>
 ): Schema.Schema {
-	const labels = instance[ul.label]
+	const labelType = schemaSchema[ul.label]
+	const labelValues = instance[ul.label]
 
 	const sources: Sources = {
-		components: rotateTree(instance[ul.component]),
-		options: rotateTree(instance[ul.option]),
+		components: rotateTree(componentType, instance[ul.component]),
+		options: rotateTree(optionType, instance[ul.option]),
 	}
 
 	const typeCache: TypeCache = { product: new Map(), coproduct: new Map() }
 
 	const permutation = new Map(
-		labels.map((label, i) => {
-			const { value: key } = label.get(ul.key)
+		labelValues.map((label, i) => {
+			const { value: key } = label.get(labelType, ul.key)
 			return [i, key]
 		})
 	)
 
 	const schema: Schema.Schema = Object.fromEntries(
-		labels.map((label) => {
-			const { value: key } = label.get(ul.key)
-			const target = label.get(ul.value)
-			const type = toType(target, instance, typeCache, sources, permutation)
+		labelValues.map((label) => {
+			const { value: key } = label.get(labelType, ul.key)
+			const type = toType(
+				label.get(labelType, ul.value),
+				typeCache,
+				sources,
+				permutation
+			)
 
 			return [key, type]
 		})
@@ -73,25 +78,24 @@ export function toSchema(
 
 function toType(
 	value: Instance.Coproduct<ValueTypeMap>,
-	instance: Instance.Instance<SchemaSchema>,
 	typeCache: TypeCache,
 	sources: Sources,
 	permutation: Map<number, string>
 ): Schema.Type {
-	if (value.is(ul.reference)) {
+	if (value.is(valueType, ul.reference)) {
 		const { index } = value.value
 		return Schema.reference(permutation.get(index)!)
-	} else if (value.is(ul.uri)) {
+	} else if (value.is(valueType, ul.uri)) {
 		return Schema.uri()
-	} else if (value.is(ul.literal)) {
+	} else if (value.is(valueType, ul.literal)) {
 		const { value: datatype } = value.value
 		return Schema.literal(datatype)
-	} else if (value.is(ul.product)) {
+	} else if (value.is(valueType, ul.product)) {
 		const { index } = value.value
-		return toProduct(index, instance, typeCache, sources, permutation)
-	} else if (value.is(ul.coproduct)) {
+		return toProduct(index, typeCache, sources, permutation)
+	} else if (value.is(valueType, ul.coproduct)) {
 		const { index } = value.value
-		return toCoproduct(index, instance, typeCache, sources, permutation)
+		return toCoproduct(index, typeCache, sources, permutation)
 	} else {
 		throw new Error(`Invalid value variant key ${value.key}`)
 	}
@@ -99,7 +103,6 @@ function toType(
 
 function toProduct(
 	index: number,
-	instance: Instance.Instance<SchemaSchema>,
 	typeCache: TypeCache,
 	sources: Sources,
 	permutation: Map<number, string>
@@ -115,10 +118,9 @@ function toProduct(
 			? {}
 			: Object.fromEntries(
 					components.map((component) => {
-						const { value: key } = component.get(ul.key)
+						const { value: key } = component.get(componentType, ul.key)
 						const value = toType(
-							component.get(ul.value),
-							instance,
+							component.get(componentType, ul.value),
 							typeCache,
 							sources,
 							permutation
@@ -134,7 +136,6 @@ function toProduct(
 
 function toCoproduct(
 	index: number,
-	instance: Instance.Instance<SchemaSchema>,
 	typeCache: TypeCache,
 	sources: Sources,
 	permutation: Map<number, string>
@@ -145,10 +146,9 @@ function toCoproduct(
 
 	const options = Object.fromEntries(
 		sources.options.get(index)!.map((option) => {
-			const { value: key } = option.get(ul.key)
+			const { value: key } = option.get(optionType, ul.key)
 			const value = toType(
-				option.get(ul.value),
-				instance,
+				option.get(optionType, ul.value),
 				typeCache,
 				sources,
 				permutation
@@ -169,11 +169,12 @@ type Link<Key extends string, Value extends Schema.Type> = {
 }
 
 function rotateTree<Key extends string, Value extends Schema.Type>(
+	type: Schema.Product<Link<Key, Value>>,
 	trees: Instance.Product<Link<Key, Value>>[]
 ): Map<number, Instance.Product<Link<Key, Value>>[]> {
 	const result: Map<number, Instance.Product<Link<Key, Value>>[]> = new Map()
 	for (const tree of trees) {
-		const { index } = tree.get(ul.source)
+		const { index } = tree.get(type, ul.source)
 		const trees = result.get(index)
 		if (trees === undefined) {
 			result.set(index, [tree])
@@ -184,7 +185,6 @@ function rotateTree<Key extends string, Value extends Schema.Type>(
 	return result
 }
 
-const labelKeys = getKeys(labelType.components)
 const componentKeys = getKeys(componentType.components)
 const optionKeys = getKeys(optionType.components)
 const valueKeys = getKeys(valueType.options)
@@ -202,12 +202,15 @@ export function fromSchema<S extends { [key in string]: Schema.Type }>(
 	for (const key of getKeys(schema)) {
 		const type = schema[key]
 		const variant = Instance.coproduct(
-			valueKeys,
+			valueType,
 			ul[type.kind],
 			fromType(schema, instance, cache, type)
 		)
 		instance[ul.label].push(
-			Instance.product(labelKeys, [Instance.uri(key), variant])
+			Instance.product(labelType, {
+				[ul.key]: new Instance.Uri(key),
+				[ul.value]: variant,
+			})
 		)
 	}
 
@@ -220,6 +223,8 @@ export function fromSchema<S extends { [key in string]: Schema.Type }>(
 	return instance
 }
 
+const unit = Schema.unit()
+
 function fromType(
 	schema: Schema.Schema,
 	instance: Instance.Instance<SchemaSchema>,
@@ -227,59 +232,59 @@ function fromType(
 	type: Schema.Type
 ) {
 	if (type.kind === "reference") {
-		return Instance.reference(getKeyIndex(schema, type.value))
+		return new Instance.Reference(getKeyIndex(schema, type.value))
 	} else if (type.kind === "uri") {
-		return Instance.unit()
+		return Instance.unit(unit)
 	} else if (type.kind === "literal") {
-		return Instance.uri(type.datatype)
+		return new Instance.Uri(type.datatype)
 	} else if (type.kind === "product") {
 		const pointer = cache.get(type)
 		if (pointer !== undefined) {
-			return Instance.reference(pointer)
+			return new Instance.Reference(pointer)
 		}
 
-		const index = instance[ul.product].push(Instance.unit()) - 1
+		const index = instance[ul.product].push(Instance.unit(unit)) - 1
 		cache.set(type, index)
 
 		for (const [key, value] of forEntries(type.components)) {
 			instance[ul.component].push(
-				Instance.product(componentKeys, [
-					Instance.uri(key),
-					Instance.reference(index),
-					Instance.coproduct(
-						valueKeys,
+				Instance.product(componentType, {
+					[ul.key]: new Instance.Uri(key),
+					[ul.source]: new Instance.Reference(index),
+					[ul.value]: Instance.coproduct(
+						valueType,
 						ul[value.kind],
 						fromType(schema, instance, cache, value)
 					),
-				])
+				})
 			)
 		}
 
-		return Instance.reference(index)
+		return new Instance.Reference(index)
 	} else if (type.kind === "coproduct") {
 		const pointer = cache.get(type)
 		if (pointer !== undefined) {
-			return Instance.reference(pointer)
+			return new Instance.Reference(pointer)
 		}
 
-		const index = instance[ul.coproduct].push(Instance.unit()) - 1
+		const index = instance[ul.coproduct].push(Instance.unit(unit)) - 1
 		cache.set(type, index)
 
 		for (const [key, value] of forEntries(type.options)) {
 			instance[ul.option].push(
-				Instance.product(optionKeys, [
-					Instance.uri(key),
-					Instance.reference(index),
-					Instance.coproduct(
-						valueKeys,
+				Instance.product(optionType, {
+					[ul.key]: new Instance.Uri(key),
+					[ul.source]: new Instance.Reference(index),
+					[ul.value]: Instance.coproduct(
+						valueType,
 						ul[value.kind],
 						fromType(schema, instance, cache, value)
 					),
-				])
+				})
 			)
 		}
 
-		return Instance.reference(index)
+		return new Instance.Reference(index)
 	} else {
 		signalInvalidType(type)
 	}

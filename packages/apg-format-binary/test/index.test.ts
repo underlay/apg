@@ -7,8 +7,6 @@ import { xsd } from "@underlay/namespaces"
 
 import { encode, log } from ".."
 
-const xsdString = Instance.uri(xsd.string)
-
 test("Simple test", () => {
 	const s = Schema.schema({
 		foo: Schema.product({ "foo/1": Schema.uri() }),
@@ -22,20 +20,18 @@ test("Simple test", () => {
 	})
 
 	const i = Instance.instance(s, {
-		foo: [Instance.product(["foo/1"], [Instance.uri("http://wow.neat")])],
+		foo: [
+			Instance.product(s.foo, { "foo/1": new Instance.Uri("http://wow.neat") }),
+		],
 		bar: [
+			Instance.coproduct(s.bar, "bar/1", new Instance.Literal("hello world")),
 			Instance.coproduct(
-				["bar/1", "bar/2"],
-				"bar/1",
-				Instance.literal("hello world", xsdString)
-			),
-			Instance.coproduct(
-				["bar/1", "bar/2"],
+				s.bar,
 				"bar/2",
-				Instance.product(
-					["bar/2/1", "bar/2/2"],
-					[Instance.uri("http://cool.stuff"), Instance.reference(0)]
-				)
+				Instance.product(s.bar.options["bar/2"], {
+					"bar/2/1": new Instance.Uri("http://cool.stuff"),
+					"bar/2/2": new Instance.Reference(0),
+				})
 			),
 		],
 	})

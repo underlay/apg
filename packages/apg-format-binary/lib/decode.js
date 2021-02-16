@@ -2,8 +2,7 @@ import varint from "varint";
 import signedVarint from "signed-varint";
 import { CBOR } from "cbor-redux";
 import { rdf, xsd } from "@underlay/namespaces";
-import { Instance, forEntries, forType, getKeys } from "@underlay/apg";
-import { signalInvalidType } from "./utils.js";
+import { Instance, forEntries, getKeys, signalInvalidType, } from "@underlay/apg";
 export function decode(schema, data) {
     let offset = 0;
     const uriCount = varint.decode(data, offset);
@@ -15,20 +14,7 @@ export function decode(schema, data) {
         offset += varint.encodingLength(length);
         const value = decoder.decode(data.slice(offset, offset + length));
         offset += length;
-        uris[i] = Instance.uri(value);
-    }
-    const datatypes = new Map();
-    for (const [_, label] of forEntries(schema)) {
-        for (const [type] of forType(label)) {
-            if (type.kind === "literal") {
-                if (datatypes.has(type.datatype)) {
-                    continue;
-                }
-                else {
-                    datatypes.set(type.datatype, Instance.uri(type.datatype));
-                }
-            }
-        }
+        uris[i] = new Instance.Uri(value);
     }
     const instance = {};
     const state = { uris, data, offset };
@@ -36,47 +22,37 @@ export function decode(schema, data) {
         const valuesLength = getVarint(state);
         const values = new Array(valuesLength);
         for (let i = 0; i < valuesLength; i++) {
-            values[i] = decodeValue(state, type, datatypes);
+            values[i] = decodeValue(state, type);
         }
         Object.freeze(values);
         instance[key] = values;
     }
     return instance;
 }
-export function decodeValue(state, type, datatypes) {
+export function decodeValue(state, type) {
     if (type.kind === "uri") {
         const index = getVarint(state);
-        if (index >= state.uris.length) {
-            throw new Error("Invalid named node index");
-        }
-        return state.uris[index];
-    }
-    else if (type.kind === "literal") {
-        const datatype = datatypes.get(type.datatype);
-        if (datatype === undefined) {
-            throw new Error("Unexpected datatype");
+        if (index in state.uris) {
+            return state.uris[index];
         }
         else {
-            const value = decodeLiteral(state, type.datatype);
-            return Instance.literal(value, datatype);
+            throw new Error("Invalid named node index");
         }
+    }
+    else if (type.kind === "literal") {
+        const value = decodeLiteral(state, type.datatype);
+        return new Instance.Literal(value);
     }
     else if (type.kind === "product") {
-        const values = [];
-        for (const [{}, component] of forEntries(type.components)) {
-            values.push(decodeValue(state, component, datatypes));
-        }
-        const keys = getKeys(type.components);
-        return new Instance.Product(keys, values);
+        return new Instance.Product(decodeProduct(state, type));
     }
     else if (type.kind === "coproduct") {
-        const index = varint.decode(state.data, state.offset);
-        state.offset += varint.encodingLength(index);
+        const index = getVarint(state);
         const keys = getKeys(type.options);
-        if (index in keys && keys[index] in type.options) {
+        if (index in keys) {
             const option = type.options[keys[index]];
-            const value = decodeValue(state, option, datatypes);
-            return new Instance.Coproduct(keys, keys[index], value);
+            const value = decodeValue(state, option);
+            return new Instance.Coproduct(index, value);
         }
         else {
             throw new Error("Invalid option index");
@@ -88,6 +64,11 @@ export function decodeValue(state, type, datatypes) {
     }
     else {
         signalInvalidType(type);
+    }
+}
+function* decodeProduct(state, type) {
+    for (const key of getKeys(type.components)) {
+        yield decodeValue(state, type.components[key]);
     }
 }
 function getView(state, length) {

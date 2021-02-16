@@ -1,5 +1,5 @@
 import * as t from "io-ts";
-import { forEntries, forType } from "@underlay/apg";
+import { forTypes } from "@underlay/apg";
 export const reference = t.type({
     kind: t.literal("reference"),
     value: t.string,
@@ -25,15 +25,13 @@ const codec = new t.Type("Schema", labels.is, (input, context) => {
         return result;
     }
     // Check that references have valid referents
-    for (const [_, label] of forEntries(result.right)) {
-        for (const [type] of forType(label)) {
-            if (type.kind === "reference") {
-                if (type.value in result.right) {
-                    continue;
-                }
-                else {
-                    return t.failure(type, context, "Invalid reference");
-                }
+    for (const [type, y] of forTypes(result.right)) {
+        if (type.kind === "reference") {
+            if (type.value in result.right) {
+                continue;
+            }
+            else {
+                return t.failure(type, context, "Invalid reference");
             }
         }
     }

@@ -1,47 +1,45 @@
 import * as Schema from "../schema/schema.js"
 import * as Instance from "./instance.js"
-import { forEntries, getKeys, zip } from "../utils.js"
+import { getKeys, zip } from "../utils.js"
 
-export function validateInstance<S extends { [key in string]: Schema.Type }>(
+export function validateInstance<S extends Record<string, Schema.Type>>(
 	schema: Schema.Schema<S>,
 	instance: Instance.Instance<S>
 ) {
-	const iter = zip(forEntries(schema), forEntries(instance))
-	for (const [[k1, type], [k2, values]] of iter) {
-		if (k1 !== k2) {
-			return false
-		}
-		for (const value of values) {
-			if (validateValue(type, value)) {
-				continue
-			} else {
-				return false
+	for (const key of getKeys(schema)) {
+		if (key in instance) {
+			for (const value of instance[key]) {
+				if (validateValue(schema[key], value)) {
+					continue
+				} else {
+					return false
+				}
 			}
+		} else {
+			return false
 		}
 	}
 	return true
 }
 
-export function validateValue<
-	T extends Schema.Type,
-	V extends Instance.Value<T>
->(type: T, value: V): boolean {
+export function validateValue<T extends Schema.Type>(
+	type: T,
+	value: Instance.Value
+): value is Instance.Value<T> {
 	if (Schema.isReference(type)) {
 		return Instance.isReference(value)
 	} else if (Schema.isUri(type)) {
 		return Instance.isUri(value)
 	} else if (Schema.isLiteral(type)) {
-		return Instance.isLiteral(value) && value.datatype.value === type.datatype
+		return Instance.isLiteral(value)
 	} else if (Schema.isProduct(type)) {
 		if (Instance.isProduct(value)) {
 			const keys = getKeys(type.components)
 			if (keys.length !== value.length) {
 				return false
 			}
-			for (const [k1, k2, v] of zip(keys, value.components, value)) {
-				if (k1 !== k2) {
-					return false
-				} else if (validateValue(type.components[k1], v)) {
+			for (const [key, component] of zip(keys, value)) {
+				if (validateValue(type.components[key], component)) {
 					continue
 				} else {
 					return false
@@ -52,8 +50,10 @@ export function validateValue<
 			return false
 		}
 	} else if (Schema.isCoproduct(type)) {
-		if (Instance.isCoproduct(value) && value.key in type.options) {
-			return validateValue(type.options[value.key], value.value)
+		const keys = getKeys(type.options)
+		if (Instance.isCoproduct(value) && value.index in keys) {
+			const key = keys[value.index]
+			return validateValue(type.options[key], value.value)
 		} else {
 			return false
 		}
@@ -63,24 +63,47 @@ export function validateValue<
 	}
 }
 
-export function* forValue(
-	value: Instance.Value,
-	stack: Instance.Value[] = []
-): Generator<[Instance.Value, Instance.Value[]], void, undefined> {
-	if (stack.includes(value)) {
-		throw new Error("Recursive type")
-	}
+// type IndexValue<Schema extends Record<string, Schema.Type>> =
 
-	yield [value, stack]
-	if (Instance.isProduct(value)) {
-		stack.push(value)
-		for (const leaf of value) {
-			yield* forValue(leaf, stack)
+function* indexValue(
+	type: Schema.Type,
+	value: Instance.Value,
+	path: string[]
+): Generator<Instance.Value, void, undefined> {
+	if (path.length === 0) {
+		yield value
+	} else {
+		const [key, ...rest] = path
+
+		if (type.kind === "product" && value.kind === "product") {
+			if (key in type.components) {
+				yield* indexValue(type.components[key], value.get(type, key), rest)
+			} else {
+				throw new Error(`Invalid product component: ${key}`)
+			}
+		} else if (type.kind === "coproduct" && value.kind === "coproduct") {
+			if (key in type.options) {
+				if (value.is(type, key)) {
+					yield* indexValue(type.options[key], value.value, rest)
+				}
+			} else {
+				throw new Error(`Invalid coproduct option: ${key}`)
+			}
 		}
-		stack.pop()
-	} else if (Instance.isCoproduct(value)) {
-		stack.push(value)
-		yield* forValue(value.value, stack)
-		stack.pop()
+	}
+}
+
+export function* forValues(
+	schema: Schema.Schema,
+	instance: Instance.Instance,
+	key: string,
+	path: string[]
+): Generator<Instance.Value, void, undefined> {
+	if (key in schema && key in instance) {
+		for (const value of instance[key]) {
+			yield* indexValue(schema[key], value, path)
+		}
+	} else {
+		throw new Error(`Invalid key ${key}`)
 	}
 }

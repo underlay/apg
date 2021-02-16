@@ -1,23 +1,25 @@
 import * as Schema from "./schema.js";
 import { getKeys, zip } from "../utils.js";
-export function* forType(type, stack = []) {
-    if (stack.includes(type)) {
-        throw new Error("Recursive type");
-    }
-    yield [type, stack];
+function* forType(type, key, path) {
+    yield [type, key, path];
     if (type.kind === "product") {
-        stack.push(type);
         for (const key of getKeys(type.components)) {
-            yield* forType(type.components[key], stack);
+            path.push(key);
+            yield* forType(type.components[key], key, path);
+            path.pop();
         }
-        stack.pop();
     }
     else if (type.kind === "coproduct") {
-        stack.push(type);
         for (const key of getKeys(type.options)) {
-            yield* forType(type.options[key], stack);
+            path.push(key);
+            yield* forType(type.options[key], key, path);
+            path.pop();
         }
-        stack.pop();
+    }
+}
+export function* forTypes(schema) {
+    for (const key of getKeys(schema)) {
+        yield* forType(schema[key], key, []);
     }
 }
 export function isTypeEqual(a, b) {

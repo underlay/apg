@@ -2,13 +2,12 @@ import { xsd } from "@underlay/namespaces"
 
 import { Schema, Instance, validateInstance } from ".."
 
-const xsdString = Instance.uri(xsd.string)
-
 test("Tiny test", () => {
 	const s = Schema.schema({ foo: Schema.uri() })
 	const i: Instance.Instance<typeof s> = {
-		foo: [Instance.uri("http://wow.neat")],
+		foo: [Instance.uri(s.foo, "http://wow.neat")],
 	}
+
 	expect(validateInstance(s, i)).toBe(true)
 })
 
@@ -24,7 +23,11 @@ test("Tiny test 2", () => {
 	})
 
 	const i: Instance.Instance<typeof s> = {
-		foo: [Instance.product(["foo/1"], [Instance.uri("http://wow.neat")])],
+		foo: [
+			Instance.product(s.foo, {
+				"foo/1": Instance.uri(s.foo.components["foo/1"], "http://wow.neat"),
+			}),
+		],
 	}
 	expect(validateInstance(s, i)).toBe(true)
 })
@@ -42,20 +45,30 @@ test("Simple test", () => {
 	})
 
 	const i = Instance.instance(s, {
-		foo: [Instance.product(["foo/1"], [Instance.uri("http://wow.neat")])],
+		foo: [
+			Instance.product(s.foo, {
+				"foo/1": Instance.uri(s.foo.components["foo/1"], "http://wow.neat"),
+			}),
+		],
 		bar: [
 			Instance.coproduct(
-				["bar/1", "bar/2"],
+				s.bar,
 				"bar/1",
-				Instance.literal("hello world", xsdString)
+				Instance.literal(s.bar.options["bar/1"], "hello world")
 			),
 			Instance.coproduct(
-				["bar/1", "bar/2"],
+				s.bar,
 				"bar/2",
-				Instance.product(
-					["bar/2/1", "bar/2/2"],
-					[Instance.uri("http://cool.stuff"), Instance.reference(0)]
-				)
+				Instance.product(s.bar.options["bar/2"], {
+					"bar/2/1": Instance.uri(
+						s.bar.options["bar/2"].components["bar/2/1"],
+						"http://cool.stuff"
+					),
+					"bar/2/2": Instance.reference(
+						s.bar.options["bar/2"].components["bar/2/2"],
+						0
+					),
+				})
 			),
 		],
 	})

@@ -4,128 +4,164 @@ import { rdf, xsd } from "@underlay/namespaces"
 
 import { encode, log } from ".."
 
+import signedVarint from "signed-varint"
+import varint from "varint"
+
 test("xsd:boolean test", () => {
 	const s = Schema.schema({
-		foo: Schema.product({ bar: Schema.literal(xsd.boolean) }),
+		foo: Schema.literal(xsd.boolean),
 	})
 
-	const datatype = Instance.uri(xsd.boolean)
-
 	const i = Instance.instance(s, {
-		foo: [Instance.product(["bar"], [Instance.literal("true", datatype)])],
+		foo: [
+			new Instance.Literal("true"),
+			new Instance.Literal("true"),
+			new Instance.Literal("false"),
+		],
 	})
 
 	const bytes = encode(s, i)
+	expect(bytes.equals(Buffer.from([0, 3, 1, 1, 0]))).toBe(true)
 	log(s, bytes)
 })
 
 test("xsd:integer test", () => {
 	const s = Schema.schema({
-		foo: Schema.product({ bar: Schema.literal(xsd.integer) }),
+		foo: Schema.literal(xsd.integer),
 	})
 
-	const datatype = Instance.uri(xsd.integer)
-
 	const i = Instance.instance(s, {
-		foo: [Instance.product(["bar"], [Instance.literal("189783892", datatype)])],
+		foo: [
+			new Instance.Literal("189783892"),
+			new Instance.Literal("-3"),
+			new Instance.Literal("-99"),
+		],
 	})
 
 	const bytes = encode(s, i)
+	expect(
+		bytes.equals(
+			Buffer.from([
+				0,
+				3,
+				...signedVarint.encode(189783892),
+				...signedVarint.encode(-3),
+				...signedVarint.encode(-99),
+			])
+		)
+	).toBe(true)
 	log(s, bytes)
 })
 
 test("xsd:int test", () => {
 	const s = Schema.schema({
-		foo: Schema.product({ bar: Schema.literal(xsd.int) }),
+		foo: Schema.literal(xsd.int),
 	})
 
-	const datatype = Instance.uri(xsd.int)
-
 	const i = Instance.instance(s, {
-		foo: [Instance.product(["bar"], [Instance.literal("7883892", datatype)])],
+		foo: [
+			new Instance.Literal("7883892"),
+			new Instance.Literal("1"),
+			new Instance.Literal("-100"),
+		],
 	})
 
 	const bytes = encode(s, i)
+
+	const buffer = new ArrayBuffer(3 * 4)
+	const view = new DataView(buffer)
+	view.setInt32(0, 7883892)
+	view.setInt32(4, 1)
+	view.setInt32(8, -100)
+
+	expect(
+		bytes.equals(Buffer.concat([Buffer.from([0, 3]), Buffer.from(buffer)]))
+	).toBe(true)
+
 	log(s, bytes)
 })
 
 test("xsd:short test", () => {
 	const s = Schema.schema({
-		foo: Schema.product({ bar: Schema.literal(xsd.short) }),
+		foo: Schema.literal(xsd.short),
 	})
 
-	const datatype = Instance.uri(xsd.short)
-
 	const i = Instance.instance(s, {
-		foo: [Instance.product(["bar"], [Instance.literal("-1892", datatype)])],
+		foo: [
+			new Instance.Literal("-1892"),
+			new Instance.Literal("-1892"),
+			new Instance.Literal("-1892"),
+		],
 	})
 
 	const bytes = encode(s, i)
+
 	log(s, bytes)
 })
 
 test("xsd:byte test", () => {
 	const s = Schema.schema({
-		foo: Schema.product({ bar: Schema.literal(xsd.byte) }),
+		foo: Schema.literal(xsd.byte),
 	})
 
-	const datatype = Instance.uri(xsd.byte)
-
 	const i = Instance.instance(s, {
-		foo: [Instance.product(["bar"], [Instance.literal("-90", datatype)])],
+		foo: [
+			new Instance.Literal("-90"),
+			new Instance.Literal("-90"),
+			new Instance.Literal("-90"),
+			new Instance.Literal("-90"),
+		],
 	})
 
 	const bytes = encode(s, i)
+
 	log(s, bytes)
 })
 
 test("xsd:unsignedLong test", () => {
 	const s = Schema.schema({
-		foo: Schema.product({ bar: Schema.literal(xsd.unsignedLong) }),
+		foo: Schema.literal(xsd.unsignedLong),
 	})
-
-	const datatype = Instance.uri(xsd.unsignedLong)
 
 	const i = Instance.instance(s, {
 		foo: [
-			Instance.product(
-				["bar"],
-				[Instance.literal("18446744073709551610", datatype)]
-			),
+			new Instance.Literal("18446744073709551610"),
+			new Instance.Literal("18446744073709551610"),
 		],
 	})
 
 	const bytes = encode(s, i)
+
 	log(s, bytes)
 })
 
 test("xsd:hexBinary test", () => {
 	const s = Schema.schema({
-		foo: Schema.product({ bar: Schema.literal(xsd.hexBinary) }),
+		foo: Schema.literal(xsd.hexBinary),
 	})
-
-	const datatype = Instance.uri(xsd.hexBinary)
 
 	const i = Instance.instance(s, {
 		foo: [
-			Instance.product(["bar"], [Instance.literal(`8290EFFAC840`, datatype)]),
+			new Instance.Literal(`8290EFFAC840`),
+			new Instance.Literal(`8290EFFAC840`),
+			new Instance.Literal(`8290EFFAC840`),
 		],
 	})
 
 	const bytes = encode(s, i)
+
 	log(s, bytes)
 })
 
 test("rdf:JSON test", () => {
 	const s = Schema.schema({
-		foo: Schema.product({ bar: Schema.literal(rdf.JSON) }),
+		foo: Schema.literal(rdf.JSON),
 	})
-
-	const datatype = Instance.uri(rdf.JSON)
 
 	const i = Instance.instance(s, {
 		foo: [
-			Instance.product(["bar"], [Instance.literal(`{"foo": 4}`, datatype)]),
+			new Instance.Literal(`{"foo": 4}`),
+			new Instance.Literal(`{"foo": 4}`),
 		],
 	})
 

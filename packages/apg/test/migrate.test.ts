@@ -8,6 +8,8 @@ import {
 	forEntries,
 	validateValue,
 	validateExpressions,
+	isTypeEqual,
+	isTypeAssignable,
 } from ".."
 
 const S = Schema.schema({
@@ -69,27 +71,41 @@ const M = Mapping.mapping({
 	]),
 })
 
-const I: Instance.Instance = {
+const TI: Instance.Instance = {
 	"http://example.com/0": [
-		Instance.product(
-			["http://example.com/0.0", "http://example.com/0.1"],
-			[
-				Instance.product(
-					["http://example.com/0.0.0", "http://example.com/0.0.1"],
-					[
-						Instance.uri("http://foo.com/neat"),
-						Instance.uri("http://foo.com/wow"),
-					]
-				),
-				Instance.reference(0),
-			]
-		),
+		Instance.product(T["http://example.com/0"], {
+			"http://example.com/0.0": Instance.product(
+				T["http://example.com/0"].components["http://example.com/0.0"],
+				{
+					"http://example.com/0.0.0": Instance.uri(
+						T["http://example.com/0"].components["http://example.com/0.0"]
+							.components["http://example.com/0.0.0"],
+						"http://foo.com/neat"
+					),
+					"http://example.com/0.0.1": Instance.uri(
+						T["http://example.com/0"].components["http://example.com/0.0"]
+							.components["http://example.com/0.0.1"],
+						"http://foo.com/wow"
+					),
+				}
+			),
+			"http://example.com/0.1": Instance.reference(
+				T["http://example.com/0"].components["http://example.com/0.1"],
+				0
+			),
+		}),
 	],
 	"http://example.com/1": [
-		Instance.product(
-			["http://example.com/1.0", "http://example.com/1.1"],
-			[Instance.reference(0), Instance.uri("http://bar.org/fantastic")]
-		),
+		Instance.product(T["http://example.com/1"], {
+			"http://example.com/1.0": Instance.reference(
+				T["http://example.com/1"].components["http://example.com/1.0"],
+				0
+			),
+			"http://example.com/1.1": Instance.uri(
+				T["http://example.com/1"].components["http://example.com/1.1"],
+				"http://bar.org/fantastic"
+			),
+		}),
 	],
 }
 
@@ -104,7 +120,7 @@ test("Validate morphisms", () => {
 })
 
 test("Validate instance type", () => {
-	for (const [key, values] of forEntries(I)) {
+	for (const [key, values] of forEntries(TI)) {
 		for (const value of values) {
 			expect(validateValue(T[key], value)).toBe(true)
 		}
@@ -115,15 +131,21 @@ test("Validate instance image", () => {
 	for (const [key, type] of forEntries(S)) {
 		const m = M[key]
 		const image = fold(M, S, T, type)
-		for (const value of I[m.source]) {
-			const result = mapExpressions(m.value, value, I, T)
-			expect(validateValue(image, result)).toBe(true)
+		for (const value of TI[m.source]) {
+			const [resultType, resultValue] = mapExpressions(
+				{ S: T, SI: TI },
+				m.value,
+				T[m.source],
+				value
+			)
+			expect(isTypeAssignable(resultType, image)).toBe(true)
+			expect(validateValue(resultType, resultValue)).toBe(true)
 		}
 	}
 })
 
 test("Validate delta pullback", () => {
-	for (const [key, values] of forEntries(delta(M, S, T, I))) {
+	for (const [key, values] of forEntries(delta(M, S, T, TI))) {
 		for (const value of values) {
 			expect(validateValue(S[key], value)).toBe(true)
 		}

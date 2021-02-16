@@ -8,7 +8,7 @@ declare type State = {
 export declare function decode<S extends {
     [key in string]: Schema.Type;
 }>(schema: Schema.Schema<S>, data: Buffer): Instance.Instance<S>;
-export declare function decodeValue(state: State, type: Schema.Type, datatypes: Map<string, Instance.Uri>): Instance.Value;
+export declare function decodeValue(state: State, type: Schema.Type): Instance.Value;
 export declare function decodeLiteral(state: {
     data: Buffer;
     offset: number;

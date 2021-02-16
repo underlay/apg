@@ -1,4 +1,4 @@
-module.exports = {
+export default {
 	testEnvironment: "node",
 	transformIgnorePatterns: ["node_modules/(?!(@underlay/namespaces)/)"],
 	transform: {
