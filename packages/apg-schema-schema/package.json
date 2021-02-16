@@ -27,13 +27,13 @@
 		"@babel/plugin-transform-modules-commonjs": "^7.12.13",
 		"@babel/preset-typescript": "^7.12.16",
 		"@types/jest": "^26.0.20",
-		"@underlay/apg": "^1.1.1",
+		"@underlay/apg": "1.1.1",
 		"babel-jest": "^26.6.3",
 		"jest": "^26.6.3",
-		"typescript": "^4.1.4"
+		"typescript": "^4.1.5"
 	},
 	"peerDependencies": {
-		"@underlay/apg": "^1.0.0"
+		"@underlay/apg": "1.1.1"
 	},
 	"dependencies": {
 		"@underlay/namespaces": "0.0.2"

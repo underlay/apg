@@ -25,10 +25,10 @@
 		"@underlay/namespaces": "0.0.2"
 	},
 	"devDependencies": {
-		"@underlay/apg": "^1.1.1",
-		"typescript": "^4.1.3"
+		"@underlay/apg": "1.1.1",
+		"typescript": "^4.1.5"
 	},
 	"peerDependencies": {
-		"@underlay/apg": "^1.0.0"
+		"@underlay/apg": "1.1.1"
 	}
 }
