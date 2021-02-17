@@ -98,6 +98,7 @@ export function* forValues(schema, instance, key, path) {
         }
     }
     else {
+        console.error(key, schema, instance);
         throw new Error(`Invalid key ${key}`);
     }
 }

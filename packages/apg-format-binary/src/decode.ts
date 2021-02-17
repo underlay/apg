@@ -1,6 +1,6 @@
 import varint from "varint"
 import signedVarint from "signed-varint"
-import { CBOR } from "cbor-redux"
+import CBOR from "cbor"
 
 import { rdf, xsd } from "@underlay/namespaces"
 import {
@@ -10,6 +10,7 @@ import {
 	getKeys,
 	signalInvalidType,
 } from "@underlay/apg"
+import { version } from "./utils"
 
 type State = { uris: Instance.Uri[]; data: Buffer; offset: number }
 
@@ -18,6 +19,13 @@ export function decode<S extends { [key in string]: Schema.Type }>(
 	data: Buffer
 ): Instance.Instance<S> {
 	let offset = 0
+
+	const v = varint.decode(data, offset)
+	if (v !== version) {
+		throw new Error(`Unsupported version: ${v}`)
+	}
+
+	offset += varint.encodingLength(v)
 
 	const uriCount = varint.decode(data, offset)
 	offset += varint.encodingLength(uriCount)
@@ -208,7 +216,7 @@ export function decodeLiteral(
 		const { buffer } = new Uint8Array(
 			state.data.slice(state.offset, state.offset + length)
 		)
-		const value = CBOR.decode(buffer)
+		const value = CBOR.decodeFirstSync(buffer)
 		state.offset += length
 		return JSON.stringify(value)
 	} else {
@@ -223,6 +231,13 @@ export function log<S extends { [key in string]: Schema.Type }>(
 	data: Buffer
 ) {
 	let offset = 0
+
+	const v = varint.decode(data, offset)
+	if (v !== version) {
+		throw new Error(`Unsupported version: ${v}`)
+	}
+
+	offset += varint.encodingLength(v)
 
 	const uriCount = varint.decode(data, offset)
 	offset += varint.encodingLength(uriCount)

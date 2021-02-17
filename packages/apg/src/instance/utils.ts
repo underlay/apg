@@ -93,9 +93,9 @@ function* indexValue(
 	}
 }
 
-export function* forValues(
-	schema: Schema.Schema,
-	instance: Instance.Instance,
+export function* forValues<S extends Record<string, Schema.Type>>(
+	schema: Schema.Schema<S>,
+	instance: Instance.Instance<S>,
 	key: string,
 	path: string[]
 ): Generator<Instance.Value, void, undefined> {
@@ -104,6 +104,7 @@ export function* forValues(
 			yield* indexValue(schema[key], value, path)
 		}
 	} else {
+		console.error(key, schema, instance)
 		throw new Error(`Invalid key ${key}`)
 	}
 }

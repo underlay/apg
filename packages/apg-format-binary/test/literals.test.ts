@@ -21,7 +21,7 @@ test("xsd:boolean test", () => {
 	})
 
 	const bytes = encode(s, i)
-	expect(bytes.equals(Buffer.from([0, 3, 1, 1, 0]))).toBe(true)
+	expect(bytes.equals(Buffer.from([1, 0, 3, 1, 1, 0]))).toBe(true)
 	log(s, bytes)
 })
 
@@ -42,6 +42,7 @@ test("xsd:integer test", () => {
 	expect(
 		bytes.equals(
 			Buffer.from([
+				1,
 				0,
 				3,
 				...signedVarint.encode(189783892),
@@ -75,7 +76,7 @@ test("xsd:int test", () => {
 	view.setInt32(8, -100)
 
 	expect(
-		bytes.equals(Buffer.concat([Buffer.from([0, 3]), Buffer.from(buffer)]))
+		bytes.equals(Buffer.concat([Buffer.from([1, 0, 3]), Buffer.from(buffer)]))
 	).toBe(true)
 
 	log(s, bytes)

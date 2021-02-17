@@ -1,9 +1,10 @@
 import { Buffer } from "buffer";
 import varint from "varint";
 import signedVarint from "signed-varint";
-import { CBOR } from "cbor-redux";
+import CBOR from "cbor";
 import { xsd, rdf } from "@underlay/namespaces";
 import { signalInvalidType, getKeys, forTypes, forValues, } from "@underlay/apg";
+import { version } from "./utils.js";
 export function encode(schema, instance) {
     const namedNodes = new Set();
     for (const [type, key, path] of forTypes(schema)) {
@@ -22,9 +23,10 @@ export function encode(schema, instance) {
         delete namedNodeArray[i];
     }
     const data = [
-        new Uint8Array(varint.encode(namedNodeArray.length)),
+        new Uint8Array(varint.encode(version)),
+        new Uint8Array(varint.encode(namedNodeIds.size)),
     ];
-    for (const value of namedNodeArray) {
+    for (const value of namedNodeIds.keys()) {
         data.push(new Uint8Array(varint.encode(value.length)), new Uint8Array(new TextEncoder().encode(value)));
     }
     for (const key of getKeys(schema)) {

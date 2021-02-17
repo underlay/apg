@@ -37,6 +37,7 @@ test("Simple test", () => {
 	})
 
 	const bytes = encode(s, i)
+	console.log("byte", bytes)
 	log(s, bytes)
 })
 

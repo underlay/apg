@@ -9,15 +9,15 @@ function* forType(
 ): Generator<[Schema.Type, string, string[]], void, undefined> {
 	yield [type, key, path]
 	if (type.kind === "product") {
-		for (const key of getKeys(type.components)) {
-			path.push(key)
-			yield* forType(type.components[key], key, path)
+		for (const component of getKeys(type.components)) {
+			path.push(component)
+			yield* forType(type.components[component], key, path)
 			path.pop()
 		}
 	} else if (type.kind === "coproduct") {
-		for (const key of getKeys(type.options)) {
-			path.push(key)
-			yield* forType(type.options[key], key, path)
+		for (const option of getKeys(type.options)) {
+			path.push(option)
+			yield* forType(type.options[option], key, path)
 			path.pop()
 		}
 	}

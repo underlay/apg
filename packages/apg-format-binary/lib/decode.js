@@ -1,10 +1,16 @@
 import varint from "varint";
 import signedVarint from "signed-varint";
-import { CBOR } from "cbor-redux";
+import CBOR from "cbor";
 import { rdf, xsd } from "@underlay/namespaces";
 import { Instance, forEntries, getKeys, signalInvalidType, } from "@underlay/apg";
+import { version } from "./utils";
 export function decode(schema, data) {
     let offset = 0;
+    const v = varint.decode(data, offset);
+    if (v !== version) {
+        throw new Error(`Unsupported version: ${v}`);
+    }
+    offset += varint.encodingLength(v);
     const uriCount = varint.decode(data, offset);
     offset += varint.encodingLength(uriCount);
     const uris = new Array(uriCount);
@@ -196,7 +202,7 @@ export function decodeLiteral(state, datatype) {
     else if (datatype === rdf.JSON) {
         const length = getVarint(state);
         const { buffer } = new Uint8Array(state.data.slice(state.offset, state.offset + length));
-        const value = CBOR.decode(buffer);
+        const value = CBOR.decodeFirstSync(buffer);
         state.offset += length;
         return JSON.stringify(value);
     }
@@ -208,6 +214,11 @@ export function decodeLiteral(state, datatype) {
 }
 export function log(schema, data) {
     let offset = 0;
+    const v = varint.decode(data, offset);
+    if (v !== version) {
+        throw new Error(`Unsupported version: ${v}`);
+    }
+    offset += varint.encodingLength(v);
     const uriCount = varint.decode(data, offset);
     offset += varint.encodingLength(uriCount);
     process.stdout.write(`URI count: ${uriCount}\n`);
