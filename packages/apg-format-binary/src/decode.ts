@@ -10,7 +10,7 @@ import {
 	getKeys,
 	signalInvalidType,
 } from "@underlay/apg"
-import { version } from "./utils"
+import { version } from "./utils.js"
 
 type State = { uris: Instance.Uri[]; data: Buffer; offset: number }
 

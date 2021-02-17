@@ -3,7 +3,7 @@ import signedVarint from "signed-varint";
 import CBOR from "cbor";
 import { rdf, xsd } from "@underlay/namespaces";
 import { Instance, forEntries, getKeys, signalInvalidType, } from "@underlay/apg";
-import { version } from "./utils";
+import { version } from "./utils.js";
 export function decode(schema, data) {
     let offset = 0;
     const v = varint.decode(data, offset);
