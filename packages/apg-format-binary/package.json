@@ -1,6 +1,6 @@
 {
 	"name": "@underlay/apg-format-binary",
-	"version": "1.2.1",
+	"version": "1.2.2",
 	"type": "module",
 	"description": "Parse and serialize APG instances to and from a binary format",
 	"main": "lib/index.js",
