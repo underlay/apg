@@ -42,6 +42,6 @@
 		"typescript": "^4.1.5"
 	},
 	"peerDependencies": {
-		"@underlay/apg": "^1.2.0"
+		"@underlay/apg": "^1.2.3"
 	}
 }
