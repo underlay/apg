@@ -162,6 +162,20 @@ export class Product<
 		return { kind: "product", components: this.map((value) => value.toJSON()) }
 	}
 
+	public map<V>(
+		f: (
+			value: Value<Components[keyof Components]>,
+			index: number,
+			array: Value<Components[keyof Components]>[]
+		) => V
+	): V[] {
+		const result: V[] = new Array(this.length)
+		for (const [i, value] of this.entries()) {
+			result[i] = f(value, i, this)
+		}
+		return result
+	}
+
 	public get<K extends keyof Components>(
 		type: Schema.Product<Components>,
 		key: K

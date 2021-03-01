@@ -54,6 +54,7 @@ export declare class Product<Components extends Record<string, Schema.Type> = Re
     get kind(): "product";
     constructor(values: Iterable<Value<Components[keyof Components]>>);
     toJSON(): ProductObject;
+    map<V>(f: (value: Value<Components[keyof Components]>, index: number, array: Value<Components[keyof Components]>[]) => V): V[];
     get<K extends keyof Components>(type: Schema.Product<Components>, key: K): Value<Components[K]>;
 }
 export declare const product: <Components extends Record<string, Schema.Type> = Record<string, Schema.Type>>(type: Schema.Product<Components>, components: { readonly [key in keyof Components]: Value<Components[key]>; }) => Product<Components>;

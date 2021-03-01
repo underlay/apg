@@ -90,6 +90,13 @@ export class Product extends Array {
     toJSON() {
         return { kind: "product", components: this.map((value) => value.toJSON()) };
     }
+    map(f) {
+        const result = new Array(this.length);
+        for (const [i, value] of this.entries()) {
+            result[i] = f(value, i, this);
+        }
+        return result;
+    }
     get(type, key) {
         const index = getKeyIndex(type.components, key);
         if (index in this) {
