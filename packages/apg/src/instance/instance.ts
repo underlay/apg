@@ -1,6 +1,11 @@
 import * as Schema from "../schema/schema.js"
 
-import { forEntries, getKeyIndex, getKeys } from "../utils.js"
+import {
+	forEntries,
+	getKeyIndex,
+	getKeys,
+	signalInvalidType,
+} from "../utils.js"
 
 export type Instance<
 	S extends Record<string, Schema.Type> = Record<string, Schema.Type>
@@ -28,12 +33,46 @@ export type Value<T extends Schema.Type = Schema.Type> = T extends Schema.Uri
 	? Reference
 	: never
 
+type ValueObject =
+	| UriObject
+	| LiteralObject
+	| ProductObject
+	| CoproductObject
+	| ReferenceObject
+
+export function fromJSON(value: ValueObject): Value {
+	if (value.kind === "reference") {
+		return Reference.fromJSON(value)
+	} else if (value.kind === "uri") {
+		return Uri.fromJSON(value)
+	} else if (value.kind === "literal") {
+		return Literal.fromJSON(value)
+	} else if (value.kind === "product") {
+		return Product.fromJSON(value)
+	} else if (value.kind === "coproduct") {
+		return Coproduct.fromJSON(value)
+	} else {
+		signalInvalidType(value)
+	}
+}
+
+type ReferenceObject = { kind: "reference"; index: number }
+
 export class Reference {
+	public static fromJSON({ index }: ReferenceObject): Reference {
+		return new Reference(index)
+	}
+
 	constructor(readonly index: number) {
 		Object.freeze(this)
 	}
+
 	public get kind(): "reference" {
 		return "reference"
+	}
+
+	public toJSON(): ReferenceObject {
+		return { kind: "reference", index: this.index }
 	}
 }
 
@@ -43,12 +82,23 @@ export const reference = (type: Schema.Reference, index: number) =>
 export const isReference = (value: Value): value is Reference =>
 	value.kind === "reference"
 
+type UriObject = { kind: "uri"; value: string }
+
 export class Uri<Value extends string = string> {
+	public static fromJSON({ value }: UriObject): Uri<string> {
+		return new Uri(value)
+	}
+
 	constructor(readonly value: Value) {
 		Object.freeze(this)
 	}
+
 	public get kind(): "uri" {
 		return "uri"
+	}
+
+	public toJSON(): UriObject {
+		return { kind: "uri", value: this.value }
 	}
 }
 
@@ -60,12 +110,23 @@ export const uri = <Value extends string = string>(
 export const isUri = (value: Value): value is Uri<string> =>
 	value.kind === "uri"
 
+type LiteralObject = { kind: "literal"; value: string }
+
 export class Literal {
+	public static fromJSON({ value }: LiteralObject): Literal {
+		return new Literal(value)
+	}
+
 	constructor(readonly value: string) {
 		Object.freeze(this)
 	}
+
 	public get kind(): "literal" {
 		return "literal"
+	}
+
+	public toJSON(): LiteralObject {
+		return { kind: "literal", value: this.value }
 	}
 }
 
@@ -77,9 +138,17 @@ export const literal = <Datatype extends string = string>(
 export const isLiteral = (value: Value): value is Literal =>
 	value.kind === "literal"
 
+type ProductObject = { kind: "product"; components: ValueObject[] }
+
 export class Product<
 	Components extends Record<string, Schema.Type> = Record<string, Schema.Type>
 > extends Array<Value<Components[keyof Components]>> {
+	public static fromJSON({
+		components,
+	}: ProductObject): Product<Record<string, Schema.Type>> {
+		return new Product(components.map(fromJSON))
+	}
+
 	public get kind(): "product" {
 		return "product"
 	}
@@ -89,7 +158,11 @@ export class Product<
 		Object.freeze(this)
 	}
 
-	get<K extends keyof Components>(
+	public toJSON(): ProductObject {
+		return { kind: "product", components: this.map((value) => value.toJSON()) }
+	}
+
+	public get<K extends keyof Components>(
 		type: Schema.Product<Components>,
 		key: K
 	): Value<Components[K]> {
@@ -120,17 +193,29 @@ export const unit = (type: Schema.Unit) => new Product<{}>([])
 export const isUnit = (value: Value): value is Product<{}> =>
 	value.kind === "product" && value.length === 0
 
+type CoproductObject = { kind: "coproduct"; index: number; value: ValueObject }
+
 export class Coproduct<
 	Options extends Record<string, Schema.Type> = Record<string, Schema.Type>,
 	Option extends keyof Options = keyof Options
 > {
+	public static fromJSON({ index, value }: CoproductObject) {
+		return new Coproduct(index, fromJSON(value))
+	}
+
 	constructor(readonly index: number, readonly value: Value<Options[Option]>) {
 		Object.freeze(this)
 	}
+
 	public get kind(): "coproduct" {
 		return "coproduct"
 	}
-	key(type: Schema.Coproduct<Options>): Option {
+
+	public toJSON(): CoproductObject {
+		return { kind: "coproduct", index: this.index, value: this.value.toJSON() }
+	}
+
+	public key(type: Schema.Coproduct<Options>): Option {
 		const keys = getKeys(type.options)
 		if (this.index in keys) {
 			return keys[this.index] as Option
@@ -138,7 +223,8 @@ export class Coproduct<
 			throw new Error(`Index out of range: ${this.index}`)
 		}
 	}
-	is<Key extends keyof Options>(
+
+	public is<Key extends keyof Options>(
 		type: Schema.Coproduct<Options>,
 		key: Key
 	): this is Coproduct<Options, Key> {

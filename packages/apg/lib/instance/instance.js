@@ -1,17 +1,43 @@
-import { forEntries, getKeyIndex, getKeys } from "../utils.js";
+import { forEntries, getKeyIndex, getKeys, signalInvalidType, } from "../utils.js";
 export const instance = (schema, instance) => {
     for (const [_, values] of forEntries(instance)) {
         Object.freeze(values);
     }
     return Object.freeze(instance);
 };
+export function fromJSON(value) {
+    if (value.kind === "reference") {
+        return Reference.fromJSON(value);
+    }
+    else if (value.kind === "uri") {
+        return Uri.fromJSON(value);
+    }
+    else if (value.kind === "literal") {
+        return Literal.fromJSON(value);
+    }
+    else if (value.kind === "product") {
+        return Product.fromJSON(value);
+    }
+    else if (value.kind === "coproduct") {
+        return Coproduct.fromJSON(value);
+    }
+    else {
+        signalInvalidType(value);
+    }
+}
 export class Reference {
     constructor(index) {
         this.index = index;
         Object.freeze(this);
     }
+    static fromJSON({ index }) {
+        return new Reference(index);
+    }
     get kind() {
         return "reference";
+    }
+    toJSON() {
+        return { kind: "reference", index: this.index };
     }
 }
 export const reference = (type, index) => new Reference(index);
@@ -21,8 +47,14 @@ export class Uri {
         this.value = value;
         Object.freeze(this);
     }
+    static fromJSON({ value }) {
+        return new Uri(value);
+    }
     get kind() {
         return "uri";
+    }
+    toJSON() {
+        return { kind: "uri", value: this.value };
     }
 }
 export const uri = (type, value) => new Uri(value);
@@ -32,19 +64,31 @@ export class Literal {
         this.value = value;
         Object.freeze(this);
     }
+    static fromJSON({ value }) {
+        return new Literal(value);
+    }
     get kind() {
         return "literal";
+    }
+    toJSON() {
+        return { kind: "literal", value: this.value };
     }
 }
 export const literal = (type, value) => new Literal(value);
 export const isLiteral = (value) => value.kind === "literal";
 export class Product extends Array {
+    static fromJSON({ components, }) {
+        return new Product(components.map(fromJSON));
+    }
     get kind() {
         return "product";
     }
     constructor(values) {
         super(...values);
         Object.freeze(this);
+    }
+    toJSON() {
+        return { kind: "product", components: this.map((value) => value.toJSON()) };
     }
     get(type, key) {
         const index = getKeyIndex(type.components, key);
@@ -66,8 +110,14 @@ export class Coproduct {
         this.value = value;
         Object.freeze(this);
     }
+    static fromJSON({ index, value }) {
+        return new Coproduct(index, fromJSON(value));
+    }
     get kind() {
         return "coproduct";
+    }
+    toJSON() {
+        return { kind: "coproduct", index: this.index, value: this.value.toJSON() };
     }
     key(type) {
         const keys = getKeys(type.options);

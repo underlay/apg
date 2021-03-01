@@ -1,0 +1,14 @@
+{
+	"extends": "../../tsconfig-base.json",
+	"include": ["src"],
+	"exclude": ["test"],
+	"compilerOptions": {
+		"rootDir": "./src",
+		"outDir": "./lib"
+	},
+	"references": [
+		{ "path": "../apg" },
+		{ "path": "../apg-format-binary" },
+		{ "path": "../apg-schema-schema" }
+	]
+}

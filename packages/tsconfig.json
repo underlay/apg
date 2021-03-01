@@ -2,6 +2,7 @@
 	"files": [],
 	"references": [
 		{ "path": "./apg" },
+		{ "path": "./apg-cli" },
 		{ "path": "./apg-codec-apg" },
 		{ "path": "./apg-codec-relational" },
 		{ "path": "./apg-codec-table" },
