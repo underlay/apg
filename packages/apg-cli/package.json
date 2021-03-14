@@ -30,13 +30,13 @@
 	"devDependencies": {
 		"@types/yargs": "^16.0.0",
 		"@underlay/apg": "^1.2.4",
-		"fp-ts": "^2.9.3",
+		"fp-ts": "2.9.5",
 		"io-ts": "^2.2.13",
 		"typescript": "^4.1.5"
 	},
 	"peerDependencies": {
 		"@underlay/apg": "^1.2.3",
-		"fp-ts": "^2.9.3",
+		"fp-ts": "2.9.5",
 		"io-ts": "^2.2.13"
 	},
 	"dependencies": {
