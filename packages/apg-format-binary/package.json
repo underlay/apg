@@ -24,7 +24,7 @@
 	"dependencies": {
 		"@types/signed-varint": "gist:b46025b5175e06c1586d714dc0960443",
 		"@types/varint": "^5.0.0",
-		"@underlay/namespaces": "0.0.2",
+		"@underlay/namespaces": "^0.0.3",
 		"bignumber.js": "^9.0.1",
 		"cbor": "^7.0.1",
 		"signed-varint": "^2.0.1",

@@ -33,6 +33,6 @@
 		"io-ts": "^2.2.13"
 	},
 	"dependencies": {
-		"@underlay/namespaces": "0.0.2"
+		"@underlay/namespaces": "^0.0.3"
 	}
 }

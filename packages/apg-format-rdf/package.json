@@ -26,7 +26,7 @@
 		"@types/rdf-canonize": "gist:dc406f4c567dcab1da98cf19b2b8a6d8",
 		"@types/rdf-js": "^4.0.1",
 		"@types/uuid": "^8.3.0",
-		"@underlay/namespaces": "0.0.2",
+		"@underlay/namespaces": "^0.0.3",
 		"n3": "^1.8.0",
 		"rdf-canonize": "^1.2.0",
 		"shex": "github:shexSpec/shex.js",
