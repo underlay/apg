@@ -26,7 +26,7 @@
 	},
 	"devDependencies": {
 		"@underlay/apg": "^1.2.4",
-		"typescript": "^4.1.5"
+		"typescript": "^4.2.3"
 	},
 	"peerDependencies": {
 		"@underlay/apg": "^1.2.3"
