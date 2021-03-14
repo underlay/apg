@@ -1,6 +1,5 @@
 import * as t from "io-ts";
 import { Schema } from "@underlay/apg";
-import { ul } from "@underlay/namespaces";
 declare const property: t.UnionC<[t.TypeC<{
     kind: t.LiteralC<"literal">;
     datatype: t.StringC;

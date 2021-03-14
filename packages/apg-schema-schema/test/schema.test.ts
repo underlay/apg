@@ -1,6 +1,12 @@
 import schemaSchema, { fromSchema, toSchema } from ".."
 
-import { isTypeEqual, validateValue, getKeys, zip } from "@underlay/apg"
+import {
+	Instance,
+	isTypeEqual,
+	validateValue,
+	getKeys,
+	zip,
+} from "@underlay/apg"
 import { ul } from "@underlay/namespaces"
 
 test("Round-trip schema schema to instance and back", () => {
@@ -8,7 +14,9 @@ test("Round-trip schema schema to instance and back", () => {
 
 	for (const key of getKeys(schemaSchema)) {
 		for (const value of instance[key]) {
-			expect(validateValue(schemaSchema[key], value))
+			expect(
+				validateValue(schemaSchema[key], (value as unknown) as Instance.Value)
+			)
 		}
 	}
 

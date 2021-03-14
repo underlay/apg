@@ -13,7 +13,7 @@ test("Tiny test", () => {
 
 test("Tiny test 2", () => {
 	const s = Schema.schema({ foo: Schema.product({}) })
-	const i: Instance.Instance<typeof s> = { foo: [Instance.unit()] }
+	const i: Instance.Instance<typeof s> = { foo: [Instance.unit(Schema.unit())] }
 	expect(validateInstance(s, i)).toBe(true)
 })
 

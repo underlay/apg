@@ -22,15 +22,15 @@ export const instance = <S extends Record<string, Schema.Type>>(
 }
 
 export type Value<T extends Schema.Type = Schema.Type> = T extends Schema.Uri
-	? Uri<string>
+	? Uri
 	: T extends Schema.Literal
 	? Literal
 	: T extends Schema.Product<infer Components>
 	? Product<Components>
 	: T extends Schema.Coproduct<infer Options>
 	? Coproduct<Options>
-	: T extends Schema.Reference
-	? Reference
+	: T extends Schema.Reference<infer T>
+	? Reference<T>
 	: never
 
 type ValueObject =
@@ -58,8 +58,8 @@ export function fromJSON(value: ValueObject): Value {
 
 type ReferenceObject = { kind: "reference"; index: number }
 
-export class Reference {
-	public static fromJSON({ index }: ReferenceObject): Reference {
+export class Reference<T extends string> {
+	public static fromJSON({ index }: ReferenceObject): Reference<string> {
 		return new Reference(index)
 	}
 
@@ -76,20 +76,22 @@ export class Reference {
 	}
 }
 
-export const reference = (type: Schema.Reference, index: number) =>
-	new Reference(index)
+export const reference = <T extends string>(
+	type: Schema.Reference<T>,
+	index: number
+) => new Reference<T>(index)
 
-export const isReference = (value: Value): value is Reference =>
+export const isReference = (value: Value): value is Reference<string> =>
 	value.kind === "reference"
 
 type UriObject = { kind: "uri"; value: string }
 
-export class Uri<Value extends string = string> {
-	public static fromJSON({ value }: UriObject): Uri<string> {
+export class Uri {
+	public static fromJSON({ value }: UriObject) {
 		return new Uri(value)
 	}
 
-	constructor(readonly value: Value) {
+	constructor(readonly value: string) {
 		Object.freeze(this)
 	}
 
@@ -102,13 +104,9 @@ export class Uri<Value extends string = string> {
 	}
 }
 
-export const uri = <Value extends string = string>(
-	type: Schema.Uri,
-	value: Value
-) => new Uri(value)
+export const uri = (type: Schema.Uri, value: string) => new Uri(value)
 
-export const isUri = (value: Value): value is Uri<string> =>
-	value.kind === "uri"
+export const isUri = (value: Value): value is Uri => value.kind === "uri"
 
 type LiteralObject = { kind: "literal"; value: string }
 

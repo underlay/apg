@@ -1,5 +1,4 @@
 import { Schema } from "@underlay/apg";
-import { ul } from "@underlay/namespaces";
 export declare const caseLabel: Schema.Product<{
     "http://underlay.org/ns/key": Schema.Uri;
     "http://underlay.org/ns/source": Schema.Reference<"http://underlay.org/ns/match">;

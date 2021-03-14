@@ -1,5 +1,4 @@
 import { Schema } from "@underlay/apg";
-import { ul } from "@underlay/namespaces";
 export declare const value: Schema.Coproduct<{
     "http://underlay.org/ns/reference": Schema.Reference<"http://underlay.org/ns/label">;
     "http://underlay.org/ns/uri": Schema.Product<{}>;

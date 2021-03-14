@@ -1,6 +1,5 @@
 import * as t from "io-ts";
 import { Schema } from "@underlay/apg";
-import { ul } from "@underlay/namespaces";
 export declare const property: t.UnionC<[t.TypeC<{
     kind: t.LiteralC<"reference">;
     value: t.StringC;

@@ -5,7 +5,6 @@ import { rdf, xsd } from "@underlay/namespaces"
 import { encode, log } from ".."
 
 import signedVarint from "signed-varint"
-import varint from "varint"
 
 test("xsd:boolean test", () => {
 	const s = Schema.schema({

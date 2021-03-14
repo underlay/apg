@@ -23,7 +23,6 @@
 	"homepage": "https://github.com/underlay/apg#readme",
 	"devDependencies": {
 		"@babel/core": "^7.13.10",
-		"@babel/plugin-proposal-export-namespace-from": "^7.12.13",
 		"@babel/plugin-transform-modules-commonjs": "^7.13.8",
 		"@babel/preset-typescript": "^7.13.0",
 		"@types/jest": "^26.0.20",

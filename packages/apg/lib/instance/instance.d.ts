@@ -3,35 +3,35 @@ export declare type Instance<S extends Record<string, Schema.Type> = Record<stri
     readonly [key in keyof S]: Value<S[key]>[];
 };
 export declare const instance: <S extends Record<string, Schema.Type>>(schema: S, instance: { [key in keyof S]: Value<S[key]>[]; }) => Instance<S>;
-export declare type Value<T extends Schema.Type = Schema.Type> = T extends Schema.Uri ? Uri<string> : T extends Schema.Literal ? Literal : T extends Schema.Product<infer Components> ? Product<Components> : T extends Schema.Coproduct<infer Options> ? Coproduct<Options> : T extends Schema.Reference ? Reference : never;
+export declare type Value<T extends Schema.Type = Schema.Type> = T extends Schema.Uri ? Uri : T extends Schema.Literal ? Literal : T extends Schema.Product<infer Components> ? Product<Components> : T extends Schema.Coproduct<infer Options> ? Coproduct<Options> : T extends Schema.Reference<infer T> ? Reference<T> : never;
 declare type ValueObject = UriObject | LiteralObject | ProductObject | CoproductObject | ReferenceObject;
 export declare function fromJSON(value: ValueObject): Value;
 declare type ReferenceObject = {
     kind: "reference";
     index: number;
 };
-export declare class Reference {
+export declare class Reference<T extends string> {
     readonly index: number;
-    static fromJSON({ index }: ReferenceObject): Reference;
+    static fromJSON({ index }: ReferenceObject): Reference<string>;
     constructor(index: number);
     get kind(): "reference";
     toJSON(): ReferenceObject;
 }
-export declare const reference: (type: Schema.Reference, index: number) => Reference;
-export declare const isReference: (value: Value) => value is Reference;
+export declare const reference: <T extends string>(type: Schema.Reference<T>, index: number) => Reference<T>;
+export declare const isReference: (value: Value) => value is Reference<string>;
 declare type UriObject = {
     kind: "uri";
     value: string;
 };
-export declare class Uri<Value extends string = string> {
-    readonly value: Value;
-    static fromJSON({ value }: UriObject): Uri<string>;
-    constructor(value: Value);
+export declare class Uri {
+    readonly value: string;
+    static fromJSON({ value }: UriObject): Uri;
+    constructor(value: string);
     get kind(): "uri";
     toJSON(): UriObject;
 }
-export declare const uri: <Value_1 extends string = string>(type: Schema.Uri, value: Value_1) => Uri<Value_1>;
-export declare const isUri: (value: Value) => value is Uri<string>;
+export declare const uri: (type: Schema.Uri, value: string) => Uri;
+export declare const isUri: (value: Value) => value is Uri;
 declare type LiteralObject = {
     kind: "literal";
     value: string;

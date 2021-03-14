@@ -8,7 +8,6 @@ import {
 	forEntries,
 	validateValue,
 	validateExpressions,
-	isTypeEqual,
 	isTypeAssignable,
 } from ".."
 
@@ -71,7 +70,7 @@ const M = Mapping.mapping({
 	]),
 })
 
-const TI: Instance.Instance = {
+const TI: Instance.Instance<typeof T> = {
 	"http://example.com/0": [
 		Instance.product(T["http://example.com/0"], {
 			"http://example.com/0.0": Instance.product(
@@ -97,14 +96,10 @@ const TI: Instance.Instance = {
 	],
 	"http://example.com/1": [
 		Instance.product(T["http://example.com/1"], {
-			"http://example.com/1.0": Instance.reference(
-				T["http://example.com/1"].components["http://example.com/1.0"],
+			"http://example.com/1.0": new Instance.Reference<"http://example.com/0">(
 				0
 			),
-			"http://example.com/1.1": Instance.uri(
-				T["http://example.com/1"].components["http://example.com/1.1"],
-				"http://bar.org/fantastic"
-			),
+			"http://example.com/1.1": new Instance.Uri("http://bar.org/fantastic"),
 		}),
 	],
 }
@@ -122,7 +117,9 @@ test("Validate morphisms", () => {
 test("Validate instance type", () => {
 	for (const [key, values] of forEntries(TI)) {
 		for (const value of values) {
-			expect(validateValue(T[key], value)).toBe(true)
+			expect(validateValue(T[key], (value as unknown) as Instance.Value)).toBe(
+				true
+			)
 		}
 	}
 })

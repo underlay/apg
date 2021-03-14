@@ -43,7 +43,7 @@ const M = Mapping.mapping({
 	]),
 })
 
-const TI: Instance.Instance = {
+const TI: Instance.Instance<typeof T> = {
 	"ex:n0": [
 		Instance.product(T["ex:n0"], {
 			"ex:n0/a": new Instance.Literal("foo"),
@@ -75,7 +75,9 @@ test("Validate morphisms", () => {
 test("Validate instance type", () => {
 	for (const [key, values] of forEntries(TI)) {
 		for (const value of values) {
-			expect(validateValue(T[key], value)).toBe(true)
+			expect(validateValue(T[key], (value as unknown) as Instance.Value)).toBe(
+				true
+			)
 		}
 	}
 })
