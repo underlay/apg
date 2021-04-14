@@ -1,6 +1,6 @@
 {
 	"name": "@underlay/apg-format-binary",
-	"version": "1.2.5",
+	"version": "1.2.6",
 	"type": "module",
 	"description": "Parse and serialize APG instances to and from a binary format",
 	"main": "lib/index.js",
@@ -35,7 +35,7 @@
 		"@babel/plugin-transform-modules-commonjs": "^7.13.8",
 		"@babel/preset-typescript": "^7.13.0",
 		"@types/jest": "^26.0.20",
-		"@underlay/apg": "^1.2.5",
+		"@underlay/apg": "^1.2.6",
 		"babel-jest": "^26.6.3",
 		"jest": "^26.6.3",
 		"typescript": "^4.2.3"
