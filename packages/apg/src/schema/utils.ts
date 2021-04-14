@@ -51,7 +51,7 @@ export function isTypeEqual(a: Schema.Type, b: Schema.Type) {
 		for (const [keyA, keyB] of zip(A, B)) {
 			if (keyA !== keyB) {
 				return false
-			} else if (isTypeEqual(a.components[keyA], a.components[keyB])) {
+			} else if (isTypeEqual(a.components[keyA], b.components[keyB])) {
 				continue
 			} else {
 				return false

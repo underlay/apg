@@ -48,7 +48,7 @@ export function isTypeEqual(a, b) {
             if (keyA !== keyB) {
                 return false;
             }
-            else if (isTypeEqual(a.components[keyA], a.components[keyB])) {
+            else if (isTypeEqual(a.components[keyA], b.components[keyB])) {
                 continue;
             }
             else {
