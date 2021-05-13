@@ -1,6 +1,6 @@
 import * as t from "io-ts"
 
-import { Schema, forEntries, forTypes } from "@underlay/apg"
+import { Schema, forTypes } from "@underlay/apg"
 
 export const reference: t.Type<Schema.Reference> = t.type({
 	kind: t.literal("reference"),
