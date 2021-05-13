@@ -1,5 +1,7 @@
 .vscode
 
+packages/*/lib/
+
 # Logs
 logs
 *.log
