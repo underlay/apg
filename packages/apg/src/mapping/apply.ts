@@ -25,10 +25,10 @@ export function apply(
 	} else if (expression.kind === "dereference") {
 		if (
 			source.kind === "reference" &&
-			source.value in S &&
-			source.value === expression.key
+			source.key in S &&
+			source.key === expression.key
 		) {
-			return S[source.value]
+			return S[source.key]
 		} else {
 			throw new Error("Invalid dereference morphism")
 		}

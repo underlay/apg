@@ -232,7 +232,7 @@ function fromType(
 	type: Schema.Type
 ) {
 	if (type.kind === "reference") {
-		return new Instance.Reference(getKeyIndex(schema, type.value))
+		return new Instance.Reference(getKeyIndex(schema, type.key))
 	} else if (type.kind === "uri") {
 		return Instance.unit(unit)
 	} else if (type.kind === "literal") {

@@ -4,7 +4,7 @@ import { Schema, forTypes } from "@underlay/apg"
 
 export const reference: t.Type<Schema.Reference> = t.type({
 	kind: t.literal("reference"),
-	value: t.string,
+	key: t.string,
 })
 
 export const uri: t.Type<Schema.Uri> = t.type({ kind: t.literal("uri") })
@@ -48,7 +48,7 @@ const codec: t.Type<Schema.Schema> = new t.Type(
 		// Check that references have valid referents
 		for (const [type, y] of forTypes(result.right)) {
 			if (type.kind === "reference") {
-				if (type.value in result.right) {
+				if (type.key in result.right) {
 					continue
 				} else {
 					return t.failure(type, context, "Invalid reference")

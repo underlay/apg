@@ -35,7 +35,7 @@ export function map(
 		const { key } = expression
 		if (
 			type.kind === "reference" &&
-			type.value === key &&
+			type.key === key &&
 			value.kind === "reference"
 		) {
 			if (key in SI && value.index in SI[key]) {

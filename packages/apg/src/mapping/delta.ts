@@ -83,15 +83,15 @@ function pullback(
 		// So now what?
 		// First we check to see if the value is in the index cache.
 		// (We're ultimately going to return a Instance.Reference for sure)
-		const index = state.indices[sourceType.value].get(imageValue)
+		const index = state.indices[sourceType.key].get(imageValue)
 		if (index !== undefined) {
 			return Instance.reference(sourceType, index)
 		} else {
 			// Otherwise, we map value along the morphism M2[sourceType.value].
 			// This gives us a value that is an instance of the image of the referenced type
 			// - ie an instance of fold(M1, T, S[sourceType.value])
-			const t = state.S[sourceType.value] // t is basically a "dereferenced source type"
-			const { value: expressions } = state.M[sourceType.value] // m is the map that will give us an instance of t
+			const t = state.S[sourceType.key] // t is basically a "dereferenced source type"
+			const { value: expressions } = state.M[sourceType.key] // m is the map that will give us an instance of t
 			// resultType and resultValue are the "dereferenced image type & value"
 			const [resultType, resultValue] = mapExpressions(
 				{ S: state.T, SI: state.TI },
@@ -100,10 +100,10 @@ function pullback(
 				imageValue
 			)
 			// here resultType should be equal to fold(M1, T, S[sourceType.value])
-			const index = state.SI[sourceType.value].push(placeholder) - 1
-			state.indices[sourceType.value].set(imageValue, index)
+			const index = state.SI[sourceType.key].push(placeholder) - 1
+			state.indices[sourceType.key].set(imageValue, index)
 			const p = pullback(state, t, resultType, resultValue)
-			state.SI[sourceType.value][index] = p
+			state.SI[sourceType.key][index] = p
 			return Instance.reference(sourceType, index)
 		}
 	} else if (Schema.isUri(sourceType)) {

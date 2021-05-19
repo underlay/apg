@@ -37,7 +37,7 @@ export function isTypeEqual(a: Schema.Type, b: Schema.Type) {
 	} else if (a.kind !== b.kind) {
 		return false
 	} else if (a.kind === "reference" && b.kind === "reference") {
-		return a.value === b.value
+		return a.key === b.key
 	} else if (a.kind === "uri" && b.kind === "uri") {
 		return true
 	} else if (a.kind === "literal" && b.kind === "literal") {
@@ -85,7 +85,7 @@ export function isTypeAssignable(a: Schema.Type, b: Schema.Type): boolean {
 	} else if (a.kind !== b.kind) {
 		return false
 	} else if (a.kind === "reference" && b.kind === "reference") {
-		return a.value === b.value
+		return a.key === b.key
 	} else if (a.kind === "uri" && b.kind === "uri") {
 		return true
 	} else if (a.kind === "literal" && b.kind === "literal") {
@@ -123,7 +123,7 @@ export function unify(a: Schema.Type, b: Schema.Type): Schema.Type {
 	if (a === b) {
 		return b
 	} else if (a.kind === "reference" && b.kind === "reference") {
-		if (a.value === b.value) {
+		if (a.key === b.key) {
 			return b
 		}
 	} else if (a.kind === "uri" && b.kind === "uri") {

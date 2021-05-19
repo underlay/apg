@@ -2,7 +2,11 @@
 
 > Algebraic Property Graphs
 
-This is an implementation of an _algebraic data model_, generally adapted from [this paper](https://arxiv.org/abs/1909.04881). This repo has type definitions for schemas, values, and mappings (schema-to-schema transformations) for the data model, along with functions for creating, manipulating, type-checking, and applying them.
+```
+npm i @underlay/apg
+```
+
+[@underlay/apg](/underlay/apg) is a TypeScript implementation of an _algebraic graph data model_, generally adapted from [this paper](https://arxiv.org/abs/1909.04881) by Shinavier and Wisnesky. This repo has type definitions for schemas, values, and mappings (schema-to-schema transformations) for the data model, along with functions for creating, manipulating, validating, and applying them.
 
 Schemas are _self-hosting_, which means that schemas themselves are serialized as instances of a "schema schema".
 
@@ -44,7 +48,7 @@ There are a few different kinds of types. Primitive (or "scalar") types are are 
 
 | Type      |   Kind    |                       Interpretation |
 | --------- | :-------: | -----------------------------------: |
-| reference | reference |            label, pointer, recursion |
+| reference | primitive |            label, pointer, recursion |
 | uri       | primitive | RDF Named Nodes, "identifier", "key" |
 | literal   | primitive |                RDF Literals, "value" |
 | product   | composite |         tuple, record, struct, "AND" |
@@ -56,22 +60,20 @@ Except for references, there can't be any cycles in the "type tree" - for exampl
 
 So how does this all represented?
 
-A schema is a map from URI keys to `Type` values:
+A schema is a map from URI keys to `Type` values, and there are five kinds of types.
 
 ```typescript
-type Schema = { [key: string]: Type }
-```
+namespace Schema {
+	type Schema = Record<string, Type>
 
-There are five kinds of types:
+	type Type = Reference | Uri | Literal | Product | Coproduct
 
-```typescript
-type Type = Reference | Uri | Literal | Product | Coproduct
-
-type Reference = { type: "reference"; value: string }
-type Uri = { type: "uri" }
-type Literal = { type: "literal"; datatype: string }
-type Product = { type: "product"; components: { [key: string]: Type } }
-type Coproduct = { type: "coproduct"; options: { [key: string]: Type } }
+	type Reference = { kind: "reference"; value: string }
+	type Uri = { kind: "uri" }
+	type Literal = { kind: "literal"; datatype: string }
+	type Product = { kind: "product"; components: { [key: string]: Type } }
+	type Coproduct = { kind: "coproduct"; options: { [key: string]: Type } }
+}
 ```
 
 The "parts" of a product type are called _components_, and the parts of a coproduct type are called _options_.
@@ -81,43 +83,15 @@ The "parts" of a product type are called _components_, and the parts of a coprod
 So we've seen how schemas and types are represented - what do _values of those types_ look like?
 
 ```typescript
-type Value =
-	| N3.NamedNode // Uri value
-	| N3.Literal // Literal value
-	| Record // Product value
-	| Variant // Coproduct value
-	| Pointer // Reference value
-```
+namespace Instance {
+	type Value = Reference | Uri | Literal | Product | Coproduct
 
-The primitives are easy: URI types have named nodes as values, and literal types have literals as values.
+	type Reference = { kind: "reference"; index: number }
+	type Uri = { kind: "uri"; value: string }
+	type Literal = { kind: "literal"; value: string }
+	type Product = { kind: "product"; components: Record<string, Value> }
+	type Coproduct = { kind: "coproduct"; option: string; value: Value }
 
-The composite types are simple classes
-
-```typescript
-class Record extends Array<Value> {
-	constructor(readonly components: readonly string[], values: Iterable<Value>) {
-		super(values)
-	}
-	get termType() {
-		return "Record"
-	}
-}
-
-class Variant {
-	constructor(
-		readonly options: string[],
-		readonly option: string,
-		readonly value: Value
-	) {}
-	get termType() {
-		return "Variant"
-	}
-}
-
-class Pointer {
-	constructor(readonly index: number)
-	get termType() {
-		return "Pointer"
-	}
+	type Instance = Record<string, Value[]>
 }
 ```

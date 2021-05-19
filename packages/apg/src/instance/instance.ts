@@ -1,4 +1,4 @@
-import * as Schema from "../schema/schema.js"
+import type * as Schema from "../schema/schema.js"
 
 import {
 	forEntries,

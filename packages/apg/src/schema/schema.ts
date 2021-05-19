@@ -12,11 +12,11 @@ export type Type = Uri | Literal | Product | Coproduct | Reference
 
 export interface Reference<T extends string = string> {
 	readonly kind: "reference"
-	readonly value: T
+	readonly key: T
 }
 
-export const reference = <T extends string>(value: T): Reference<T> =>
-	Object.freeze({ kind: "reference", value })
+export const reference = <T extends string>(key: T): Reference<T> =>
+	Object.freeze({ kind: "reference", key })
 
 export const isReference = (type: Type): type is Reference =>
 	type.kind === "reference"

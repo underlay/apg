@@ -33,7 +33,7 @@ export function fold(
 	type: Schema.Type
 ): Schema.Type {
 	if (type.kind === "reference") {
-		const { source } = M[type.value]
+		const { source } = M[type.key]
 		const value = T[source]
 		if (value === undefined) {
 			throw new Error("Invalid reference index")
