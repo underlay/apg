@@ -4,27 +4,15 @@ import * as Instance from "../instance/instance.js"
 
 import { signalInvalidType, getKeys } from "../utils.js"
 
-export const mapExpressions = (
-	{ S, SI }: { S: Schema.Schema; SI: Instance.Instance },
-	expressions: readonly Mapping.Expression[],
-	type: Schema.Type,
-	value: Instance.Value
-): [Schema.Type, Instance.Value] =>
-	expressions.reduce(
-		(
-			[type, value]: [Schema.Type, Instance.Value],
-			expression: Mapping.Expression
-		) => map({ S, SI }, expression, type, value),
-		[type, value]
-	)
-
 export function map(
 	{ S, SI }: { S: Schema.Schema; SI: Instance.Instance },
 	expression: Mapping.Expression,
 	type: Schema.Type,
 	value: Instance.Value
 ): [Schema.Type, Instance.Value] {
-	if (expression.kind === "identifier") {
+	if (expression.kind === "identity") {
+		return [type, value]
+	} else if (expression.kind === "identifier") {
 		return [Schema.uri(), new Instance.Uri(expression.value)]
 	} else if (expression.kind === "constant") {
 		return [
@@ -60,7 +48,7 @@ export function map(
 		if (type.kind === "coproduct" && value.kind === "coproduct") {
 			const key = value.key(type)
 			if (key in expression.cases) {
-				return mapExpressions(
+				return map(
 					{ S, SI },
 					expression.cases[key],
 					type.options[key],
@@ -77,7 +65,7 @@ export function map(
 		const values: Record<string, Instance.Value> = {}
 		for (const key of getKeys(expression.slots)) {
 			const slot = expression.slots[key]
-			const [t, v] = mapExpressions({ S, SI }, slot, type, value)
+			const [t, v] = map({ S, SI }, slot, type, value)
 			types[key] = t
 			values[key] = v
 		}

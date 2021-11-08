@@ -3,7 +3,7 @@ import * as Schema from "../schema/schema.js"
 import * as Instance from "../instance/instance.js"
 
 import { signalInvalidType, getKeys, mapKeys } from "../utils.js"
-import { mapExpressions } from "./map.js"
+import { map } from "./map.js"
 
 export function delta(
 	M: Mapping.Mapping,
@@ -20,7 +20,7 @@ export function delta(
 			throw new Error("Invalid mapping")
 		}
 
-		const { source, value: expressions } = M[key]
+		const { source, value: expression } = M[key]
 		if (!(source in TI)) {
 			throw new Error("Invalid instance")
 		}
@@ -29,9 +29,9 @@ export function delta(
 			if (indices[key].has(value)) {
 				continue
 			} else {
-				const [imageType, imageValue] = mapExpressions(
+				const [imageType, imageValue] = map(
 					{ S: T, SI: TI },
-					expressions,
+					expression,
 					T[source],
 					value
 				)
@@ -91,11 +91,11 @@ function pullback(
 			// This gives us a value that is an instance of the image of the referenced type
 			// - ie an instance of fold(M1, T, S[sourceType.value])
 			const t = state.S[sourceType.key] // t is basically a "dereferenced source type"
-			const { value: expressions } = state.M[sourceType.key] // m is the map that will give us an instance of t
+			const { value: expression } = state.M[sourceType.key] // m is the map that will give us an instance of t
 			// resultType and resultValue are the "dereferenced image type & value"
-			const [resultType, resultValue] = mapExpressions(
+			const [resultType, resultValue] = map(
 				{ S: state.T, SI: state.TI },
-				expressions,
+				expression,
 				imageType,
 				imageValue
 			)
